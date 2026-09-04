@@ -1,0 +1,83 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: robot-home-collector
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  flyway:
+    enabled: true
+    # 已有数据库使用 baseline-on-migrate，新数据库从 V1 开始
+    baseline-on-migrate: true
+    baseline-version: "1"
+    # 迁移脚本位置
+    locations: classpath:db/migration
+    # 迁移失败时阻止应用启动
+    fail-fast: true
+    # 校验迁移脚本校验和
+    validate-on-migrate: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  redis:
+    host: ${SPRING_REDIS_HOST}
+    port: ${SPRING_REDIS_PORT:6379}
+    password: ${SPRING_REDIS_PASSWORD}
+    database: 1
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 采集器配置
+crawler:
+  # API Key：生产环境必须通过环境变量 CRAWLER_API_KEY 设置
+  # dev-mode=true 时允许为空（仅本地调试），dev-mode=false 时必须非空
+  api-key: ${CRAWLER_API_KEY:}
+  # 开发模式：设为 true 跳过 API Key 认证，仅用于本地调试，生产必须为 false
+  dev-mode: ${CRAWLER_DEV_MODE:false}
+  max-depth: 3
+  max-urls-per-task: 1000
+  thread-count: 3
+  respect-robots: true
+  min-interval: 1000
+  max-retries: 3
+  retry-base-interval: 1000
+  connect-timeout: 10000
+  read-timeout: 30000
+  user-agent: "RobotHomeCrawler/1.0 (https://robot-home.example.com)"
+  image:
+    storage-type: local
+    local-path: /tmp/crawler/images
+  browser:
+    enabled: false
+    wait-after-load: 2000
+
+logging:
+  level:
+    com.robot.home.collector: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

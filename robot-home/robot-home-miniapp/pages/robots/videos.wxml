@@ -1,0 +1,10 @@
+<view class="rh-container">
+  <view class="media-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+    <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+    <view class="media-row__body">
+      <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+      <view class="rh-text-light">{{item.durationText}}</view>
+    </view>
+  </view>
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无视频</view>
+</view>

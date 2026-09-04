@@ -1,0 +1,6 @@
+.tip { color:#1668dc; font-weight:500; }
+.form input, .form textarea {
+  background:#f7f8fa; border-radius:12rpx; padding:20rpx; margin-bottom:16rpx; font-size:28rpx; width:100%; box-sizing:border-box;
+}
+.form textarea { min-height:200rpx; }
+.label { font-size:24rpx; color:#86909c; margin-bottom:8rpx; }

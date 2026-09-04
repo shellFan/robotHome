@@ -1,0 +1,29 @@
+<view class="rh-container">
+  <view class="logo">机器人之家</view>
+  <view class="modes">
+    <text class="{{mode==='password'?'on':''}}" data-mode="password" bindtap="switchMode">账号密码</text>
+    <text class="{{mode==='sms'?'on':''}}" data-mode="sms" bindtap="switchMode">短信登录</text>
+    <text class="{{mode==='wx'?'on':''}}" data-mode="wx" bindtap="switchMode">开发登录</text>
+  </view>
+
+  <view class="rh-card" wx:if="{{mode==='password'}}">
+    <input placeholder="用户名 / 手机号" value="{{username}}" bindinput="onUsername" />
+    <input password placeholder="密码" value="{{password}}" bindinput="onPassword" />
+    <button class="rh-btn rh-btn--block" bindtap="loginPassword" loading="{{submitting}}">登录</button>
+  </view>
+
+  <view class="rh-card" wx:elif="{{mode==='sms'}}">
+    <input type="number" maxlength="11" placeholder="手机号" value="{{phone}}" bindinput="onPhone" />
+    <view class="sms-row">
+      <input type="number" placeholder="验证码" value="{{code}}" bindinput="onCode" />
+      <button class="rh-btn rh-btn--ghost" size="mini" bindtap="sendCode">{{countdown>0?countdown+'s':'获取验证码'}}</button>
+    </view>
+    <button class="rh-btn rh-btn--block" bindtap="loginSms" loading="{{submitting}}">登录</button>
+  </view>
+
+  <view class="rh-card" wx:else>
+    <view class="hint">无真实 AppID 时，可填写任意 openid（如 dev_openid_xxx）调用 /auth/wx-login</view>
+    <input placeholder="openid" value="{{openid}}" bindinput="onOpenid" />
+    <button class="rh-btn rh-btn--block" bindtap="loginWx" loading="{{submitting}}">微信开发登录</button>
+  </view>
+</view>

@@ -1,0 +1,5 @@
+.types { white-space:nowrap; background:#fff; padding:16rpx 24rpx; }
+.types .chip { display:inline-block; margin-right:12rpx; }
+.rank { width:48rpx; text-align:center; font-weight:700; color:#86909c; font-size:32rpx; margin-right:8rpx; line-height:120rpx; }
+.rank--top { color:#1668dc; }
+.robot-row { align-items:center; }

@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="header rh-card" bindtap="{{isLogin?'':'goLogin'}}">
+    <block wx:if="{{isLogin && user}}">
+      <image class="avatar" src="{{user.avatar}}" />
+      <view>
+        <view class="name">{{user.nickname || user.username || '用户'}}</view>
+        <view class="rh-text-light">{{user.phone || '已登录'}}</view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="avatar placeholder">?</view>
+      <view>
+        <view class="name">点击登录</view>
+        <view class="rh-text-light">登录后同步收藏、足迹与询价</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="stats rh-card" wx:if="{{stats}}">
+    <view class="stat"><text class="n">{{stats.favoriteCount || 0}}</text><text>收藏</text></view>
+    <view class="stat"><text class="n">{{stats.historyCount || 0}}</text><text>足迹</text></view>
+    <view class="stat"><text class="n">{{stats.postCount || 0}}</text><text>帖子</text></view>
+  </view>
+
+  <view class="menu rh-card">
+    <view class="item" bindtap="goFavorites">我的收藏 ›</view>
+    <view class="item" bindtap="goHistory">浏览足迹 ›</view>
+    <view class="item" bindtap="goPosts">我的帖子 ›</view>
+    <view class="item" bindtap="goInquiries">我的询价 ›</view>
+    <view class="item" bindtap="goSettings">设置 ›</view>
+  </view>
+</view>

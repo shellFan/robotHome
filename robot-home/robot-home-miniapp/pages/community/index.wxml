@@ -1,0 +1,23 @@
+<view>
+  <scroll-view scroll-x class="circles">
+    <text class="chip {{!circleId?'chip--on':''}}" data-id="" bindtap="switchCircle">全部</text>
+    <text class="chip {{circleId==item.id?'chip--on':''}}" wx:for="{{circles}}" wx:key="id" data-id="{{item.id}}" bindtap="switchCircle">{{item.name}}</text>
+  </scroll-view>
+  <view class="rh-container">
+    <view class="post rh-card" wx:for="{{posts}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="post__user">
+        <image src="{{item.avatar}}" />
+        <view>
+          <view class="name">{{item.nickname || item.username || '用户'}}</view>
+          <view class="rh-text-light">{{item.timeText}}</view>
+        </view>
+      </view>
+      <view class="post__title">{{item.title || item.content}}</view>
+      <view class="post__content rh-clamp-2" wx:if="{{item.title}}">{{item.content}}</view>
+      <image wx:if="{{item.cover}}" class="post__cover" src="{{item.cover}}" mode="aspectFill" />
+      <view class="post__meta rh-text-light">👍 {{item.likeText}} · 💬 {{item.commentText}}</view>
+    </view>
+    <view wx:if="{{!posts.length && !loading}}" class="rh-empty">暂无帖子</view>
+  </view>
+  <view class="fab" bindtap="goCreate">发帖</view>
+</view>

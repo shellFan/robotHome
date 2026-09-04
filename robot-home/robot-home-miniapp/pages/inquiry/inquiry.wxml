@@ -1,0 +1,14 @@
+<view class="rh-container">
+  <view class="tip rh-card" wx:if="{{robotName}}">询价产品：{{robotName}}</view>
+  <view class="rh-card form">
+    <view class="label">联系人 *</view>
+    <input placeholder="您的姓名" value="{{contactName}}" bindinput="onName" />
+    <view class="label">手机号 *</view>
+    <input type="number" maxlength="11" placeholder="联系电话" value="{{phone}}" bindinput="onPhone" />
+    <view class="label">公司</view>
+    <input placeholder="公司名称（可选）" value="{{company}}" bindinput="onCompany" />
+    <view class="label">需求说明 *</view>
+    <textarea placeholder="请描述采购数量、应用场景等" value="{{content}}" bindinput="onContent" maxlength="500" />
+  </view>
+  <button class="rh-btn rh-btn--block" bindtap="submit" loading="{{submitting}}">提交询价</button>
+</view>

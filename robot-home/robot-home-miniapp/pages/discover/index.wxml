@@ -1,0 +1,41 @@
+<view>
+  <view class="tab-filter">
+    <view class="tab-filter__item {{tab==='articles'?'tab-filter__item--on':''}}" data-tab="articles" bindtap="switchTab">资讯</view>
+    <view class="tab-filter__item {{tab==='videos'?'tab-filter__item--on':''}}" data-tab="videos" bindtap="switchTab">视频</view>
+    <view class="tab-filter__item {{tab==='tutorials'?'tab-filter__item--on':''}}" data-tab="tutorials" bindtap="switchTab">教程</view>
+  </view>
+  <view class="rh-container">
+    <view class="more-link" bindtap="goMore">查看完整列表 ›</view>
+    <block wx:if="{{tab==='articles'}}">
+      <view class="media-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body">
+          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+          <view class="rh-text-light">{{item.dateText}} · {{item.viewText}} 阅读</view>
+        </view>
+      </view>
+      <view wx:if="{{!articles.length && !loading}}" class="rh-empty">暂无资讯</view>
+    </block>
+    <block wx:elif="{{tab==='videos'}}">
+      <view class="media-row" wx:for="{{videos}}" wx:key="id" bindtap="goVideo" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body">
+          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+          <view class="rh-text-light">{{item.durationText}} · {{item.viewText}} 播放</view>
+        </view>
+      </view>
+      <view wx:if="{{!videos.length && !loading}}" class="rh-empty">暂无视频</view>
+    </block>
+    <block wx:else>
+      <view class="media-row" wx:for="{{tutorials}}" wx:key="id" bindtap="goTutorial" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body">
+          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+          <view class="rh-text-light">{{item.dateText}}</view>
+        </view>
+      </view>
+      <view wx:if="{{!tutorials.length && !loading}}" class="rh-empty">暂无教程</view>
+    </block>
+    <view class="load-more">{{finished ? '没有更多了' : (loading ? '加载中...' : '')}}</view>
+  </view>
+</view>

@@ -1,0 +1,331 @@
+package com.robot.home.collector.fetcher;
+
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * HTTP抓取器
+ * 基于Jsoup HTTP客户端，支持：请求限速、重试、代理、自定义Headers
+ */
+@Component
+public class HttpFetcher {
+
+    private static final Logger log = LoggerFactory.getLogger(HttpFetcher.class);
+
+    private String userAgent;
+    private int timeout;
+    private int retryCount;
+    private long retryDelay;
+    private Proxy proxy;
+    private Map<String, String> defaultHeaders = new ConcurrentHashMap<>();
+    private Map<String, Long> lastFetchTime = new ConcurrentHashMap<>();
+    private long minInterval;
+
+    public HttpFetcher() {
+        this("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", 30000, 3, 2000, 1000);
+    }
+
+    public HttpFetcher(String userAgent, int timeout, int retryCount, long retryDelay, long minInterval) {
+        this.userAgent = userAgent;
+        this.timeout = timeout;
+        this.retryCount = retryCount;
+        this.retryDelay = retryDelay;
+        this.minInterval = minInterval;
+        initDefaultHeaders();
+    }
+
+    private void initDefaultHeaders() {
+        defaultHeaders.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        defaultHeaders.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        defaultHeaders.put("Accept-Encoding", "gzip, deflate");
+        defaultHeaders.put("Connection", "keep-alive");
+        defaultHeaders.put("Cache-Control", "max-age=0");
+    }
+
+    /**
+     * 抓取URL
+     */
+    public FetchResult fetch(String url) {
+        return fetch(url, null);
+    }
+
+    /**
+     * 抓取URL（带自定义Headers）
+     */
+    public FetchResult fetch(String url, Map<String, String> extraHeaders) {
+        // 限速
+        enforceRateLimit(url);
+
+        long startTime = System.currentTimeMillis();
+        FetchResult result = new FetchResult();
+        result.setUrl(url);
+
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= retryCount; attempt++) {
+            try {
+                Connection conn = buildConnection(url, extraHeaders);
+                Connection.Response response = conn.execute();
+
+                result.setStatusCode(response.statusCode());
+                result.setContentType(response.contentType());
+                result.setHtml(response.body());
+
+                // 记录响应头
+                for (Map.Entry<String, String> header : response.headers().entrySet()) {
+                    result.addHeader(header.getKey(), header.getValue());
+                }
+
+                // 处理重定向
+                if (response.statusCode() >= 300 && response.statusCode() < 400) {
+                    String location = response.header("Location");
+                    if (location != null) {
+                        result.setRedirectedUrl(location);
+                    }
+                }
+
+                long elapsed = System.currentTimeMillis() - startTime;
+                result.setFetchTimeMs(elapsed);
+                log.debug("Fetched {} -> {} ({}ms, attempt {})", url, response.statusCode(), elapsed, attempt);
+
+                // 记录最后抓取时间
+                lastFetchTime.put(getDomainKey(url), System.currentTimeMillis());
+
+                return result;
+
+            } catch (IOException e) {
+                lastException = e;
+                log.warn("Fetch attempt {}/{} failed for {}: {}", attempt, retryCount, url, e.getMessage());
+
+                if (attempt < retryCount) {
+                    try {
+                        Thread.sleep(retryDelay * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 所有重试失败
+        result.setError(lastException != null ? lastException.getMessage() : "Unknown error");
+        result.setFetchTimeMs(System.currentTimeMillis() - startTime);
+        log.error("All {} attempts failed for {}: {}", retryCount, url,
+                lastException != null ? lastException.getMessage() : "unknown");
+        return result;
+    }
+
+    /**
+     * 抓取二进制内容（用于图片等非文本资源）
+     */
+    public FetchResult fetchBinary(String url) {
+        return fetchBinary(url, null);
+    }
+
+    /**
+     * 抓取二进制内容（带自定义Headers）
+     */
+    public FetchResult fetchBinary(String url, Map<String, String> extraHeaders) {
+        enforceRateLimit(url);
+
+        long startTime = System.currentTimeMillis();
+        FetchResult result = new FetchResult();
+        result.setUrl(url);
+
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= retryCount; attempt++) {
+            try {
+                Connection conn = buildConnection(url, extraHeaders);
+                Connection.Response response = conn.execute();
+
+                result.setStatusCode(response.statusCode());
+                result.setContentType(response.contentType());
+                result.setBody(response.bodyAsBytes());
+
+                for (Map.Entry<String, String> header : response.headers().entrySet()) {
+                    result.addHeader(header.getKey(), header.getValue());
+                }
+
+                if (response.statusCode() >= 300 && response.statusCode() < 400) {
+                    String location = response.header("Location");
+                    if (location != null) {
+                        result.setRedirectedUrl(location);
+                    }
+                }
+
+                long elapsed = System.currentTimeMillis() - startTime;
+                result.setFetchTimeMs(elapsed);
+                log.debug("Fetched binary {} -> {} ({}ms, {} bytes, attempt {})",
+                        url, response.statusCode(), elapsed,
+                        result.getBody() != null ? result.getBody().length : 0, attempt);
+
+                lastFetchTime.put(getDomainKey(url), System.currentTimeMillis());
+                return result;
+
+            } catch (IOException e) {
+                lastException = e;
+                log.warn("Binary fetch attempt {}/{} failed for {}: {}", attempt, retryCount, url, e.getMessage());
+
+                if (attempt < retryCount) {
+                    try {
+                        Thread.sleep(retryDelay * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
+        result.setError(lastException != null ? lastException.getMessage() : "Unknown error");
+        result.setFetchTimeMs(System.currentTimeMillis() - startTime);
+        log.error("All {} binary fetch attempts failed for {}: {}", retryCount, url,
+                lastException != null ? lastException.getMessage() : "unknown");
+        return result;
+    }
+
+    /**
+     * 抓取并解析为Jsoup Document
+     */
+    public Document fetchDocument(String url) throws IOException {
+        return fetchDocument(url, null);
+    }
+
+    /**
+     * 抓取并解析为Jsoup Document（带自定义Headers）
+     */
+    public Document fetchDocument(String url, Map<String, String> extraHeaders) throws IOException {
+        enforceRateLimit(url);
+
+        Connection conn = buildConnection(url, extraHeaders);
+        Document doc = conn.get();
+
+        lastFetchTime.put(getDomainKey(url), System.currentTimeMillis());
+        return doc;
+    }
+
+    /**
+     * 检查URL是否可访问（HEAD请求）
+     */
+    public FetchResult head(String url) {
+        enforceRateLimit(url);
+
+        FetchResult result = new FetchResult();
+        result.setUrl(url);
+
+        try {
+            Connection conn = Jsoup.connect(url)
+                    .method(Connection.Method.HEAD)
+                    .userAgent(userAgent)
+                    .timeout(timeout)
+                    .followRedirects(true)
+                    .ignoreHttpErrors(true);
+
+            applyHeaders(conn, null);
+            if (proxy != null) {
+                conn.proxy(proxy);
+            }
+
+            Connection.Response response = conn.execute();
+            result.setStatusCode(response.statusCode());
+            result.setContentType(response.contentType());
+            for (Map.Entry<String, String> header : response.headers().entrySet()) {
+                result.addHeader(header.getKey(), header.getValue());
+            }
+        } catch (IOException e) {
+            result.setError(e.getMessage());
+        }
+
+        lastFetchTime.put(getDomainKey(url), System.currentTimeMillis());
+        return result;
+    }
+
+    /**
+     * 构建Jsoup连接
+     */
+    private Connection buildConnection(String url, Map<String, String> extraHeaders) {
+        Connection conn = Jsoup.connect(url)
+                .userAgent(userAgent)
+                .timeout(timeout)
+                .followRedirects(true)
+                .ignoreHttpErrors(true)
+                .ignoreContentType(true)
+                .maxBodySize(5 * 1024 * 1024); // 5MB
+
+        applyHeaders(conn, extraHeaders);
+
+        if (proxy != null) {
+            conn.proxy(proxy);
+        }
+
+        return conn;
+    }
+
+    /**
+     * 应用请求头
+     */
+    private void applyHeaders(Connection conn, Map<String, String> extraHeaders) {
+        for (Map.Entry<String, String> header : defaultHeaders.entrySet()) {
+            conn.header(header.getKey(), header.getValue());
+        }
+        if (extraHeaders != null) {
+            for (Map.Entry<String, String> header : extraHeaders.entrySet()) {
+                conn.header(header.getKey(), header.getValue());
+            }
+        }
+    }
+
+    /**
+     * 请求限速：确保同一域名两次请求间隔不小于minInterval
+     */
+    private void enforceRateLimit(String url) {
+        String domainKey = getDomainKey(url);
+        Long lastTime = lastFetchTime.get(domainKey);
+        if (lastTime != null) {
+            long elapsed = System.currentTimeMillis() - lastTime;
+            if (elapsed < minInterval) {
+                long wait = minInterval - elapsed;
+                log.debug("Rate limiting: waiting {}ms for {}", wait, domainKey);
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /**
+     * 提取域名作为限速key
+     */
+    private String getDomainKey(String url) {
+        try {
+            java.net.URL u = new java.net.URL(url);
+            return u.getHost();
+        } catch (Exception e) {
+            return url;
+        }
+    }
+
+    // Setters
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+    public void setTimeout(int timeout) { this.timeout = timeout; }
+    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public void setRetryDelay(long retryDelay) { this.retryDelay = retryDelay; }
+    public void setMinInterval(long minInterval) { this.minInterval = minInterval; }
+    public void setProxy(String host, int port) {
+        this.proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(host, port));
+    }
+    public void setProxy(Proxy proxy) { this.proxy = proxy; }
+    public void addDefaultHeader(String key, String value) { defaultHeaders.put(key, value); }
+}

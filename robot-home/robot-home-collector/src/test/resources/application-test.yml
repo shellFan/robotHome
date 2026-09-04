@@ -1,0 +1,37 @@
+# 采集器测试配置：H2内存库
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:robot_home_collector;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE
+    username: sa
+    password:
+  redis:
+    host: localhost
+    port: 6379
+  # 测试环境禁用 Flyway（使用 schema 脚本直接初始化）
+  flyway:
+    enabled: false
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+crawler:
+  api-key: test-api-key-for-unit-tests
+  dev-mode: false
+  max-depth: 2
+  max-urls-per-task: 100
+  thread-count: 1
+  respect-robots: false
+  min-interval: 100
+  max-retries: 1
+  connect-timeout: 5000
+  read-timeout: 10000

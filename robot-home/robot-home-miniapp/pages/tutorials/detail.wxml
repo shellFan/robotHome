@@ -1,0 +1,6 @@
+<view class="rh-container" wx:if="{{item}}">
+  <view class="title">{{item.title}}</view>
+  <view class="rh-text-light" style="margin:12rpx 0 20rpx">{{item.dateText}}</view>
+  <image wx:if="{{item.cover}}" class="cover" src="{{item.cover}}" mode="widthFix" />
+  <rich-text nodes="{{item.contentHtml}}"></rich-text>
+</view>

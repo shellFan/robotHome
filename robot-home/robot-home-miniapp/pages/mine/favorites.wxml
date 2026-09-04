@@ -1,0 +1,17 @@
+<view>
+  <view class="tab-filter">
+    <view class="tab-filter__item {{bizType==='robot'?'tab-filter__item--on':''}}" data-type="robot" bindtap="switchType">机器人</view>
+    <view class="tab-filter__item {{bizType==='article'?'tab-filter__item--on':''}}" data-type="article" bindtap="switchType">资讯</view>
+    <view class="tab-filter__item {{bizType==='video'?'tab-filter__item--on':''}}" data-type="video" bindtap="switchType">视频</view>
+  </view>
+  <view class="rh-container">
+    <view class="media-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-item="{{item}}">
+      <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+      <view class="media-row__body">
+        <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+        <view class="robot-row__price" wx:if="{{item.priceText && item.bizType==='robot'}}">{{item.priceText}}</view>
+      </view>
+    </view>
+    <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无收藏</view>
+  </view>
+</view>

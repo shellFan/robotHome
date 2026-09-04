@@ -1,0 +1,18 @@
+<view class="rh-container" wx:if="{{brand}}">
+  <view class="rh-card head">
+    <image src="{{brand.logo}}" mode="aspectFit" />
+    <view>
+      <view class="name">{{brand.name}}</view>
+      <view class="rh-text-light">{{brand.country || ''}} {{brand.intro || brand.description || ''}}</view>
+    </view>
+  </view>
+  <view class="rh-section-title" style="margin:16rpx 0">旗下机器人</view>
+  <view class="robot-row" wx:for="{{robots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+    <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
+    <view class="robot-row__body">
+      <view class="robot-row__name">{{item.name}}</view>
+      <view class="robot-row__price">{{item.priceText}}</view>
+    </view>
+  </view>
+  <view wx:if="{{!robots.length}}" class="rh-empty">暂无机器人</view>
+</view>

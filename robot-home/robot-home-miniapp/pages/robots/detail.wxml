@@ -1,0 +1,32 @@
+<view class="page safe-bottom" wx:if="{{robot}}">
+  <image class="hero" src="{{robot.cover}}" mode="aspectFill" bindtap="previewCover" />
+  <view class="rh-card info">
+    <view class="name">{{robot.name}}</view>
+    <view class="rh-text-light">{{robot.brandName || ''}} · {{robot.model || ''}}</view>
+    <view class="price">{{robot.priceText}}</view>
+    <view class="meta rh-text-light">浏览 {{robot.viewText}}</view>
+    <view class="params" wx:if="{{params.length}}">
+      <view class="param" wx:for="{{params}}" wx:key="label">
+        <text class="param__v">{{item.value}}</text>
+        <text class="param__k">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="rh-card links">
+    <view class="link" bindtap="goParams">参数配置 ›</view>
+    <view class="link" bindtap="goImages">高清图集 ›</view>
+    <view class="link" bindtap="goVideos">相关视频 ›</view>
+  </view>
+  <view class="rh-card" wx:if="{{robot.summary || robot.description}}">
+    <view class="rh-section-title" style="margin-bottom:12rpx">简介</view>
+    <text class="desc">{{robot.summary || robot.description}}</text>
+  </view>
+  <view class="bottom-bar">
+    <view class="ba" bindtap="onFavorite">{{favorited ? '已收藏' : '收藏'}}</view>
+    <view class="ba" bindtap="onCompare">{{inCompare ? '已对比' : '对比'}}</view>
+    <view class="ba" bindtap="goComparePage">去对比</view>
+    <button class="rh-btn inquire" bindtap="goInquiry">询价</button>
+  </view>
+</view>
+<view wx:elif="{{loading}}" class="rh-empty">加载中...</view>
+<view wx:else class="rh-empty">未找到该机器人</view>

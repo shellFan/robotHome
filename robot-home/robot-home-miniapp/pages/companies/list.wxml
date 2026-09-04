@@ -1,0 +1,16 @@
+<view>
+  <view class="toolbar">
+    <input placeholder="搜索企业" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" />
+    <text bindtap="onSearch">搜索</text>
+  </view>
+  <view class="rh-container">
+    <view class="row rh-card" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image src="{{item.logo}}" mode="aspectFit" />
+      <view class="body">
+        <view class="name rh-ellipsis">{{item.name}}</view>
+        <view class="rh-text-light rh-ellipsis">{{item.region || item.city || ''}} {{item.industry || ''}}</view>
+      </view>
+    </view>
+    <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无企业</view>
+  </view>
+</view>

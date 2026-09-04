@@ -1,0 +1,84 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/robots/list",
+    "pages/discover/index",
+    "pages/community/index",
+    "pages/mine/index",
+    "pages/robots/detail",
+    "pages/robots/params",
+    "pages/robots/images",
+    "pages/robots/videos",
+    "pages/compare/compare",
+    "pages/rankings/rankings",
+    "pages/brands/list",
+    "pages/brands/detail",
+    "pages/companies/list",
+    "pages/companies/detail",
+    "pages/articles/list",
+    "pages/articles/detail",
+    "pages/videos/list",
+    "pages/videos/detail",
+    "pages/tutorials/list",
+    "pages/tutorials/detail",
+    "pages/community/post-detail",
+    "pages/community/create",
+    "pages/search/search",
+    "pages/search/result",
+    "pages/inquiry/inquiry",
+    "pages/login/login",
+    "pages/mine/favorites",
+    "pages/mine/history",
+    "pages/mine/posts",
+    "pages/mine/inquiries",
+    "pages/mine/settings"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "机器人之家",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f6f8",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#86909c",
+    "selectedColor": "#1668dc",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/tab/home.png",
+        "selectedIconPath": "assets/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/robots/list",
+        "text": "选机器人",
+        "iconPath": "assets/tab/robot.png",
+        "selectedIconPath": "assets/tab/robot-active.png"
+      },
+      {
+        "pagePath": "pages/discover/index",
+        "text": "发现",
+        "iconPath": "assets/tab/discover.png",
+        "selectedIconPath": "assets/tab/discover-active.png"
+      },
+      {
+        "pagePath": "pages/community/index",
+        "text": "社区",
+        "iconPath": "assets/tab/community.png",
+        "selectedIconPath": "assets/tab/community-active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "assets/tab/mine.png",
+        "selectedIconPath": "assets/tab/mine-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

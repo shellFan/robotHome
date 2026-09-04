@@ -1,0 +1,104 @@
+<view class="page">
+  <view class="search-bar" bindtap="onSearchTap">
+    <text class="search-bar__icon">🔍</text>
+    <text class="search-bar__placeholder">搜索机器人、品牌、资讯</text>
+  </view>
+  <swiper wx:if="{{banners.length}}" class="banner" indicator-dots autoplay circular interval="4000">
+    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-item="{{item}}">
+      <image class="banner__img" src="{{item.image}}" mode="aspectFill" />
+      <view wx:if="{{item.title}}" class="banner__title">{{item.title}}</view>
+    </swiper-item>
+  </swiper>
+  <view wx:if="{{quickNav.length}}" class="rh-card cats">
+    <view class="cat" wx:for="{{quickNav}}" wx:key="id" bindtap="goRobots" data-id="{{item.id}}">
+      <view class="cat__name">{{item.name}}</view>
+      <view class="cat__sub rh-ellipsis">
+        <block wx:for="{{item.children}}" wx:for-item="child" wx:for-index="ci" wx:key="id" wx:if="{{ci < 2}}">
+          <text wx:if="{{ci > 0}}">·</text>{{child.name}}
+        </block>
+      </view>
+    </view>
+  </view>
+  <view class="quick-links rh-card">
+    <view class="ql" bindtap="goRankings"><text>排行榜</text></view>
+    <view class="ql" bindtap="goBrands"><text>品牌馆</text></view>
+    <view class="ql" bindtap="goCompare"><text>对比</text></view>
+    <navigator class="ql" url="/pages/companies/list"><text>企业</text></navigator>
+  </view>
+  <view class="rh-container" wx:if="{{!loading}}">
+    <view class="rh-section-head">
+      <text class="rh-section-title">热门机器人</text>
+      <text class="rh-more" bindtap="goRobots">查看全部 ›</text>
+    </view>
+    <view class="robot-grid">
+      <view class="robot-card" wx:for="{{hotRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+        <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+        <view class="robot-card__price">{{item.priceText}}</view>
+      </view>
+    </view>
+    <view class="rh-section-head" style="margin-top:24rpx">
+      <text class="rh-section-title">新品机器人</text>
+      <text class="rh-more" bindtap="goRobots">查看全部 ›</text>
+    </view>
+    <view class="robot-grid">
+      <view class="robot-card" wx:for="{{newRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+        <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+        <view class="robot-card__price">{{item.priceText}}</view>
+      </view>
+    </view>
+    <view class="rh-section-head" style="margin-top:24rpx" wx:if="{{rankings.length}}">
+      <text class="rh-section-title">排行榜</text>
+      <text class="rh-more" bindtap="goRankings">查看全部 ›</text>
+    </view>
+    <scroll-view wx:if="{{rankings.length}}" scroll-x class="rank-scroll">
+      <view class="rank-block" wx:for="{{rankings}}" wx:key="code">
+        <view class="rank-block__head">
+          <text>{{item.name}}</text>
+          <text class="rh-more" bindtap="goRankings" data-type="{{item.code}}">更多</text>
+        </view>
+        <view class="rank-row" wx:for="{{item.robots}}" wx:for-item="r" wx:key="id" bindtap="goRobot" data-id="{{r.id}}">
+          <text class="rank-no {{r.rank <= 3 ? 'rank-no--top' : ''}}">{{r.rank}}</text>
+          <text class="rh-ellipsis" style="flex:1">{{r.name}}</text>
+          <text class="rh-text-light">{{r.priceText}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="rh-section-head" style="margin-top:24rpx" wx:if="{{hotBrands.length}}">
+      <text class="rh-section-title">热门品牌</text>
+      <text class="rh-more" bindtap="goBrands">查看全部 ›</text>
+    </view>
+    <scroll-view wx:if="{{hotBrands.length}}" scroll-x class="brand-scroll">
+      <view class="brand-item" wx:for="{{hotBrands}}" wx:key="id" bindtap="goBrand" data-id="{{item.id}}">
+        <image src="{{item.logo}}" mode="aspectFit" />
+        <text class="rh-ellipsis">{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <view class="rh-section-head" style="margin-top:24rpx">
+      <text class="rh-section-title">行业资讯</text>
+      <text class="rh-more" bindtap="goArticles">查看全部 ›</text>
+    </view>
+    <view class="rh-card" style="padding:0 24rpx">
+      <view class="media-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body">
+          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+          <view class="rh-text-light">{{item.dateText}} · {{item.viewText}} 阅读</view>
+        </view>
+      </view>
+      <view wx:if="{{!articles.length}}" class="rh-empty">暂无资讯</view>
+    </view>
+    <view class="rh-section-head">
+      <text class="rh-section-title">视频</text>
+      <text class="rh-more" bindtap="goVideos">查看全部 ›</text>
+    </view>
+    <view class="video-grid">
+      <view class="video-card" wx:for="{{videos}}" wx:key="id" bindtap="goVideo" data-id="{{item.id}}">
+        <image src="{{item.cover}}" mode="aspectFill" />
+        <text class="rh-clamp-2">{{item.title}}</text>
+      </view>
+    </view>
+  </view>
+  <view wx:else class="rh-empty">加载中...</view>
+</view>

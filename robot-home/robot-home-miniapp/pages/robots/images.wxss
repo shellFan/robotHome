@@ -1,0 +1,2 @@
+.grid { display:flex; flex-wrap:wrap; gap:12rpx; }
+.grid image { width:calc(50% - 6rpx); height:240rpx; border-radius:12rpx; background:#f2f3f5; }

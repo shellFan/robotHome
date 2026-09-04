@@ -1,0 +1,163 @@
+# 机器人之家 — 本地开发全栈编排（生产环境请使用 docker-compose.prod.yml）
+# 使用：先构建前端 dist，再 docker compose up -d --build
+# ⚠️ 此文件包含硬编码凭据，仅用于本地开发，切勿用于生产！
+# MySQL 可换成远程库：注释掉 mysql 服务，并改 backend 的 SPRING_DATASOURCE_*
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: robot-home-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: robot_home
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./sql/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
+      - ./sql/03_demo_data.sql:/docker-entrypoint-initdb.d/03_demo_data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2
+    container_name: robot-home-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-31T20-20-58Z
+    container_name: robot-home-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./robot-home-server
+      dockerfile: Dockerfile
+    container_name: robot-home-backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      # 覆盖 application.yml 中的远程库配置，指向 compose 内服务
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/robot_home?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      # 默认本地磁盘；若改用 MinIO：FILE_STORAGE_TYPE=minio
+      FILE_STORAGE_TYPE: local
+      FILE_LOCAL_UPLOAD_DIR: /app/uploads
+      FILE_LOCAL_ACCESS_URL: /files
+      FILE_MINIO_ENDPOINT: http://minio:9000
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      FILE_MINIO_ACCESS_KEY: minioadmin
+      FILE_MINIO_SECRET_KEY: minioadmin
+      FILE_MINIO_BUCKET_NAME: robot-home
+      # ⚠️ 仅开发环境启用，生产必须设为 false
+      ROBOT_SMS_DEV_MODE: "true"
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/home/index?position=pc"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: robot-home-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - collector
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # 需先本地构建前端产物
+      - ./robot-home-web/dist:/usr/share/nginx/html/web:ro
+      - ./robot-home-admin/dist:/usr/share/nginx/html/admin:ro
+
+  collector:
+    build:
+      context: ./robot-home-collector
+      dockerfile: Dockerfile
+    container_name: robot-home-collector
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/robot_home?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      # ⚠️ 开发用硬编码凭据，生产环境必须通过 .env 覆盖
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      # 生产环境必须设置 CRAWLER_API_KEY，未设置时启动失败
+      CRAWLER_API_KEY: ${CRAWLER_API_KEY:?CRAWLER_API_KEY必须设置}
+      CRAWLER_DEV_MODE: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
+  uploads_data:

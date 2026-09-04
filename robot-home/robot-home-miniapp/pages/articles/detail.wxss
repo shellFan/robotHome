@@ -1,0 +1,10 @@
+.title { font-size:36rpx; font-weight:700; line-height:1.4; }
+.meta { margin:12rpx 0 20rpx; }
+.cover { width:100%; border-radius:12rpx; margin-bottom:20rpx; }
+.content { font-size:28rpx; line-height:1.8; color:#4e5969; }
+.actions { display:flex; gap:16rpx; margin-top:24rpx; }
+.comment-box { display:flex; gap:12rpx; align-items:center; margin-bottom:16rpx; }
+.comment-box input { flex:1; background:#fff; border-radius:32rpx; height:64rpx; padding:0 20rpx; font-size:26rpx; }
+.cmt { display:flex; gap:16rpx; background:#fff; border-radius:12rpx; padding:20rpx; margin-bottom:12rpx; }
+.cmt image { width:64rpx; height:64rpx; border-radius:50%; background:#f2f3f5; }
+.cmt__name { font-weight:600; margin-bottom:6rpx; font-size:26rpx; }

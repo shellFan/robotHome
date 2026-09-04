@@ -1,0 +1,11 @@
+<view class="rh-container" wx:if="{{video}}">
+  <video wx:if="{{video.playUrl}}" class="player" src="{{video.playUrl}}" poster="{{video.cover}}" controls show-center-play-btn></video>
+  <image wx:else class="player" src="{{video.cover}}" mode="aspectFill" />
+  <view class="title">{{video.title}}</view>
+  <view class="rh-text-light">{{video.durationText}} · {{video.viewText}} 播放</view>
+  <view class="desc" wx:if="{{video.description || video.summary}}">{{video.description || video.summary}}</view>
+  <view class="actions">
+    <button class="rh-btn rh-btn--plain" size="mini" bindtap="onLike">{{liked?'已点赞':'点赞'}}</button>
+    <button class="rh-btn rh-btn--plain" size="mini" bindtap="onFavorite">{{favorited?'已收藏':'收藏'}}</button>
+  </view>
+</view>

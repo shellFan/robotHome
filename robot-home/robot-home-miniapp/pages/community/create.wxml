@@ -1,0 +1,8 @@
+<view class="rh-container">
+  <picker mode="selector" range="{{circleNames}}" bindchange="onCircleChange">
+    <view class="field">圈子：{{circleName}}</view>
+  </picker>
+  <input class="field" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
+  <textarea class="area" placeholder="分享你的想法..." value="{{content}}" bindinput="onContent" maxlength="2000" />
+  <button class="rh-btn rh-btn--block" bindtap="submit" loading="{{submitting}}">发布</button>
+</view>

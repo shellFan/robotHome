@@ -1,0 +1,24 @@
+<view class="rh-container">
+  <view wx:if="{{empty}}" class="rh-empty">
+    <view>暂无对比机器人</view>
+    <button class="rh-btn" style="margin-top:24rpx" bindtap="goAdd">去选机器人</button>
+  </view>
+  <block wx:else>
+    <view class="actions">
+      <button class="rh-btn rh-btn--plain" size="mini" bindtap="goAdd">添加</button>
+      <button class="rh-btn rh-btn--ghost" size="mini" bindtap="clearAll">清空</button>
+    </view>
+    <scroll-view scroll-x class="cmp-scroll">
+      <view class="cmp-col" wx:for="{{robots}}" wx:key="id">
+        <image src="{{item.cover}}" mode="aspectFill" bindtap="goDetail" data-id="{{item.id}}" />
+        <view class="name rh-ellipsis" bindtap="goDetail" data-id="{{item.id}}">{{item.name}}</view>
+        <view class="price">{{item.priceText}}</view>
+        <view class="param" wx:for="{{item.params}}" wx:for-item="p" wx:key="label">
+          <text class="k">{{p.label}}</text>
+          <text class="v">{{p.value}}</text>
+        </view>
+        <button class="rh-btn rh-btn--plain" size="mini" data-id="{{item.id}}" bindtap="remove">移除</button>
+      </view>
+    </scroll-view>
+  </block>
+</view>

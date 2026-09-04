@@ -1,0 +1,7 @@
+{
+  "description": "机器人之家小程序本地配置",
+  "projectname": "robot-home-miniapp",
+  "setting": {
+    "urlCheck": false
+  }
+}

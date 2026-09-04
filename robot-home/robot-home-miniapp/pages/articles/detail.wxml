@@ -1,0 +1,24 @@
+<view class="rh-container" wx:if="{{article}}">
+  <view class="title">{{article.title}}</view>
+  <view class="rh-text-light meta">{{article.dateText}} · {{article.viewText}} 阅读</view>
+  <image wx:if="{{article.cover}}" class="cover" src="{{article.cover}}" mode="widthFix" />
+  <rich-text class="content" nodes="{{article.contentHtml}}"></rich-text>
+  <view class="actions">
+    <button class="rh-btn rh-btn--plain" size="mini" bindtap="onLike">{{liked?'已点赞':'点赞'}}</button>
+    <button class="rh-btn rh-btn--plain" size="mini" bindtap="onFavorite">{{favorited?'已收藏':'收藏'}}</button>
+  </view>
+  <view class="rh-section-title" style="margin:24rpx 0 12rpx">评论</view>
+  <view class="comment-box">
+    <input placeholder="说点什么..." value="{{commentText}}" bindinput="onCommentInput" />
+    <button class="rh-btn" size="mini" bindtap="submitComment">发送</button>
+  </view>
+  <view class="cmt" wx:for="{{comments}}" wx:key="id">
+    <image src="{{item.avatar}}" />
+    <view class="cmt__body">
+      <view class="cmt__name">{{item.nickname || item.username || '用户'}}</view>
+      <view>{{item.content}}</view>
+      <view class="rh-text-light">{{item.timeText}}</view>
+    </view>
+  </view>
+  <view wx:if="{{!comments.length}}" class="rh-empty">暂无评论</view>
+</view>

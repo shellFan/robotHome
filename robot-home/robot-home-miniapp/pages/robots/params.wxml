@@ -1,0 +1,11 @@
+<view class="rh-container">
+  <view class="rh-card" wx:for="{{groups}}" wx:key="name">
+    <view class="rh-section-title" style="margin-bottom:16rpx">{{item.name}}</view>
+    <view class="row" wx:for="{{item.items}}" wx:for-item="it" wx:key="label">
+      <text class="k">{{it.label}}</text>
+      <text class="v">{{it.value}}</text>
+    </view>
+  </view>
+  <view wx:if="{{!groups.length && !loading}}" class="rh-empty">暂无参数</view>
+  <view wx:if="{{loading}}" class="rh-empty">加载中...</view>
+</view>

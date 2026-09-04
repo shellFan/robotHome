@@ -1,0 +1,13 @@
+<view>
+  <view class="toolbar">
+    <input placeholder="搜索品牌" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" />
+    <text bindtap="onSearch">搜索</text>
+  </view>
+  <view class="grid rh-container">
+    <view class="item" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image src="{{item.logo}}" mode="aspectFit" />
+      <text class="rh-ellipsis">{{item.name}}</text>
+    </view>
+  </view>
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无品牌</view>
+</view>

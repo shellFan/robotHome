@@ -1,0 +1,44 @@
+.page { padding-bottom: 32rpx; }
+.search-bar {
+  margin: 16rpx 24rpx; background: #fff; border-radius: 40rpx; height: 72rpx;
+  display: flex; align-items: center; padding: 0 28rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,.04);
+}
+.search-bar__icon { margin-right: 12rpx; }
+.search-bar__placeholder { color: #a9aeb8; font-size: 26rpx; }
+.banner { height: 320rpx; margin: 0 24rpx 16rpx; border-radius: 16rpx; overflow: hidden; }
+.banner__img { width: 100%; height: 320rpx; }
+.banner__title {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 16rpx 20rpx;
+  background: linear-gradient(transparent, rgba(0,0,0,.55)); color: #fff; font-size: 26rpx;
+}
+.cats { margin: 0 24rpx 16rpx; display: flex; flex-wrap: wrap; gap: 16rpx; }
+.cat { width: calc(50% - 8rpx); background: #f7f8fa; border-radius: 12rpx; padding: 20rpx; box-sizing: border-box; }
+.cat__name { font-weight: 600; margin-bottom: 6rpx; }
+.cat__sub { font-size: 22rpx; color: #86909c; }
+.quick-links { margin: 0 24rpx 16rpx; display: flex; justify-content: space-around; padding: 20rpx 0; }
+.ql { text-align: center; font-size: 26rpx; color: #1668dc; }
+.robot-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.robot-card { width: calc(33.33% - 12rpx); background: #fff; border-radius: 12rpx; overflow: hidden; padding-bottom: 12rpx; }
+.robot-card__cover { width: 100%; height: 140rpx; background: #f2f3f5; }
+.robot-card__name { padding: 8rpx 12rpx 0; font-size: 24rpx; }
+.robot-card__price { padding: 4rpx 12rpx; color: #1668dc; font-size: 22rpx; font-weight: 600; }
+.rank-scroll { white-space: nowrap; }
+.rank-block {
+  display: inline-block; width: 520rpx; background: #fff; border-radius: 16rpx;
+  padding: 20rpx; margin-right: 16rpx; vertical-align: top; white-space: normal;
+}
+.rank-block__head { display: flex; justify-content: space-between; margin-bottom: 12rpx; font-weight: 600; }
+.rank-row { display: flex; align-items: center; gap: 12rpx; padding: 10rpx 0; font-size: 24rpx; }
+.rank-no { width: 36rpx; text-align: center; color: #86909c; font-weight: 600; }
+.rank-no--top { color: #1668dc; }
+.brand-scroll { white-space: nowrap; }
+.brand-item {
+  display: inline-flex; flex-direction: column; align-items: center; width: 140rpx;
+  margin-right: 16rpx; background: #fff; border-radius: 12rpx; padding: 16rpx 8rpx;
+}
+.brand-item image { width: 80rpx; height: 80rpx; }
+.brand-item text { font-size: 22rpx; margin-top: 8rpx; width: 100%; text-align: center; }
+.video-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.video-card { width: calc(50% - 8rpx); background: #fff; border-radius: 12rpx; overflow: hidden; }
+.video-card image { width: 100%; height: 180rpx; background: #f2f3f5; }
+.video-card text { display: block; padding: 12rpx; font-size: 24rpx; }

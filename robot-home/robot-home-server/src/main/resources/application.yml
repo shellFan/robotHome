@@ -1,0 +1,98 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /
+  tomcat:
+    uri-encoding: UTF-8
+    max-swallow-size: 10MB
+
+spring:
+  application:
+    name: robot-home-server
+  mvc:
+    # Springfox 3 需要 ANT 匹配策略（Spring Boot 2.6+ 默认改为 PATH_PATTERN_PARSER）
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+  redis:
+    host: ${SPRING_REDIS_HOST}
+    port: ${SPRING_REDIS_PORT:6379}
+    password: ${SPRING_REDIS_PASSWORD}
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 2
+        max-wait: 3000ms
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+
+# MyBatis-Plus
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.robot.home.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+# 文件存储配置
+file:
+  # local / minio
+  storage-type: local
+  local:
+    # 上传根目录（请保证可写）
+    upload-dir: ./uploads
+    # 访问前缀（Nginx 可反向代理到该路径）
+    access-url: /files
+  minio:
+    endpoint: ${FILE_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${FILE_MINIO_ACCESS_KEY}
+    secret-key: ${FILE_MINIO_SECRET_KEY}
+    bucket-name: robot-home
+
+# 业务配置
+robot:
+  # 登录失败最大重试次数（限流）
+  login-max-retry: 5
+  # 短信验证码有效期(秒)
+  sms-code-expire: 300
+  # 短信模式：生产环境必须为 false，仅开发环境设为 true
+  sms-dev-mode: ${ROBOT_SMS_DEV_MODE:false}
+  # 排行榜缓存时间(秒)
+  ranking-cache: 600
+
+# 管理后台
+admin:
+  # 初始管理员账号
+  init-username: admin
+  init-password: ${ADMIN_INIT_PASSWORD}

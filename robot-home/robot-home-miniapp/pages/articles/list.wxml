@@ -1,0 +1,16 @@
+<view>
+  <view class="toolbar">
+    <input placeholder="搜索" value="{{keyword}}" bindinput="onKeyword" bindconfirm="onSearch" />
+    <text bindtap="onSearch">搜索</text>
+  </view>
+  <view class="rh-container">
+    <view class="media-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+      <view class="media-row__body">
+        <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+        <view class="rh-text-light">{{item.dateText}} {{item.viewText ? '· ' + item.viewText : ''}}</view>
+      </view>
+    </view>
+    <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无内容</view>
+  </view>
+</view>

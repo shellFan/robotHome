@@ -1,0 +1,9 @@
+<view class="rh-container">
+  <view class="rh-card item" bindtap="copyUrl">
+    <view class="label">API 地址</view>
+    <view class="val rh-text-light">{{baseUrl}}</view>
+    <view class="tip">点击复制；真机请改为电脑局域网 IP</view>
+  </view>
+  <button wx:if="{{isLogin}}" class="rh-btn rh-btn--plain rh-btn--block" bindtap="logout">退出登录</button>
+  <button wx:else class="rh-btn rh-btn--block" bindtap="goLogin">去登录</button>
+</view>

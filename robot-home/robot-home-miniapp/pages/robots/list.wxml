@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="toolbar">
+    <view class="search">
+      <input placeholder="搜索机器人" value="{{keyword}}" confirm-type="search" bindinput="onKeyword" bindconfirm="onSearch" />
+      <text class="search-btn" bindtap="onSearch">搜索</text>
+    </view>
+    <view class="toolbar__actions">
+      <text bindtap="toggleFilter">筛选</text>
+      <text bindtap="goCompare">对比</text>
+    </view>
+  </view>
+  <view class="sort-bar">
+    <text class="chip {{sort===''?'chip--on':''}}" data-sort="" bindtap="setSort">综合</text>
+    <text class="chip {{sort==='hot'?'chip--on':''}}" data-sort="hot" bindtap="setSort">热门</text>
+    <text class="chip {{sort==='new'?'chip--on':''}}" data-sort="new" bindtap="setSort">新品</text>
+    <text class="chip {{sort==='price_asc'?'chip--on':''}}" data-sort="price_asc" bindtap="setSort">价格↑</text>
+    <text class="chip {{sort==='price_desc'?'chip--on':''}}" data-sort="price_desc" bindtap="setSort">价格↓</text>
+  </view>
+  <view wx:if="{{showFilter}}" class="filter-panel rh-card">
+    <view class="filter-label">分类</view>
+    <view class="chips">
+      <text class="chip {{!categoryId?'chip--on':''}}" data-id="" bindtap="setCategory">全部</text>
+      <text class="chip {{categoryId==item.id?'chip--on':''}}" wx:for="{{filters.categories}}" wx:key="id" data-id="{{item.id}}" bindtap="setCategory">{{item.name}}</text>
+    </view>
+    <view class="filter-label" style="margin-top:16rpx">品牌</view>
+    <view class="chips">
+      <text class="chip {{!brandId?'chip--on':''}}" data-id="" bindtap="setBrand">全部</text>
+      <text class="chip {{brandId==item.id?'chip--on':''}}" wx:for="{{filters.brands}}" wx:key="id" data-id="{{item.id}}" bindtap="setBrand">{{item.name}}</text>
+    </view>
+    <button class="rh-btn rh-btn--plain" style="margin-top:20rpx" bindtap="clearFilter">清空筛选</button>
+  </view>
+  <view class="rh-container">
+    <view class="robot-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
+      <view class="robot-row__body">
+        <view class="robot-row__name rh-ellipsis">{{item.name}}</view>
+        <view class="rh-text-light rh-ellipsis">{{item.brandName || ''}} {{item.model || ''}}</view>
+        <view class="robot-row__price">{{item.priceText}}</view>
+      </view>
+    </view>
+    <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无机器人</view>
+    <view class="load-more">{{finished ? (list.length ? '没有更多了' : '') : (loading ? '加载中...' : '上拉加载更多')}}</view>
+  </view>
+</view>

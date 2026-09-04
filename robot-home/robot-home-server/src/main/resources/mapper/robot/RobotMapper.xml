@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.robot.home.robot.mapper.RobotMapper">
+
+    <sql id="robotListColumns">
+        r.id, r.name, r.model, r.subtitle, r.cover_image AS coverImage,
+        r.guide_price AS guidePrice, r.market_price AS marketPrice, r.status,
+        r.main_params AS mainParams, r.release_date AS releaseDate,
+        r.hot_score AS hotScore, r.view_count AS viewCount, r.favorite_count AS favoriteCount,
+        r.compare_count AS compareCount, r.comment_count AS commentCount, r.inquiry_count AS inquiryCount,
+        r.score AS score, r.brand_id AS brandId, r.category_id AS categoryId,
+        b.name AS brandName, b.logo AS brandLogo, c.name AS categoryName
+    </sql>
+
+    <select id="selectRobotPage" resultType="com.robot.home.robot.vo.RobotListVO">
+        SELECT <include refid="robotListColumns"/>
+        FROM robot r
+        LEFT JOIN brand b ON b.id = r.brand_id AND b.deleted = 0
+        LEFT JOIN robot_category c ON c.id = r.category_id AND c.deleted = 0
+        <where>
+            r.deleted = 0
+            <if test="q.categoryIds != null and q.categoryIds.size() > 0">
+                AND r.category_id IN
+                <foreach collection="q.categoryIds" item="cid" open="(" separator="," close=")">#{cid}</foreach>
+            </if>
+            <if test="q.brandId != null">AND r.brand_id = #{q.brandId}</if>
+            <if test="q.seriesId != null">AND r.series_id = #{q.seriesId}</if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (
+                    r.name LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR r.model LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR r.subtitle LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR b.name LIKE CONCAT('%', #{q.keyword}, '%')
+                )
+            </if>
+            <if test="q.minPrice != null">AND r.guide_price &gt;= #{q.minPrice}</if>
+            <if test="q.maxPrice != null">AND r.guide_price &lt;= #{q.maxPrice}</if>
+            <if test="q.releaseStart != null and q.releaseStart != ''">AND r.release_date &gt;= #{q.releaseStart}</if>
+            <if test="q.releaseEnd != null and q.releaseEnd != ''">AND r.release_date &lt;= #{q.releaseEnd}</if>
+            <if test="q.scenes != null and q.scenes.size() > 0">
+                AND EXISTS (
+                    SELECT 1 FROM robot_tag t WHERE t.robot_id = r.id AND t.tag_type = 'scene'
+                    AND t.tag_value IN
+                    <foreach collection="q.scenes" item="v" open="(" separator="," close=")">#{v}</foreach>
+                )
+            </if>
+            <if test="q.devs != null and q.devs.size() > 0">
+                AND EXISTS (
+                    SELECT 1 FROM robot_tag t WHERE t.robot_id = r.id AND t.tag_type = 'dev'
+                    AND t.tag_value IN
+                    <foreach collection="q.devs" item="v" open="(" separator="," close=")">#{v}</foreach>
+                )
+            </if>
+            <if test="q.ais != null and q.ais.size() > 0">
+                AND EXISTS (
+                    SELECT 1 FROM robot_tag t WHERE t.robot_id = r.id AND t.tag_type = 'ai'
+                    AND t.tag_value IN
+                    <foreach collection="q.ais" item="v" open="(" separator="," close=")">#{v}</foreach>
+                )
+            </if>
+        </where>
+        <choose>
+            <when test="q.sort == 'hot'">ORDER BY r.view_count DESC, r.hot_score DESC</when>
+            <when test="q.sort == 'price_asc'">ORDER BY r.guide_price ASC, r.hot_score DESC</when>
+            <when test="q.sort == 'price_desc'">ORDER BY r.guide_price DESC, r.hot_score DESC</when>
+            <when test="q.sort == 'new'">ORDER BY r.release_date DESC, r.hot_score DESC</when>
+            <when test="q.sort == 'score'">ORDER BY r.score DESC, r.hot_score DESC</when>
+            <otherwise>ORDER BY r.hot_score DESC, r.view_count DESC</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectListByIds" resultType="com.robot.home.robot.vo.RobotListVO">
+        SELECT <include refid="robotListColumns"/>
+        FROM robot r
+        LEFT JOIN brand b ON b.id = r.brand_id AND b.deleted = 0
+        LEFT JOIN robot_category c ON c.id = r.category_id AND c.deleted = 0
+        WHERE r.deleted = 0
+        AND r.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+
+    </select>
+
+</mapper>

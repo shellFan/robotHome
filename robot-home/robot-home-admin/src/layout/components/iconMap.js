@@ -1,0 +1,58 @@
+/** 后端菜单 icon 字段 -> Element Plus 图标组件名 */
+const ICON_MAP = {
+  dashboard: 'Odometer',
+  odometer: 'Odometer',
+  data: 'DataLine',
+  chart: 'DataAnalysis',
+  user: 'User',
+  users: 'User',
+  admin: 'UserFilled',
+  robot: 'Cpu',
+  model: 'Aim',
+  cpu: 'Cpu',
+  brand: 'Star',
+  star: 'Star',
+  company: 'OfficeBuilding',
+  office: 'OfficeBuilding',
+  article: 'Document',
+  document: 'Document',
+  list: 'Tickets',
+  video: 'VideoCamera',
+  videocamera: 'VideoCamera',
+  community: 'ChatDotRound',
+  chat: 'ChatDotRound',
+  circle: 'Coin',
+  post: 'ChatLineSquare',
+  comment: 'ChatDotSquare',
+  tutorial: 'Reading',
+  reading: 'Reading',
+  inquiry: 'Tickets',
+  tickets: 'Tickets',
+  operation: 'Operation',
+  banner: 'Picture',
+  picture: 'Picture',
+  image: 'Picture',
+  recommend: 'StarFilled',
+  system: 'Setting',
+  setting: 'Setting',
+  role: 'Avatar',
+  menu: 'Menu',
+  category: 'Menu',
+  series: 'Files',
+  files: 'Files',
+  template: 'Grid',
+  grid: 'Grid',
+  permission: 'Key',
+  key: 'Key',
+  log: 'Document',
+  dict: 'Collection',
+  collection: 'Collection',
+  config: 'Tools',
+  tools: 'Tools'
+}
+
+export function resolveIcon(icon) {
+  if (!icon) return 'Menu'
+  const key = String(icon).toLowerCase()
+  return ICON_MAP[key] || icon
+}

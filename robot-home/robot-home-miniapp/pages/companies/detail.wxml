@@ -1,0 +1,21 @@
+<view class="rh-container" wx:if="{{company}}">
+  <view class="rh-card head">
+    <image src="{{company.logo}}" mode="aspectFit" />
+    <view>
+      <view class="name">{{company.name}}</view>
+      <view class="rh-text-light">{{company.region || company.city || ''}}</view>
+    </view>
+  </view>
+  <view class="rh-card" wx:if="{{company.intro || company.description}}">
+    <view class="rh-section-title" style="margin-bottom:12rpx">简介</view>
+    <text>{{company.intro || company.description}}</text>
+  </view>
+  <view class="rh-section-title" style="margin:16rpx 0">相关机器人</view>
+  <view class="robot-row" wx:for="{{robots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+    <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
+    <view class="robot-row__body">
+      <view class="robot-row__name">{{item.name}}</view>
+      <view class="robot-row__price">{{item.priceText}}</view>
+    </view>
+  </view>
+</view>

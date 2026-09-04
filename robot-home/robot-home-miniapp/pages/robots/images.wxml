@@ -1,0 +1,4 @@
+<view class="grid rh-container">
+  <image wx:for="{{list}}" wx:key="url" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="preview" />
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty" style="width:100%">暂无图片</view>
+</view>

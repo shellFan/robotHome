@@ -1,0 +1,4 @@
+.item { margin-bottom:24rpx; }
+.label { font-weight:600; margin-bottom:8rpx; }
+.val { word-break:break-all; margin-bottom:8rpx; }
+.tip { font-size:22rpx; color:#a9aeb8; }

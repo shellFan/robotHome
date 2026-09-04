@@ -1,0 +1,42 @@
+<view>
+  <view class="tab-filter">
+    <view class="tab-filter__item {{tab==='robot'?'tab-filter__item--on':''}}" data-tab="robot" bindtap="switchTab">机器人</view>
+    <view class="tab-filter__item {{tab==='brand'?'tab-filter__item--on':''}}" data-tab="brand" bindtap="switchTab">品牌</view>
+    <view class="tab-filter__item {{tab==='article'?'tab-filter__item--on':''}}" data-tab="article" bindtap="switchTab">资讯</view>
+    <view class="tab-filter__item {{tab==='video'?'tab-filter__item--on':''}}" data-tab="video" bindtap="switchTab">视频</view>
+  </view>
+  <view class="rh-container">
+    <view class="kw rh-text-light">关键词：{{keyword}}</view>
+    <block wx:if="{{tab==='robot'}}">
+      <view class="robot-row" wx:for="{{robots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+        <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="robot-row__body">
+          <view class="robot-row__name">{{item.name}}</view>
+          <view class="robot-row__price">{{item.priceText}}</view>
+        </view>
+      </view>
+      <view wx:if="{{!robots.length && !loading}}" class="rh-empty">无结果</view>
+    </block>
+    <block wx:elif="{{tab==='brand'}}">
+      <view class="media-row" wx:for="{{brands}}" wx:key="id" bindtap="goBrand" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.logo}}" mode="aspectFit" />
+        <view class="media-row__body"><view class="media-row__title">{{item.name}}</view></view>
+      </view>
+      <view wx:if="{{!brands.length && !loading}}" class="rh-empty">无结果</view>
+    </block>
+    <block wx:elif="{{tab==='article'}}">
+      <view class="media-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body"><view class="media-row__title rh-clamp-2">{{item.title}}</view></view>
+      </view>
+      <view wx:if="{{!articles.length && !loading}}" class="rh-empty">无结果</view>
+    </block>
+    <block wx:else>
+      <view class="media-row" wx:for="{{videos}}" wx:key="id" bindtap="goVideo" data-id="{{item.id}}">
+        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="media-row__body"><view class="media-row__title rh-clamp-2">{{item.title}}</view></view>
+      </view>
+      <view wx:if="{{!videos.length && !loading}}" class="rh-empty">无结果</view>
+    </block>
+  </view>
+</view>

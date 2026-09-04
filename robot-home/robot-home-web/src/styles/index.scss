@@ -1,0 +1,208 @@
+/* ============================================================
+   机器人之家 PC 设计系统
+   视觉定位：科技 + 专业 + 清爽
+   白 / 浅灰背景 + 深色文字 + 单一低饱和科技蓝强调色
+   ============================================================ */
+
+:root {
+  --rh-primary: #1668dc;
+  --rh-primary-hover: #4089e8;
+  --rh-primary-light: #e8f1fd;
+  --rh-danger: #e34d59;
+  --rh-success: #00a870;
+  --rh-warning: #ed7b2f;
+
+  --rh-bg: #f5f7fa;
+  --rh-surface: #ffffff;
+  --rh-surface-sub: #fafbfc;
+  --rh-text: #1f2329;
+  --rh-text-sub: #646a73;
+  --rh-text-light: #8f959e;
+  --rh-border: #e5e6eb;
+  --rh-border-light: #f0f1f3;
+
+  --rh-radius: 8px;
+  --rh-radius-lg: 12px;
+  --rh-container: 1200px;
+  --rh-gap: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--rh-bg);
+  color: var(--rh-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-width: 1366px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- 布局容器 ---------- */
+.rh-container {
+  width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1600px) {
+  .rh-container {
+    width: 1440px;
+  }
+}
+
+@media (min-width: 1900px) {
+  :root {
+    --rh-container: 1600px;
+  }
+  .rh-container {
+    width: 1600px;
+  }
+}
+
+/* ---------- 卡片 ---------- */
+.rh-card {
+  background: var(--rh-surface);
+  border-radius: var(--rh-radius);
+  padding: 20px;
+}
+
+.rh-section {
+  margin-bottom: 24px;
+}
+
+.rh-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.rh-section__title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--rh-text);
+  margin: 0;
+}
+
+.rh-section__more {
+  font-size: 13px;
+  color: var(--rh-text-light);
+  cursor: pointer;
+}
+
+.rh-section__more:hover {
+  color: var(--rh-primary);
+}
+
+/* ---------- 文字 ---------- */
+.rh-text-sub {
+  color: var(--rh-text-sub);
+}
+
+.rh-text-light {
+  color: var(--rh-text-light);
+}
+
+.rh-price {
+  color: var(--rh-danger);
+  font-weight: 600;
+}
+
+.rh-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rh-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 标签 ---------- */
+.rh-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--rh-surface-sub);
+  border: 1px solid var(--rh-border);
+  color: var(--rh-text-sub);
+  margin-right: 6px;
+}
+
+.rh-tag--primary {
+  background: var(--rh-primary-light);
+  border-color: transparent;
+  color: var(--rh-primary);
+}
+
+/* ---------- 通用网格 ---------- */
+.rh-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.rh-grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.rh-grid--5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.rh-grid--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.rh-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* ---------- 空状态 ---------- */
+.rh-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--rh-text-light);
+}
+
+/* ---------- 覆盖 Element Plus 以贴合设计 ---------- */
+.el-button--primary {
+  --el-button-bg-color: var(--rh-primary);
+  --el-button-border-color: var(--rh-primary);
+  --el-button-hover-bg-color: var(--rh-primary-hover);
+  --el-button-hover-border-color: var(--rh-primary-hover);
+}
+
+.el-pagination {
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.el-breadcrumb {
+  font-size: 13px;
+}

@@ -1,0 +1,11 @@
+.page { padding:24rpx; }
+.header { display:flex; align-items:center; gap:24rpx; }
+.avatar { width:120rpx; height:120rpx; border-radius:50%; background:#e8f3ff; }
+.avatar.placeholder { display:flex; align-items:center; justify-content:center; color:#1668dc; font-size:48rpx; }
+.name { font-size:34rpx; font-weight:700; margin-bottom:6rpx; }
+.stats { display:flex; justify-content:space-around; text-align:center; }
+.stat { display:flex; flex-direction:column; gap:6rpx; color:#86909c; font-size:24rpx; }
+.stat .n { font-size:32rpx; font-weight:700; color:#1f2329; }
+.menu { padding:0; }
+.item { padding:32rpx 24rpx; border-bottom:1rpx solid #f0f0f0; font-size:28rpx; }
+.item:last-child { border-bottom:none; }

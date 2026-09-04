@@ -1,0 +1,8 @@
+<view class="rh-container">
+  <view class="rh-card" wx:for="{{list}}" wx:key="id">
+    <view class="title">{{item.robotName || '询价'}}</view>
+    <view class="rh-text-light">{{item.dateText}} · {{item.statusText}}</view>
+    <view class="content">{{item.content}}</view>
+  </view>
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无询价</view>
+</view>

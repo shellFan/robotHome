@@ -1,0 +1,7 @@
+<view class="rh-container">
+  <view class="rh-card" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+    <view class="title">{{item.title || item.content}}</view>
+    <view class="rh-text-light">{{item.timeText}}</view>
+  </view>
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无帖子</view>
+</view>

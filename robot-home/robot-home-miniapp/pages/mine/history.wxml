@@ -1,0 +1,11 @@
+<view class="rh-container">
+  <view class="clear" bindtap="clearAll">清空足迹</view>
+  <view class="media-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-item="{{item}}">
+    <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
+    <view class="media-row__body">
+      <view class="media-row__title rh-clamp-2">{{item.title}}</view>
+      <view class="rh-text-light">{{item.timeText}}</view>
+    </view>
+  </view>
+  <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无足迹</view>
+</view>

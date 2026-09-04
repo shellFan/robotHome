@@ -1,0 +1,11 @@
+.user { display:flex; gap:16rpx; align-items:center; margin-bottom:20rpx; }
+.user image, .cmt image { width:64rpx; height:64rpx; border-radius:50%; background:#f2f3f5; }
+.name { font-weight:600; }
+.title { font-size:34rpx; font-weight:700; margin-bottom:12rpx; }
+.content { font-size:28rpx; line-height:1.7; color:#4e5969; white-space:pre-wrap; }
+.imgs { display:flex; flex-wrap:wrap; gap:12rpx; margin-top:16rpx; }
+.imgs image { width:calc(33.33% - 8rpx); height:200rpx; border-radius:8rpx; background:#f2f3f5; }
+.actions { margin-top:20rpx; }
+.comment-box { display:flex; gap:12rpx; align-items:center; margin-bottom:16rpx; }
+.comment-box input { flex:1; background:#fff; border-radius:32rpx; height:64rpx; padding:0 20rpx; }
+.cmt { display:flex; gap:16rpx; background:#fff; border-radius:12rpx; padding:20rpx; margin-bottom:12rpx; }

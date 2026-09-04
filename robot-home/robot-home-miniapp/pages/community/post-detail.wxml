@@ -1,0 +1,31 @@
+<view class="rh-container" wx:if="{{post}}">
+  <view class="user">
+    <image src="{{post.avatar}}" />
+    <view>
+      <view class="name">{{post.nickname || post.username || '用户'}}</view>
+      <view class="rh-text-light">{{post.timeText}}</view>
+    </view>
+  </view>
+  <view class="title" wx:if="{{post.title}}">{{post.title}}</view>
+  <view class="content">{{post.content}}</view>
+  <view class="imgs">
+    <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="preview" />
+  </view>
+  <view class="actions">
+    <button class="rh-btn rh-btn--plain" size="mini" bindtap="onLike">{{liked?'已点赞':'点赞'}} {{post.likeText}}</button>
+  </view>
+  <view class="rh-section-title" style="margin:24rpx 0 12rpx">评论</view>
+  <view class="comment-box">
+    <input placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" />
+    <button class="rh-btn" size="mini" bindtap="submitComment">发送</button>
+  </view>
+  <view class="cmt" wx:for="{{comments}}" wx:key="id">
+    <image src="{{item.avatar}}" />
+    <view>
+      <view class="name">{{item.nickname || item.username || '用户'}}</view>
+      <view>{{item.content}}</view>
+      <view class="rh-text-light">{{item.timeText}}</view>
+    </view>
+  </view>
+  <view wx:if="{{!comments.length}}" class="rh-empty">暂无评论</view>
+</view>

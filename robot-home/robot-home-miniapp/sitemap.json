@@ -1,0 +1,9 @@
+{
+  "desc": "机器人之家小程序 sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}
