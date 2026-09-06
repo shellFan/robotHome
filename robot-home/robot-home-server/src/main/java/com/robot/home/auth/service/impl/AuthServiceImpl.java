@@ -252,7 +252,11 @@ public class AuthServiceImpl implements AuthService {
         if (userId == null) {
             throw new AuthenticationException("请先登录");
         }
-        return toVO(userService.getById(userId));
+        User user = userService.getById(userId);
+        if (user == null) {
+            throw new AuthenticationException("用户不存在或已被删除");
+        }
+        return toVO(user);
     }
 
     /** 使用 SecureRandom 生成指定长度的数字验证码 */

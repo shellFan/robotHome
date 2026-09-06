@@ -19,6 +19,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -166,7 +167,7 @@ public class RobotController {
 
     private List<String> split(String value) {
         if (value == null || value.trim().isEmpty()) {
-            return null;
+            return Collections.emptyList();
         }
         return Arrays.asList(value.split(","));
     }
