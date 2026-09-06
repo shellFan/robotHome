@@ -10,9 +10,13 @@ FROM eclipse-temurin:8-jre-jammy
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
+# 创建非 root 用户运行应用
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 COPY --from=builder /build/target/robot-home-collector-*.jar app.jar
+RUN chown -R appuser:appuser /app
 ENV TZ=Asia/Shanghai
 EXPOSE 8082
+USER appuser
 HEALTHCHECK --interval=20s --timeout=5s --retries=5 \
   CMD curl -f http://localhost:8082/health || exit 1
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-jar", "/app/app.jar"]

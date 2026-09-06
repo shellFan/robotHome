@@ -1,0 +1,26 @@
+# ============================================================
+# 生产环境覆盖配置（application-prod.yml）
+# 激活方式：SPRING_PROFILES_ACTIVE=prod
+# ============================================================
+
+# MyBatis-Plus：生产环境关闭 SQL stdout 输出，使用 Slf4j（可由 logback 控制级别）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 日志级别
+logging:
+  level:
+    root: WARN
+    com.robot.home: INFO
+    # 仅在排查问题时开启 DEBUG，平时保持 INFO
+    com.baomidou.mybatisplus: WARN
+
+# CORS：生产环境必须通过环境变量 CORS_ALLOWED_ORIGINS 设置允许的域名
+# 格式：逗号分隔，例如 https://www.example.com,https://admin.example.com
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:3000}
+
+# 文件存储：生产环境默认使用 MinIO
+file:
+  storage-type: ${FILE_STORAGE_TYPE:minio}
