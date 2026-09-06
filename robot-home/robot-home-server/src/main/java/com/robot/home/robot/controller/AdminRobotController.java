@@ -18,6 +18,8 @@ import com.robot.home.robot.dto.RobotParamGroupDTO;
 import com.robot.home.robot.dto.RobotParamTemplateDTO;
 import com.robot.home.robot.dto.RobotSeriesDTO;
 import com.robot.home.robot.entity.Robot;
+
+import javax.validation.Valid;
 import com.robot.home.robot.entity.RobotCategory;
 import com.robot.home.robot.entity.RobotImage;
 import com.robot.home.robot.entity.RobotParamDef;
@@ -129,7 +131,7 @@ public class AdminRobotController {
     @PostMapping
     @RequirePermission("robot:add")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Long> save(@RequestBody RobotDTO dto) {
+    public Result<Long> save(@RequestBody @Valid RobotDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("产品名称不能为空");
         }
@@ -216,7 +218,7 @@ public class AdminRobotController {
 
     @PostMapping("/categories")
     @RequirePermission("robot:category")
-    public Result<Long> saveCategory(@RequestBody RobotCategoryDTO dto) {
+    public Result<Long> saveCategory(@RequestBody @Valid RobotCategoryDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("分类名称不能为空");
         }
@@ -266,7 +268,7 @@ public class AdminRobotController {
 
     @PostMapping("/series")
     @RequirePermission("robot:series")
-    public Result<Long> saveSeries(@RequestBody RobotSeriesDTO dto) {
+    public Result<Long> saveSeries(@RequestBody @Valid RobotSeriesDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("系列名称不能为空");
         }
@@ -283,6 +285,10 @@ public class AdminRobotController {
     @DeleteMapping("/series/{id}")
     @RequirePermission("robot:series")
     public Result<Void> deleteSeries(@PathVariable Long id) {
+        long robotCount = robotMapper.selectCount(Wrappers.<Robot>lambdaQuery().eq(Robot::getSeriesId, id));
+        if (robotCount > 0) {
+            throw new BusinessException("该系列下仍有 " + robotCount + " 台机器人，不能删除");
+        }
         seriesMapper.deleteById(id);
         return Result.success();
     }
@@ -330,7 +336,7 @@ public class AdminRobotController {
 
     @PostMapping("/templates")
     @RequirePermission("robot:template")
-    public Result<Long> saveTemplate(@RequestBody RobotParamTemplateDTO dto) {
+    public Result<Long> saveTemplate(@RequestBody @Valid RobotParamTemplateDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getCategoryId() == null) {
             throw new BusinessException("模板名称与关联分类不能为空");
         }
@@ -360,7 +366,7 @@ public class AdminRobotController {
 
     @PostMapping("/param-groups")
     @RequirePermission("robot:template")
-    public Result<Long> saveParamGroup(@RequestBody RobotParamGroupDTO dto) {
+    public Result<Long> saveParamGroup(@RequestBody @Valid RobotParamGroupDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getTemplateId() == null) {
             throw new BusinessException("分组名称与模板不能为空");
         }
@@ -385,7 +391,7 @@ public class AdminRobotController {
 
     @PostMapping("/param-defs")
     @RequirePermission("robot:template")
-    public Result<Long> saveParamDef(@RequestBody RobotParamDefDTO dto) {
+    public Result<Long> saveParamDef(@RequestBody @Valid RobotParamDefDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getGroupId() == null) {
             throw new BusinessException("参数名与分组不能为空");
         }
@@ -429,7 +435,7 @@ public class AdminRobotController {
     @PostMapping("/params")
     @RequirePermission("robot:edit")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Void> saveParams(@RequestBody ParamValueSaveDTO dto) {
+    public Result<Void> saveParams(@RequestBody @Valid ParamValueSaveDTO dto) {
         if (dto.getRobotId() == null || dto.getItems() == null) {
             throw new BusinessException("参数不能为空");
         }

@@ -202,7 +202,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         List<Map<String, Object>> rows = baseMapper.selectMaps(Wrappers.<Article>query()
                 .select("category_id", "count(*) as cnt")
                 .eq("status", 1)
-                .eq("deleted", 0)
                 .groupBy("category_id"));
         for (Map<String, Object> row : rows) {
             Object cid = row.get("category_id");

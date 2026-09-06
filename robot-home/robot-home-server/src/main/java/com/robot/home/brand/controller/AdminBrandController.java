@@ -20,6 +20,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 
 /**
  * 后台品牌管理
@@ -70,7 +71,7 @@ public class AdminBrandController {
 
     @PostMapping
     @RequirePermission("brand:add")
-    public Result<Long> save(@RequestBody BrandDTO dto) {
+    public Result<Long> save(@RequestBody @Valid BrandDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("品牌名称不能为空");
         }

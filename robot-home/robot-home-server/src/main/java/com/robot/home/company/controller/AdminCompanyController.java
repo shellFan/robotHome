@@ -11,11 +11,14 @@ import com.robot.home.common.util.PageUtils;
 import com.robot.home.company.dto.CompanyDTO;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
+import com.robot.home.brand.entity.Brand;
+import com.robot.home.brand.mapper.BrandMapper;
 import com.robot.home.security.RequirePermission;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.List;
 
 /**
@@ -27,6 +30,9 @@ public class AdminCompanyController {
 
     @Resource
     private CompanyMapper companyMapper;
+
+    @Resource
+    private BrandMapper brandMapper;
 
     @GetMapping
     @RequirePermission("company:list")
@@ -63,7 +69,7 @@ public class AdminCompanyController {
 
     @PostMapping
     @RequirePermission("company:add")
-    public Result<Long> save(@RequestBody CompanyDTO dto) {
+    public Result<Long> save(@RequestBody @Valid CompanyDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("企业名称不能为空");
         }
@@ -86,6 +92,10 @@ public class AdminCompanyController {
     @DeleteMapping("/{id}")
     @RequirePermission("company:delete")
     public Result<Void> delete(@PathVariable Long id) {
+        long brandCount = brandMapper.selectCount(Wrappers.<Brand>lambdaQuery().eq(Brand::getCompanyId, id));
+        if (brandCount > 0) {
+            throw new BusinessException("该企业下仍有 " + brandCount + " 个品牌，不能删除");
+        }
         companyMapper.deleteById(id);
         return Result.success();
     }
