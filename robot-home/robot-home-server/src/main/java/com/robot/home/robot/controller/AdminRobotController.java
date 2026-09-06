@@ -4,10 +4,12 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.robot.dto.ParamValueSaveDTO;
 import com.robot.home.robot.dto.RobotCategoryDTO;
 import com.robot.home.robot.dto.RobotDTO;
@@ -79,6 +81,18 @@ public class AdminRobotController {
     private RobotParamValueMapper valueMapper;
     @Resource
     private RobotTagMapper tagMapper;
+    @Resource
+    private RedisUtils redisUtils;
+
+    /** 清空机器人相关缓存（筛选器+分类树） */
+    private void clearRobotCache() {
+        for (String key : redisUtils.keys(Constants.CACHE_FILTER_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
+        for (String key : redisUtils.keys(Constants.CACHE_CATEGORY_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
+    }
 
     // ---------------- 型号 ----------------
 
@@ -168,6 +182,7 @@ public class AdminRobotController {
                 priceMapper.insert(p);
             }
         }
+        clearRobotCache();
         return Result.success(robot.getId());
     }
 
@@ -175,6 +190,7 @@ public class AdminRobotController {
     @RequirePermission("robot:delete")
     public Result<Void> delete(@PathVariable Long id) {
         robotMapper.deleteById(id);
+        clearRobotCache();
         return Result.success();
     }
 
@@ -185,6 +201,7 @@ public class AdminRobotController {
         robot.setId(id);
         robot.setStatus(status);
         robotMapper.updateById(robot);
+        clearRobotCache();
         return Result.success();
     }
 
@@ -216,6 +233,7 @@ public class AdminRobotController {
         } else {
             categoryMapper.updateById(entity);
         }
+        clearRobotCache();
         return Result.success(entity.getId());
     }
 
@@ -232,6 +250,7 @@ public class AdminRobotController {
             throw new BusinessException("该分类下仍有 " + robotCount + " 台机器人，不能删除");
         }
         categoryMapper.deleteById(id);
+        clearRobotCache();
         return Result.success();
     }
 

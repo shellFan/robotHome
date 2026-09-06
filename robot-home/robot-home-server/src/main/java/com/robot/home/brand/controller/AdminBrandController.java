@@ -7,10 +7,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.robot.home.brand.dto.BrandDTO;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.security.RequirePermission;
@@ -30,6 +32,8 @@ public class AdminBrandController {
     private BrandMapper brandMapper;
     @Resource
     private RobotMapper robotMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     @GetMapping
     @RequirePermission("brand:list")
@@ -87,6 +91,7 @@ public class AdminBrandController {
             brandMapper.updateById(entity);
         }
         refreshRobotCount(entity.getId());
+        clearBrandCache();
         return Result.success(entity.getId());
     }
 
@@ -98,6 +103,7 @@ public class AdminBrandController {
             throw new BusinessException("该品牌下仍有 " + count + " 台机器人，不能删除");
         }
         brandMapper.deleteById(id);
+        clearBrandCache();
         return Result.success();
     }
 
@@ -108,6 +114,7 @@ public class AdminBrandController {
         brand.setId(id);
         brand.setStatus(status);
         brandMapper.updateById(brand);
+        clearBrandCache();
         return Result.success();
     }
 
@@ -117,5 +124,11 @@ public class AdminBrandController {
         update.setId(brandId);
         update.setRobotCount((int) count);
         brandMapper.updateById(update);
+    }
+
+    private void clearBrandCache() {
+        for (String key : redisUtils.keys(Constants.CACHE_BRAND_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
     }
 }

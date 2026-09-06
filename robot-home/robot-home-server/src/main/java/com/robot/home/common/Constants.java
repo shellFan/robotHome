@@ -26,6 +26,11 @@ public final class Constants {
     public static final String CACHE_LIMIT_PREFIX = "robot:limit:";
     public static final String CACHE_BANNER_PREFIX = "robot:banner:";
     public static final String CACHE_RECOMMEND_PREFIX = "robot:recommend:";
+    public static final String CACHE_BRAND_PREFIX = "robot:brand:";
+    public static final String CACHE_CATEGORY_PREFIX = "robot:category:";
+    public static final String CACHE_FILTER_PREFIX = "robot:filter:";
+    public static final String CACHE_ARTICLE_CATEGORY_PREFIX = "robot:article:cat:";
+    public static final String CACHE_ARTICLE_HOT_PREFIX = "robot:article:hot:";
 
     // 登录 token 有效期（与 jwt.expiration 保持一致，单位秒）
     public static final long TOKEN_EXPIRE_SECONDS = 86400L;

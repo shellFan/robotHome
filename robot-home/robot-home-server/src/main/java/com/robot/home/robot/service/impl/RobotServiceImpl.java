@@ -1,6 +1,7 @@
 package com.robot.home.robot.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -13,10 +14,12 @@ import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.favorite.service.FavoriteService;
 import com.robot.home.history.service.HistoryService;
+import com.robot.home.common.Constants;
 import com.robot.home.robot.dto.RobotQuery;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.entity.RobotCategory;
@@ -65,6 +68,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +79,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
 
     /** 对比最多支持的机器人数量 */
     private static final int MAX_COMPARE = 4;
+    private static final long CACHE_SECONDS = 600L;
 
     @Resource
     private RobotCategoryMapper categoryMapper;
@@ -106,6 +111,8 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     private HistoryService historyService;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public PageResult<RobotListVO> page(RobotQuery query, Long currentUserId) {
@@ -453,6 +460,18 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
 
     @Override
     public RobotFilterVO filters() {
+        String key = Constants.CACHE_FILTER_PREFIX + "robot";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                RobotFilterVO vo = JSONUtil.toBean(cached, RobotFilterVO.class);
+                if (vo != null) {
+                    return vo;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         RobotFilterVO vo = new RobotFilterVO();
         vo.setCategories(categoryTree());
 
@@ -479,6 +498,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 new PriceRangeVO("5-20万", new BigDecimal("50000"), new BigDecimal("200000")),
                 new PriceRangeVO("20-50万", new BigDecimal("200000"), new BigDecimal("500000")),
                 new PriceRangeVO("50万以上", new BigDecimal("500000"), null)));
+        redisUtils.set(key, JSONUtil.toJsonStr(vo), CACHE_SECONDS, TimeUnit.SECONDS);
         return vo;
     }
 
@@ -628,6 +648,18 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     }
 
     private List<CategoryNodeVO> categoryTree() {
+        String key = Constants.CACHE_CATEGORY_PREFIX + "robot";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<CategoryNodeVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryNodeVO.class);
+                if (list != null) {
+                    return list;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         List<RobotCategory> all = categoryMapper.selectList(Wrappers.<RobotCategory>lambdaQuery()
                 .eq(RobotCategory::getStatus, 1)
                 .orderByAsc(RobotCategory::getSort));
@@ -656,6 +688,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 }
             }
         }
+        redisUtils.set(key, JSONUtil.toJsonStr(roots), CACHE_SECONDS, TimeUnit.SECONDS);
         return roots;
     }
 

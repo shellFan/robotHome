@@ -1,6 +1,7 @@
 package com.robot.home.article.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -16,11 +17,13 @@ import com.robot.home.article.vo.ArticleNeighborVO;
 import com.robot.home.article.vo.CategoryCountVO;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.JsonUtils;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.favorite.service.FavoriteService;
 import com.robot.home.history.service.HistoryService;
 import com.robot.home.like.service.LikeService;
@@ -33,6 +36,7 @@ import javax.annotation.Resource;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +59,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private HistoryService historyService;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private RedisUtils redisUtils;
+
+    private static final int CACHE_SECONDS = 600;
 
     @Override
     public PageResult<ArticleListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize) {
@@ -158,17 +166,35 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public List<ArticleListVO> hot(int limit) {
+        int size = Math.max(1, Math.min(limit, 50));
+        String key = Constants.CACHE_ARTICLE_HOT_PREFIX + size;
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<ArticleListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), ArticleListVO.class);
+                if (list != null) { return list; }
+            } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+        }
         List<Article> list = list(Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
                 .orderByDesc(Article::getViewCount)
-                .last("LIMIT " + Math.max(1, Math.min(limit, 50))));
+                .last("LIMIT " + size));
         List<ArticleListVO> vos = list.stream().map(this::toListVO).collect(Collectors.toList());
         fillCategoryNames(vos);
+        redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
         return vos;
     }
 
     @Override
     public List<CategoryCountVO> categories() {
+        String key = Constants.CACHE_ARTICLE_CATEGORY_PREFIX + "list";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<CategoryCountVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryCountVO.class);
+                if (list != null) { return list; }
+            } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+        }
         List<ArticleCategory> cats = categoryMapper.selectList(Wrappers.<ArticleCategory>lambdaQuery()
                 .eq(ArticleCategory::getStatus, 1)
                 .orderByAsc(ArticleCategory::getSort));
@@ -185,8 +211,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 counts.put(Long.valueOf(cid.toString()), Long.valueOf(cnt.toString()));
             }
         }
-        return cats.stream().map(c -> new CategoryCountVO(c.getId(), c.getName(), c.getSort(),
+        List<CategoryCountVO> result = cats.stream().map(c -> new CategoryCountVO(c.getId(), c.getName(), c.getSort(),
                 counts.getOrDefault(c.getId(), 0L))).collect(Collectors.toList());
+        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        return result;
     }
 
     private void fillCategoryNames(List<ArticleListVO> vos) {
