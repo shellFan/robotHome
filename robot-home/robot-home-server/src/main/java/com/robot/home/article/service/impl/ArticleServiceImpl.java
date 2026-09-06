@@ -64,7 +64,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         IPage<Article> result = page(page, Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
                 .eq(categoryId != null, Article::getCategoryId, categoryId)
-                .and(StrUtil.isNotBlank(keyword), w -> w.like(Article::getTitle, keyword).or().like(Article::getSummary, keyword))
+                .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Article::getTitle, keyword).or().like(Article::getSummary, keyword))
                 .orderByDesc(Article::getIsTop)
                 .orderByDesc(Article::getPublishTime));
         List<ArticleListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());

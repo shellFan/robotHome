@@ -41,7 +41,7 @@ public class AdminBrandController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Brand> page = new Page<>(pn, ps);
         IPage<Brand> result = brandMapper.selectPage(page, Wrappers.<Brand>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
                 .eq(status != null, Brand::getStatus, status)
                 .orderByDesc(Brand::getHotScore));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));

@@ -149,8 +149,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<SysUser> page = new Page<>(pn, ps);
         IPage<SysUser> result = page(page, Wrappers.<SysUser>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), SysUser::getUsername, keyword)
-                .like(StrUtil.isNotBlank(keyword), SysUser::getNickname, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), SysUser::getUsername, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), SysUser::getNickname, keyword)
                 .eq(status != null, SysUser::getStatus, status)
                 .orderByAsc(SysUser::getId));
         // 不返回密码

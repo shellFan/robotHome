@@ -42,7 +42,7 @@ public class AdminTutorialController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Tutorial> page = new Page<>(pn, ps);
         IPage<Tutorial> result = tutorialMapper.selectPage(page, Wrappers.<Tutorial>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Tutorial::getTitle, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Tutorial::getTitle, keyword)
                 .eq(categoryId != null, Tutorial::getCategoryId, categoryId)
                 .orderByDesc(Tutorial::getPublishTime));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));

@@ -198,7 +198,7 @@ public class AdminSystemController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<SysLogLogin> page = new Page<>(pn, ps);
         IPage<SysLogLogin> result = loginLogMapper.selectPage(page, Wrappers.<SysLogLogin>lambdaQuery()
-                .like(StrUtil.isNotBlank(username), SysLogLogin::getUsername, username)
+                .likeRight(StrUtil.isNotBlank(username), SysLogLogin::getUsername, username)
                 .orderByDesc(SysLogLogin::getCreateTime));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));
     }
@@ -214,7 +214,7 @@ public class AdminSystemController {
         Page<SysLogOper> page = new Page<>(pn, ps);
         IPage<SysLogOper> result = operLogMapper.selectPage(page, Wrappers.<SysLogOper>lambdaQuery()
                 .eq(StrUtil.isNotBlank(module), SysLogOper::getModule, module)
-                .like(StrUtil.isNotBlank(username), SysLogOper::getUsername, username)
+                .likeRight(StrUtil.isNotBlank(username), SysLogOper::getUsername, username)
                 .orderByDesc(SysLogOper::getCreateTime));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));
     }

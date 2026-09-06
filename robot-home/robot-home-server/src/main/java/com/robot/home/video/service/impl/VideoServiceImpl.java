@@ -64,7 +64,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
         IPage<Video> result = page(page, Wrappers.<Video>lambdaQuery()
                 .eq(Video::getStatus, 1)
                 .eq(categoryId != null, Video::getCategoryId, categoryId)
-                .and(StrUtil.isNotBlank(keyword), w -> w.like(Video::getTitle, keyword).or().like(Video::getSummary, keyword))
+                .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Video::getTitle, keyword).or().like(Video::getSummary, keyword))
                 .orderByDesc(Video::getPublishTime));
         List<VideoListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         fillCategoryNames(vos);

@@ -43,7 +43,7 @@ public class AdminArticleController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Article> page = new Page<>(pn, ps);
         IPage<Article> result = articleMapper.selectPage(page, Wrappers.<Article>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Article::getTitle, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Article::getTitle, keyword)
                 .eq(categoryId != null, Article::getCategoryId, categoryId)
                 .eq(status != null, Article::getStatus, status)
                 .orderByDesc(Article::getPublishTime));

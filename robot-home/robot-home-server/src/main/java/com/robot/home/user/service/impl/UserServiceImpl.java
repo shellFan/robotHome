@@ -51,8 +51,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String keyword = (String) params.get("keyword");
         Integer status = params.get("status") == null ? null : Integer.parseInt(params.get("status").toString());
         return page(page, Wrappers.<User>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), User::getUsername, keyword)
-                .like(StrUtil.isNotBlank(keyword), User::getNickname, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), User::getUsername, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), User::getNickname, keyword)
                 .like(StrUtil.isNotBlank(keyword), User::getPhone, keyword)
                 .eq(status != null, User::getStatus, status)
                 .orderByDesc(User::getId));

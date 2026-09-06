@@ -38,7 +38,7 @@ public class AdminCompanyController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Company> page = new Page<>(pn, ps);
         IPage<Company> result = companyMapper.selectPage(page, Wrappers.<Company>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Company::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Company::getName, keyword)
                 .eq(StrUtil.isNotBlank(region), Company::getRegion, region)
                 .orderByDesc(Company::getHotScore));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));

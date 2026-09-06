@@ -94,7 +94,7 @@ public class AdminRobotController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Robot> page = new Page<>(pn, ps);
         IPage<Robot> result = robotMapper.selectPage(page, Wrappers.<Robot>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Robot::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Robot::getName, keyword)
                 .eq(categoryId != null, Robot::getCategoryId, categoryId)
                 .eq(brandId != null, Robot::getBrandId, brandId)
                 .eq(status != null, Robot::getStatus, status)

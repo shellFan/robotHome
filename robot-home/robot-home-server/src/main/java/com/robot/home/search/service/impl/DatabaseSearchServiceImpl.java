@@ -111,7 +111,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
         switch (type) {
             case "robot": {
                 IPage<Robot> p = robotMapper.selectPage((Page<Robot>) page, Wrappers.<Robot>lambdaQuery()
-                        .and(w -> w.like(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw))
+                        .and(w -> w.likeRight(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw))
                         .orderByDesc(Robot::getHotScore));
                 items = p.getRecords().stream().map(this::robotItem).collect(Collectors.toList());
                 result = p;
@@ -119,7 +119,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             }
             case "brand": {
                 IPage<Brand> p = brandMapper.selectPage((Page<Brand>) page, Wrappers.<Brand>lambdaQuery()
-                        .like(Brand::getName, kw)
+                        .likeRight(Brand::getName, kw)
                         .orderByDesc(Brand::getHotScore));
                 items = p.getRecords().stream().map(this::brandItem).collect(Collectors.toList());
                 result = p;
@@ -127,7 +127,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             }
             case "company": {
                 IPage<Company> p = companyMapper.selectPage((Page<Company>) page, Wrappers.<Company>lambdaQuery()
-                        .and(w -> w.like(Company::getName, kw).or().like(Company::getIntro, kw))
+                        .and(w -> w.likeRight(Company::getName, kw).or().like(Company::getIntro, kw))
                         .orderByDesc(Company::getHotScore));
                 items = p.getRecords().stream().map(this::companyItem).collect(Collectors.toList());
                 result = p;
@@ -136,7 +136,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             case "article": {
                 IPage<Article> p = articleMapper.selectPage((Page<Article>) page, Wrappers.<Article>lambdaQuery()
                         .eq(Article::getStatus, 1)
-                        .and(w -> w.like(Article::getTitle, kw).or().like(Article::getSummary, kw))
+                        .and(w -> w.likeRight(Article::getTitle, kw).or().like(Article::getSummary, kw))
                         .orderByDesc(Article::getPublishTime));
                 items = p.getRecords().stream().map(this::articleItem).collect(Collectors.toList());
                 result = p;
@@ -145,7 +145,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             case "video": {
                 IPage<Video> p = videoMapper.selectPage((Page<Video>) page, Wrappers.<Video>lambdaQuery()
                         .eq(Video::getStatus, 1)
-                        .and(w -> w.like(Video::getTitle, kw).or().like(Video::getSummary, kw))
+                        .and(w -> w.likeRight(Video::getTitle, kw).or().like(Video::getSummary, kw))
                         .orderByDesc(Video::getPublishTime));
                 items = p.getRecords().stream().map(this::videoItem).collect(Collectors.toList());
                 result = p;
@@ -154,7 +154,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             case "tutorial": {
                 IPage<Tutorial> p = tutorialMapper.selectPage((Page<Tutorial>) page, Wrappers.<Tutorial>lambdaQuery()
                         .eq(Tutorial::getStatus, 1)
-                        .and(w -> w.like(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw))
+                        .and(w -> w.likeRight(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw))
                         .orderByDesc(Tutorial::getPublishTime));
                 items = p.getRecords().stream().map(this::tutorialItem).collect(Collectors.toList());
                 result = p;
@@ -163,7 +163,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             case "post": {
                 IPage<CommunityPost> p = postMapper.selectPage((Page<CommunityPost>) page, Wrappers.<CommunityPost>lambdaQuery()
                         .eq(CommunityPost::getStatus, 1)
-                        .and(w -> w.like(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw))
+                        .and(w -> w.likeRight(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw))
                         .orderByDesc(CommunityPost::getCreateTime));
                 items = p.getRecords().stream().map(this::postItem).collect(Collectors.toList());
                 result = p;
@@ -182,14 +182,15 @@ public class DatabaseSearchServiceImpl implements SearchService {
         }
         String kw = StrUtil.trim(keyword);
         int size = Math.max(1, Math.min(limit, 20));
+        // 搜索建议使用前缀匹配（LIKE 'kw%'），可利用 idx_name 前缀索引
         List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
-                .like(Robot::getName, kw)
+                .likeRight(Robot::getName, kw)
                 .orderByDesc(Robot::getHotScore)
                 .last("LIMIT " + size));
         List<String> result = robots.stream().map(Robot::getName).collect(Collectors.toList());
         if (result.size() < size) {
             List<HotSearch> hots = hotSearchMapper.selectList(Wrappers.<HotSearch>lambdaQuery()
-                    .like(HotSearch::getKeyword, kw)
+                    .likeRight(HotSearch::getKeyword, kw)
                     .orderByDesc(HotSearch::getSearchCount)
                     .last("LIMIT " + (size - result.size())));
             for (HotSearch h : hots) {
@@ -281,7 +282,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
 
     private List<SearchItemVO> searchRobots(String kw, int limit) {
         return robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
-                .and(w -> w.like(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw))
+                .and(w -> w.likeRight(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw))
                 .orderByDesc(Robot::getHotScore)
                 .last("LIMIT " + limit))
                 .stream().map(this::robotItem).collect(Collectors.toList());
@@ -289,7 +290,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
 
     private List<SearchItemVO> searchBrands(String kw, int limit) {
         return brandMapper.selectList(Wrappers.<Brand>lambdaQuery()
-                .like(Brand::getName, kw)
+                .likeRight(Brand::getName, kw)
                 .orderByDesc(Brand::getHotScore)
                 .last("LIMIT " + limit))
                 .stream().map(this::brandItem).collect(Collectors.toList());
@@ -297,7 +298,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
 
     private List<SearchItemVO> searchCompanies(String kw, int limit) {
         return companyMapper.selectList(Wrappers.<Company>lambdaQuery()
-                .and(w -> w.like(Company::getName, kw).or().like(Company::getIntro, kw))
+                .and(w -> w.likeRight(Company::getName, kw).or().like(Company::getIntro, kw))
                 .orderByDesc(Company::getHotScore)
                 .last("LIMIT " + limit))
                 .stream().map(this::companyItem).collect(Collectors.toList());
@@ -306,7 +307,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
     private List<SearchItemVO> searchArticles(String kw, int limit) {
         return articleMapper.selectList(Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
-                .and(w -> w.like(Article::getTitle, kw).or().like(Article::getSummary, kw))
+                .and(w -> w.likeRight(Article::getTitle, kw).or().like(Article::getSummary, kw))
                 .orderByDesc(Article::getPublishTime)
                 .last("LIMIT " + limit))
                 .stream().map(this::articleItem).collect(Collectors.toList());
@@ -315,7 +316,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
     private List<SearchItemVO> searchVideos(String kw, int limit) {
         return videoMapper.selectList(Wrappers.<Video>lambdaQuery()
                 .eq(Video::getStatus, 1)
-                .and(w -> w.like(Video::getTitle, kw).or().like(Video::getSummary, kw))
+                .and(w -> w.likeRight(Video::getTitle, kw).or().like(Video::getSummary, kw))
                 .orderByDesc(Video::getPublishTime)
                 .last("LIMIT " + limit))
                 .stream().map(this::videoItem).collect(Collectors.toList());
@@ -324,7 +325,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
     private List<SearchItemVO> searchTutorials(String kw, int limit) {
         return tutorialMapper.selectList(Wrappers.<Tutorial>lambdaQuery()
                 .eq(Tutorial::getStatus, 1)
-                .and(w -> w.like(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw))
+                .and(w -> w.likeRight(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw))
                 .orderByDesc(Tutorial::getPublishTime)
                 .last("LIMIT " + limit))
                 .stream().map(this::tutorialItem).collect(Collectors.toList());
@@ -333,7 +334,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
     private List<SearchItemVO> searchPosts(String kw, int limit) {
         return postMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
                 .eq(CommunityPost::getStatus, 1)
-                .and(w -> w.like(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw))
+                .and(w -> w.likeRight(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw))
                 .orderByDesc(CommunityPost::getCreateTime)
                 .last("LIMIT " + limit))
                 .stream().map(this::postItem).collect(Collectors.toList());
@@ -341,40 +342,40 @@ public class DatabaseSearchServiceImpl implements SearchService {
 
     private long countRobots(String kw) {
         return robotMapper.selectCount(Wrappers.<Robot>lambdaQuery()
-                .and(w -> w.like(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw)));
+                .and(w -> w.likeRight(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw)));
     }
 
     private long countBrands(String kw) {
-        return brandMapper.selectCount(Wrappers.<Brand>lambdaQuery().like(Brand::getName, kw));
+        return brandMapper.selectCount(Wrappers.<Brand>lambdaQuery().likeRight(Brand::getName, kw));
     }
 
     private long countCompanies(String kw) {
         return companyMapper.selectCount(Wrappers.<Company>lambdaQuery()
-                .and(w -> w.like(Company::getName, kw).or().like(Company::getIntro, kw)));
+                .and(w -> w.likeRight(Company::getName, kw).or().like(Company::getIntro, kw)));
     }
 
     private long countArticles(String kw) {
         return articleMapper.selectCount(Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
-                .and(w -> w.like(Article::getTitle, kw).or().like(Article::getSummary, kw)));
+                .and(w -> w.likeRight(Article::getTitle, kw).or().like(Article::getSummary, kw)));
     }
 
     private long countVideos(String kw) {
         return videoMapper.selectCount(Wrappers.<Video>lambdaQuery()
                 .eq(Video::getStatus, 1)
-                .and(w -> w.like(Video::getTitle, kw).or().like(Video::getSummary, kw)));
+                .and(w -> w.likeRight(Video::getTitle, kw).or().like(Video::getSummary, kw)));
     }
 
     private long countTutorials(String kw) {
         return tutorialMapper.selectCount(Wrappers.<Tutorial>lambdaQuery()
                 .eq(Tutorial::getStatus, 1)
-                .and(w -> w.like(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw)));
+                .and(w -> w.likeRight(Tutorial::getTitle, kw).or().like(Tutorial::getSummary, kw)));
     }
 
     private long countPosts(String kw) {
         return postMapper.selectCount(Wrappers.<CommunityPost>lambdaQuery()
                 .eq(CommunityPost::getStatus, 1)
-                .and(w -> w.like(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw)));
+                .and(w -> w.likeRight(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw)));
     }
 
     // ---------- 结果项转换 ----------

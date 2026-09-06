@@ -47,7 +47,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
         IPage<Brand> result = page(page, Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
                 .eq(StrUtil.isNotBlank(initial), Brand::getInitial, initial)
-                .like(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
                 .orderBy(Boolean.TRUE.equals(hot), false, Brand::getHotScore)
                 .orderBy(true, true, Brand::getSort)
                 .orderByDesc(Brand::getHotScore));

@@ -56,7 +56,7 @@ public class TutorialServiceImpl extends ServiceImpl<TutorialMapper, Tutorial> i
         IPage<Tutorial> result = page(page, Wrappers.<Tutorial>lambdaQuery()
                 .eq(Tutorial::getStatus, 1)
                 .eq(categoryId != null, Tutorial::getCategoryId, categoryId)
-                .and(StrUtil.isNotBlank(keyword), w -> w.like(Tutorial::getTitle, keyword).or().like(Tutorial::getSummary, keyword))
+                .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Tutorial::getTitle, keyword).or().like(Tutorial::getSummary, keyword))
                 .orderByDesc(Tutorial::getPublishTime));
         List<TutorialListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         fillCategoryNames(vos);

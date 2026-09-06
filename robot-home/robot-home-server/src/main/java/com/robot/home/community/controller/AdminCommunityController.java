@@ -89,7 +89,7 @@ public class AdminCommunityController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<CommunityPost> page = new Page<>(pn, ps);
         IPage<CommunityPost> result = postMapper.selectPage(page, Wrappers.<CommunityPost>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), CommunityPost::getTitle, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), CommunityPost::getTitle, keyword)
                 .eq(circleId != null, CommunityPost::getCircleId, circleId)
                 .eq(status != null, CommunityPost::getStatus, status)
                 .orderByDesc(CommunityPost::getCreateTime));
@@ -148,7 +148,7 @@ public class AdminCommunityController {
         Page<Comment> page = new Page<>(pn, ps);
         IPage<Comment> result = commentMapper.selectPage(page, Wrappers.<Comment>lambdaQuery()
                 .eq(StrUtil.isNotBlank(bizType), Comment::getBizType, bizType)
-                .like(StrUtil.isNotBlank(keyword), Comment::getContent, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Comment::getContent, keyword)
                 .orderByDesc(Comment::getCreateTime));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));
     }
