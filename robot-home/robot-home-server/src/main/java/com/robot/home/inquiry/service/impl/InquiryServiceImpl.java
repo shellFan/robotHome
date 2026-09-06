@@ -11,6 +11,7 @@ import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.SensitiveUtils;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.inquiry.dto.InquiryDTO;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
@@ -41,14 +42,14 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         Inquiry inquiry = new Inquiry();
         inquiry.setRobotId(dto.getRobotId());
         inquiry.setUserId(userId);
-        inquiry.setName(StrUtil.trim(dto.getName()));
+        inquiry.setName(XssUtils.escapeText(StrUtil.trim(dto.getName())));
         inquiry.setPhone(StrUtil.trim(dto.getPhone()));
-        inquiry.setRegion(dto.getRegion());
+        inquiry.setRegion(XssUtils.escapeText(dto.getRegion()));
         inquiry.setCustomerType(dto.getCustomerType() == null ? 1 : dto.getCustomerType());
-        inquiry.setCompanyName(dto.getCompanyName());
+        inquiry.setCompanyName(XssUtils.escapeText(dto.getCompanyName()));
         inquiry.setQuantity(dto.getQuantity() == null || dto.getQuantity() < 1 ? 1 : dto.getQuantity());
         inquiry.setBudget(dto.getBudget());
-        inquiry.setRemark(dto.getRemark());
+        inquiry.setRemark(XssUtils.escapeText(dto.getRemark()));
         inquiry.setStatus(Constants.INQUIRY_PENDING);
 
         if (dto.getRobotId() != null) {

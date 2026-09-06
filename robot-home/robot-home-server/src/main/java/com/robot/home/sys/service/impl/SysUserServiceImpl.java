@@ -13,6 +13,7 @@ import com.robot.home.common.util.JwtUtils;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.PasswordUtil;
 import com.robot.home.common.util.RedisUtils;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.sys.entity.SysLogLogin;
 import com.robot.home.sys.entity.SysMenu;
 import com.robot.home.sys.entity.SysPermission;
@@ -198,7 +199,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             }
             SysUser update = new SysUser();
             update.setId(user.getId());
-            update.setNickname(user.getNickname());
+            update.setNickname(XssUtils.escapeText(user.getNickname()));
             update.setAvatar(user.getAvatar());
             update.setPhone(user.getPhone());
             update.setEmail(user.getEmail());

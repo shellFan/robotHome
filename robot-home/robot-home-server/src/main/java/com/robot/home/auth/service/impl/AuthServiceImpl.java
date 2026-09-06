@@ -58,6 +58,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${robot.wx-secret:}")
     private String wxSecret;
 
+    @Value("${robot.login-max-retry:5}")
+    private int loginMaxRetry;
+
     private UserVO toVO(User user) {
         if (user == null) {
             return null;
@@ -90,19 +93,31 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
             throw new ValidationException("用户名和密码不能为空");
         }
+        // 登录限流：同一账号连续失败达到阈值后锁定 10 分钟
+        String failKey = Constants.CACHE_LIMIT_PREFIX + "user-login:" + username;
+        String failCount = redisUtils.get(failKey);
+        if (failCount != null && Integer.parseInt(failCount) >= loginMaxRetry) {
+            throw new AuthenticationException("登录失败次数过多，请 10 分钟后再试");
+        }
         User user = userService.getByUsername(username);
         if (user == null) {
             user = userService.getByPhone(username);
         }
         if (user == null) {
+            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
+            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("用户不存在");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
             throw new AuthenticationException("账号已被禁用");
         }
         if (!PasswordUtil.matches(password, user.getPassword())) {
+            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
+            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("密码错误");
         }
+        // 登录成功清除失败计数
+        redisUtils.delete(failKey);
         userService.updateLastLogin(user.getId(), ip);
         return buildTokenResult(user);
     }
@@ -112,14 +127,24 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(phone) || StrUtil.isBlank(code)) {
             throw new ValidationException("手机号和验证码不能为空");
         }
+        // 短信登录限流：同一手机号连续失败达到阈值后锁定 10 分钟
+        String failKey = Constants.CACHE_LIMIT_PREFIX + "sms-login:" + phone;
+        String failCount = redisUtils.get(failKey);
+        if (failCount != null && Integer.parseInt(failCount) >= loginMaxRetry) {
+            throw new AuthenticationException("登录失败次数过多，请 10 分钟后再试");
+        }
         String cached = redisUtils.get(Constants.CACHE_SMS_CODE_PREFIX + phone);
         if (StrUtil.isBlank(cached)) {
             throw new AuthenticationException("验证码已过期，请重新获取");
         }
         if (!cached.equals(code)) {
+            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
+            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("验证码错误");
         }
         redisUtils.delete(Constants.CACHE_SMS_CODE_PREFIX + phone);
+        // 登录成功清除失败计数
+        redisUtils.delete(failKey);
         User user = userService.getByPhone(phone);
         if (user == null) {
             user = userService.register(null, phone, IdUtil.fastSimpleUUID(), null, "miniapp");
@@ -187,8 +212,15 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(phone) || phone.length() != 11) {
             throw new ValidationException("手机号格式不正确");
         }
+        // 短信发送限流：同一手机号 60 秒内只能发送一次
+        String sendKey = Constants.CACHE_LIMIT_PREFIX + "sms-send:" + phone;
+        if (redisUtils.hasKey(sendKey)) {
+            throw new ValidationException("发送过于频繁，请稍后再试");
+        }
         String code = generateSecureCode(6);
         redisUtils.set(Constants.CACHE_SMS_CODE_PREFIX + phone, code, smsCodeExpire, TimeUnit.SECONDS);
+        // 设置 60 秒发送间隔
+        redisUtils.set(sendKey, "1", 60, TimeUnit.SECONDS);
         Map<String, Object> result = new HashMap<>(4);
         result.put("phone", phone);
         result.put("expire", smsCodeExpire);
