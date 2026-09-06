@@ -2,7 +2,7 @@
 spring:
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:robot_home_collector;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE
+    url: jdbc:h2:mem:robot_home_collector;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;NON_KEYWORDS=USER,VALUE
     username: sa
     password:
   redis:
@@ -11,6 +11,14 @@ spring:
   # 测试环境禁用 Flyway（使用 schema 脚本直接初始化）
   flyway:
     enabled: false
+  # 测试环境禁用 Quartz 定时任务调度
+  quartz:
+    auto-startup: false
+  # 测试环境禁用 Spring @Scheduled 定时任务
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -35,3 +43,10 @@ crawler:
   max-retries: 1
   connect-timeout: 5000
   read-timeout: 10000
+
+# 发布测试配置
+publish:
+  timeout-minutes: 5
+  max-retries: 3
+  # 测试环境使用较短间隔（秒）
+  retry-base-interval-seconds: 10

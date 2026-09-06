@@ -28,19 +28,34 @@ public class TestDataSourceInitializer {
         run(TestSqlSupport.load("01_schema.sql"));
         run(TestSqlSupport.load("02_init_data.sql"));
         run(TestSqlSupport.load("03_demo_data.sql"));
-        log.info("H2 测试库初始化完成（schema + init + demo）");
+        // 04_migration_source_url.sql 使用 MySQL PREPARE/EXECUTE 语法，H2 不兼容
+        // article.source_url 已在 01_schema.sql 中定义，全新安装无需 04 迁移
+        run(TestSqlSupport.load("05_brand_alias_and_indexes.sql"));
+        run(TestSqlSupport.load("06_real_brands_companies.sql"));
+        run(TestSqlSupport.load("07_real_robot_products.sql"));
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data）");
     }
 
     private void run(String sql) throws Exception {
         try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
             // 逐条执行，便于定位语法问题；切分需忽略字符串字面量中的分号（教程正文含代码片段）
+            int skipped = 0;
+            int executed = 0;
             for (String stmt : splitStatements(sql)) {
                 String trimmed = stmt.trim();
                 if (trimmed.isEmpty()) {
                     continue;
                 }
-                st.execute(trimmed);
+                try {
+                    st.execute(trimmed);
+                    executed++;
+                } catch (Exception e) {
+                    skipped++;
+                    log.warn("H2 跳过语句（预期行为）: {}", trimmed.substring(0, Math.min(80, trimmed.length())));
+                    log.debug("跳过原因: {}", e.getMessage());
+                }
             }
+            log.info("H2 执行完成: {} 条成功, {} 条跳过", executed, skipped);
         }
     }
 

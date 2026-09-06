@@ -9,6 +9,7 @@ import com.robot.home.collector.mapper.CrawlerTaskMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,8 +19,10 @@ import java.util.List;
 /**
  * 采集定时任务调度器
  * 基于Spring @Scheduled实现定时触发采集
+ * ⚠️ 测试环境通过 @Profile("!test") 禁用，避免定时任务干扰测试
  */
 @Component
+@Profile("!test")
 public class CrawlerJob {
 
     private static final Logger log = LoggerFactory.getLogger(CrawlerJob.class);

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,7 +66,14 @@ public class PublishService {
                 new LambdaQueryWrapper<CrawlerArticle>()
                         .eq(CrawlerArticle::getMatchStatus, "MATCHED")
                         .eq(CrawlerArticle::getSynced, 0)
-                        .eq(CrawlerArticle::getArticleStatus, "AUTO_APPROVED")
+                        .and(w -> w
+                                .eq(CrawlerArticle::getArticleStatus, "AUTO_APPROVED")
+                                .or(o -> o
+                                        .eq(CrawlerArticle::getArticleStatus, "FAILED")
+                                        .and(i -> i.isNull(CrawlerArticle::getNextRetryTime)
+                                                .or().le(CrawlerArticle::getNextRetryTime, LocalDateTime.now()))
+                                )
+                        )
         );
 
         if (articles.isEmpty()) {
@@ -115,7 +123,14 @@ public class PublishService {
                 new LambdaQueryWrapper<CrawlerProduct>()
                         .eq(CrawlerProduct::getMatchStatus, "MATCHED")
                         .eq(CrawlerProduct::getSynced, 0)
-                        .eq(CrawlerProduct::getProductStatus, "AUTO_APPROVED")
+                        .and(w -> w
+                                .eq(CrawlerProduct::getProductStatus, "AUTO_APPROVED")
+                                .or(o -> o
+                                        .eq(CrawlerProduct::getProductStatus, "FAILED")
+                                        .and(i -> i.isNull(CrawlerProduct::getNextRetryTime)
+                                                .or().le(CrawlerProduct::getNextRetryTime, LocalDateTime.now()))
+                                )
+                        )
         );
 
         if (products.isEmpty()) {
@@ -152,26 +167,40 @@ public class PublishService {
     }
 
     /**
-     * 获取待发布的文章数量（仅AUTO_APPROVED）
+     * 获取待发布的文章数量（AUTO_APPROVED + FAILED 可重试，未到重试时间的不计入）
      */
     public long getPendingArticleCount() {
         return crawlerArticleMapper.selectCount(
                 new LambdaQueryWrapper<CrawlerArticle>()
                         .eq(CrawlerArticle::getMatchStatus, "MATCHED")
                         .eq(CrawlerArticle::getSynced, 0)
-                        .eq(CrawlerArticle::getArticleStatus, "AUTO_APPROVED")
+                        .and(w -> w
+                                .eq(CrawlerArticle::getArticleStatus, "AUTO_APPROVED")
+                                .or(o -> o
+                                        .eq(CrawlerArticle::getArticleStatus, "FAILED")
+                                        .and(i -> i.isNull(CrawlerArticle::getNextRetryTime)
+                                                .or().le(CrawlerArticle::getNextRetryTime, LocalDateTime.now()))
+                                )
+                        )
         );
     }
 
     /**
-     * 获取待发布的产品数量（仅AUTO_APPROVED）
+     * 获取待发布的产品数量（AUTO_APPROVED + FAILED 可重试，未到重试时间的不计入）
      */
     public long getPendingProductCount() {
         return crawlerProductMapper.selectCount(
                 new LambdaQueryWrapper<CrawlerProduct>()
                         .eq(CrawlerProduct::getMatchStatus, "MATCHED")
                         .eq(CrawlerProduct::getSynced, 0)
-                        .eq(CrawlerProduct::getProductStatus, "AUTO_APPROVED")
+                        .and(w -> w
+                                .eq(CrawlerProduct::getProductStatus, "AUTO_APPROVED")
+                                .or(o -> o
+                                        .eq(CrawlerProduct::getProductStatus, "FAILED")
+                                        .and(i -> i.isNull(CrawlerProduct::getNextRetryTime)
+                                                .or().le(CrawlerProduct::getNextRetryTime, LocalDateTime.now()))
+                                )
+                        )
         );
     }
 }

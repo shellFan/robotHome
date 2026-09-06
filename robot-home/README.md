@@ -9,7 +9,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Java 8、Spring Boot 2.7、MyBatis-Plus、JWT、Springfox/Swagger |
-| 数据库 | MySQL 8 |
+| 数据库 | MySQL 5.6 |
 | 缓存 | Redis 7 |
 | 文件 | 默认本地磁盘 `./uploads`；可选 MinIO |
 | PC 前台 | Vue 3、Vite、Element Plus、Pinia |
@@ -23,7 +23,7 @@
 
 - **JDK 8**、**Maven 3.8+**
 - **Node.js 20+**（建议 LTS）、npm
-- **MySQL 8**（本地或远程）
+- **MySQL 5.6**（本地或远程）
 - **Redis 7**（本地或远程）
 - （可选）**MinIO**、**Docker / Docker Compose**
 - 小程序开发：**微信开发者工具**

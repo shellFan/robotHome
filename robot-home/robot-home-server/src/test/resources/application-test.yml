@@ -20,7 +20,7 @@ mybatis-plus:
 
 # JWT 测试密钥（仅用于测试环境）
 jwt:
-  secret: test-secret-key-for-integration-tests-only-not-for-production
+  secret: aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xYzI8jH4gF2dA6cB8
   expiration: 86400000
   refresh-expiration: 604800000
 

@@ -10,6 +10,8 @@ public class BrandListVO {
 
     private Long id;
     private String name;
+    private String brandNameEn;
+    private String shortName;
     private String logo;
     private String initial;
     private String intro;
@@ -20,4 +22,5 @@ public class BrandListVO {
     private String companyName;
     private Integer robotCount;
     private Long hotScore;
+    private String dataSource;
 }

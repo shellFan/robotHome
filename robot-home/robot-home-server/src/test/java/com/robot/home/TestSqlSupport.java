@@ -62,6 +62,10 @@ public final class TestSqlSupport {
             if (trimmed.toUpperCase().startsWith("CREATE DATABASE") || trimmed.toUpperCase().startsWith("USE ")) {
                 continue;
             }
+            // ALTER TABLE ADD INDEX / ADD KEY -> 测试环境跳过（H2 不需要索引验证功能）
+            if (trimmed.toUpperCase().matches("ALTER\\s+TABLE.*ADD\\s+(INDEX|KEY).*")) {
+                continue;
+            }
             Matcher tableMatcher = CREATE_TABLE.matcher(trimmed);
             if (tableMatcher.find()) {
                 currentTable = tableMatcher.group(1);
@@ -71,6 +75,8 @@ public final class TestSqlSupport {
                 continue;
             }
             String s = line;
+            // ALTER TABLE ADD COLUMN ... AFTER -> 移除 AFTER 子句（H2 不支持）
+            s = s.replaceAll("(?i)\\s+AFTER\\s+`?\\w+`?", "");
             // UNIQUE KEY -> CONSTRAINT ... UNIQUE（约束名加表名前缀）
             Matcher m = UNIQUE_KEY.matcher(s);
             StringBuffer sb = new StringBuffer();

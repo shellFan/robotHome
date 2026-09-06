@@ -408,7 +408,7 @@ CREATE TABLE `article` (
   PRIMARY KEY (`id`),
   KEY `idx_category` (`category_id`),
   KEY `idx_publish` (`publish_time`),
-  KEY `idx_source_url` (`source_url`(255))
+  KEY `idx_source_url` (`source_url`(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资讯文章';
 
 DROP TABLE IF EXISTS `video_category`;

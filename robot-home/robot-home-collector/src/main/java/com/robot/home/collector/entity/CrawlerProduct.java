@@ -114,6 +114,15 @@ public class CrawlerProduct extends BaseEntity {
     /** 是否已同步: 0未同步 1已同步 */
     private Integer synced;
 
+    /** 失败原因 */
+    private String failReason;
+
+    /** 重试次数 */
+    private Integer retryCount;
+
+    /** 下次重试时间（指数退避） */
+    private LocalDateTime nextRetryTime;
+
     /** 抓取时间 */
     private LocalDateTime crawlTime;
 }

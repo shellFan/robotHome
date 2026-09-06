@@ -9,6 +9,7 @@ import com.robot.home.collector.mapper.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +38,20 @@ public class PublishTransactionService {
 
     private static final Logger log = LoggerFactory.getLogger(PublishTransactionService.class);
     private static final ObjectMapper jsonMapper = new ObjectMapper();
+
+    /** 最大重试次数，超过后标记为 MANUAL_REVIEW 需人工介入 */
+    @Value("${publish.max-retries:3}")
+    private int maxRetryCount;
+
+    /** 重试退避基础间隔（秒），实际间隔 = baseInterval * 2^(retryCount-1) */
+    @Value("${publish.retry-base-interval-seconds:60}")
+    private int retryBaseIntervalSeconds;
+
+    /** 发布结果：区分关键警告（需人工审核）和非关键警告（仅记录） */
+    private static class PublishResult {
+        final List<String> warnings = new ArrayList<>();
+        boolean needsReview = false;
+    }
 
     @Autowired
     private CrawlerArticleMapper crawlerArticleMapper;
@@ -69,6 +85,9 @@ public class PublishTransactionService {
 
     @Autowired
     private PublishRobotParamDefMapper publishRobotParamDefMapper;
+
+    @Autowired
+    private ArticleCategoryMapper articleCategoryMapper;
 
     /**
      * 发布单篇文章（独立事务 + 乐观锁幂等）
@@ -140,6 +159,16 @@ public class PublishTransactionService {
         }
 
         try {
+            // ★ 先校验后发布：关键数据质量校验在写入正式表之前完成
+            // 校验失败的产品标记为 PENDING_REVIEW，不创建 robot 记录
+            PublishResult validation = preValidateProductData(cp);
+            if (validation.needsReview) {
+                markProductPendingReview(cp.getId(), String.join("; ", validation.warnings));
+                log.warn("Product marked PENDING_REVIEW before publishing: crawlerId={}, reasons={}",
+                        cp.getId(), validation.warnings);
+                return true;
+            }
+
             Long robotId;
 
             // 检查是否已有发布记录（重复发布场景）
@@ -176,68 +205,195 @@ public class PublishTransactionService {
 
     /**
      * 标记文章发布失败（独立事务，允许重试）
-     * 重置 synced=0 以允许重新发布，记录失败原因
+     * 重置 synced=0 以允许重新发布，记录失败原因和重试次数
+     * 超过最大重试次数后标记为 MANUAL_REVIEW，需人工介入
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markArticleFailed(Long crawlerArticleId, String reason) {
-        crawlerArticleMapper.update(null,
-                new LambdaUpdateWrapper<CrawlerArticle>()
-                        .eq(CrawlerArticle::getId, crawlerArticleId)
-                        .set(CrawlerArticle::getArticleStatus, "FAILED")
-                        .set(CrawlerArticle::getSynced, 0)
-                        .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
-        );
-        log.warn("Article marked FAILED: crawlerId={}, reason={}", crawlerArticleId, reason);
+        // 先查询当前重试次数
+        CrawlerArticle current = crawlerArticleMapper.selectById(crawlerArticleId);
+        int newRetryCount = (current != null && current.getRetryCount() != null)
+                ? current.getRetryCount() + 1 : 1;
+
+        if (newRetryCount > maxRetryCount) {
+            // 超过最大重试次数，标记为需人工介入
+            crawlerArticleMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerArticle>()
+                            .eq(CrawlerArticle::getId, crawlerArticleId)
+                            .set(CrawlerArticle::getArticleStatus, "MANUAL_REVIEW")
+                            .set(CrawlerArticle::getSynced, 0)
+                            .set(CrawlerArticle::getFailReason, reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
+                            .set(CrawlerArticle::getRetryCount, newRetryCount)
+                            .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
+            );
+            log.warn("Article exceeded max retry count ({}), marked MANUAL_REVIEW: crawlerId={}, retryCount={}",
+                    maxRetryCount, crawlerArticleId, newRetryCount);
+        } else {
+            // 计算指数退避：next_retry_time = NOW() + baseInterval * 2^(retryCount-1)
+            LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
+            crawlerArticleMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerArticle>()
+                            .eq(CrawlerArticle::getId, crawlerArticleId)
+                            .set(CrawlerArticle::getArticleStatus, "FAILED")
+                            .set(CrawlerArticle::getSynced, 0)
+                            .set(CrawlerArticle::getFailReason, reason)
+                            .setSql("retry_count = retry_count + 1")
+                            .set(CrawlerArticle::getNextRetryTime, nextRetryTime)
+                            .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
+            );
+            log.warn("Article marked FAILED: crawlerId={}, reason={}, retryCount={}/{}, nextRetry={}",
+                    crawlerArticleId, reason, newRetryCount, maxRetryCount, nextRetryTime);
+        }
     }
 
     /**
      * 标记产品发布失败（独立事务，允许重试）
-     * 重置 synced=0 以允许重新发布，记录失败原因
+     * 重置 synced=0 以允许重新发布，记录失败原因和重试次数
+     * 超过最大重试次数后标记为 MANUAL_REVIEW，需人工介入
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markProductFailed(Long crawlerProductId, String reason) {
+        // 先查询当前重试次数
+        CrawlerProduct current = crawlerProductMapper.selectById(crawlerProductId);
+        int newRetryCount = (current != null && current.getRetryCount() != null)
+                ? current.getRetryCount() + 1 : 1;
+
+        if (newRetryCount > maxRetryCount) {
+            // 超过最大重试次数，标记为需人工介入
+            crawlerProductMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerProduct>()
+                            .eq(CrawlerProduct::getId, crawlerProductId)
+                            .set(CrawlerProduct::getProductStatus, "MANUAL_REVIEW")
+                            .set(CrawlerProduct::getSynced, 0)
+                            .set(CrawlerProduct::getFailReason, reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
+                            .set(CrawlerProduct::getRetryCount, newRetryCount)
+                            .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
+            );
+            log.warn("Product exceeded max retry count ({}), marked MANUAL_REVIEW: crawlerId={}, retryCount={}",
+                    maxRetryCount, crawlerProductId, newRetryCount);
+        } else {
+            // 计算指数退避：next_retry_time = NOW() + baseInterval * 2^(retryCount-1)
+            LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
+            crawlerProductMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerProduct>()
+                            .eq(CrawlerProduct::getId, crawlerProductId)
+                            .set(CrawlerProduct::getProductStatus, "FAILED")
+                            .set(CrawlerProduct::getSynced, 0)
+                            .set(CrawlerProduct::getFailReason, reason)
+                            .setSql("retry_count = retry_count + 1")
+                            .set(CrawlerProduct::getNextRetryTime, nextRetryTime)
+                            .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
+            );
+            log.warn("Product marked FAILED: crawlerId={}, reason={}, retryCount={}/{}, nextRetry={}",
+                    crawlerProductId, reason, newRetryCount, maxRetryCount, nextRetryTime);
+        }
+    }
+
+    /**
+     * 标记文章为待审核状态（独立事务）
+     * 用于数据质量问题（如JSON格式错误），需要人工审核而非直接发布
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markArticlePendingReview(Long crawlerArticleId, String reason) {
+        crawlerArticleMapper.update(null,
+                new LambdaUpdateWrapper<CrawlerArticle>()
+                        .eq(CrawlerArticle::getId, crawlerArticleId)
+                        .set(CrawlerArticle::getArticleStatus, "PENDING_REVIEW")
+                        .set(CrawlerArticle::getSynced, 0)
+                        .set(CrawlerArticle::getFailReason, reason)
+                        .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
+        );
+        log.info("Article marked PENDING_REVIEW: crawlerId={}, reason={}", crawlerArticleId, reason);
+    }
+
+    /**
+     * 标记产品为待审核状态（独立事务）
+     * 用于数据质量问题（如JSON格式错误），需要人工审核而非直接发布
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markProductPendingReview(Long crawlerProductId, String reason) {
         crawlerProductMapper.update(null,
                 new LambdaUpdateWrapper<CrawlerProduct>()
                         .eq(CrawlerProduct::getId, crawlerProductId)
-                        .set(CrawlerProduct::getProductStatus, "FAILED")
+                        .set(CrawlerProduct::getProductStatus, "PENDING_REVIEW")
                         .set(CrawlerProduct::getSynced, 0)
+                        .set(CrawlerProduct::getFailReason, reason)
                         .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
         );
-        log.warn("Product marked FAILED: crawlerId={}, reason={}", crawlerProductId, reason);
+        log.info("Product marked PENDING_REVIEW: crawlerId={}, reason={}", crawlerProductId, reason);
     }
 
     /**
      * 恢复超时的 PUBLISHING 状态（独立事务）
      * 防止任务永久停留在 PUBLISHING 状态
+     * 使用 Java 计算指数退避时间，兼容 H2 和 MySQL
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int recoverTimedOutPublishing(int timeoutMinutes) {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(timeoutMinutes);
-        // 恢复超时的文章
-        int articles = crawlerArticleMapper.update(null,
-                new LambdaUpdateWrapper<CrawlerArticle>()
+        String failReason = "发布超时(>" + timeoutMinutes + "分钟未完成)";
+
+        // 查询超时的文章，逐条更新（Java计算退避时间，兼容H2/MySQL）
+        List<CrawlerArticle> timedOutArticles = crawlerArticleMapper.selectList(
+                new LambdaQueryWrapper<CrawlerArticle>()
                         .eq(CrawlerArticle::getArticleStatus, "PUBLISHING")
                         .lt(CrawlerArticle::getUpdateTime, threshold)
-                        .set(CrawlerArticle::getArticleStatus, "FAILED")
-                        .set(CrawlerArticle::getSynced, 0)
-                        .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
         );
-        // 恢复超时的产品
-        int products = crawlerProductMapper.update(null,
-                new LambdaUpdateWrapper<CrawlerProduct>()
+        for (CrawlerArticle article : timedOutArticles) {
+            int newRetryCount = (article.getRetryCount() != null ? article.getRetryCount() : 0) + 1;
+            LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
+            crawlerArticleMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerArticle>()
+                            .eq(CrawlerArticle::getId, article.getId())
+                            .set(CrawlerArticle::getArticleStatus, "FAILED")
+                            .set(CrawlerArticle::getSynced, 0)
+                            .set(CrawlerArticle::getRetryCount, newRetryCount)
+                            .set(CrawlerArticle::getFailReason, failReason)
+                            .set(CrawlerArticle::getNextRetryTime, nextRetryTime)
+                            .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
+            );
+        }
+
+        // 查询超时的产品，逐条更新
+        List<CrawlerProduct> timedOutProducts = crawlerProductMapper.selectList(
+                new LambdaQueryWrapper<CrawlerProduct>()
                         .eq(CrawlerProduct::getProductStatus, "PUBLISHING")
                         .lt(CrawlerProduct::getUpdateTime, threshold)
-                        .set(CrawlerProduct::getProductStatus, "FAILED")
-                        .set(CrawlerProduct::getSynced, 0)
-                        .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
         );
-        if (articles + products > 0) {
-            log.warn("Recovered timed-out PUBLISHING records: articles={}, products={}", articles, products);
+        for (CrawlerProduct product : timedOutProducts) {
+            int newRetryCount = (product.getRetryCount() != null ? product.getRetryCount() : 0) + 1;
+            LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
+            crawlerProductMapper.update(null,
+                    new LambdaUpdateWrapper<CrawlerProduct>()
+                            .eq(CrawlerProduct::getId, product.getId())
+                            .set(CrawlerProduct::getProductStatus, "FAILED")
+                            .set(CrawlerProduct::getSynced, 0)
+                            .set(CrawlerProduct::getRetryCount, newRetryCount)
+                            .set(CrawlerProduct::getFailReason, failReason)
+                            .set(CrawlerProduct::getNextRetryTime, nextRetryTime)
+                            .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
+            );
         }
-        return articles + products;
+
+        int total = timedOutArticles.size() + timedOutProducts.size();
+        if (total > 0) {
+            log.warn("Recovered timed-out PUBLISHING records: articles={}, products={}",
+                    timedOutArticles.size(), timedOutProducts.size());
+        }
+        return total;
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 计算指数退避的下次重试时间
+     * 公式：next_retry_time = NOW() + baseInterval * 2^(retryCount-1)
+     * retry 1: baseInterval * 1, retry 2: baseInterval * 2, retry 3: baseInterval * 4, ...
+     */
+    private LocalDateTime calculateNextRetryTime(int retryCount) {
+        long delaySeconds = retryBaseIntervalSeconds * (1L << (retryCount - 1));
+        return LocalDateTime.now().plusSeconds(delaySeconds);
+    }
 
     private void markArticlePublished(Long crawlerArticleId, Long articleId) {
         crawlerArticleMapper.update(null,
@@ -262,10 +418,14 @@ public class PublishTransactionService {
     /**
      * 保存机器人关联数据（图片、价格、标签、视频、参数值）
      * ⚠️ 数据库写入异常直接抛出，触发事务回滚
-     * ⚠️ 仅数据格式解析错误提前校验，不抛异常
+     * ⚠️ JSON 格式错误由 preValidateProductData 预校验，此处不应再出现
+     * ⚠️ 非关键警告（价格格式、参数定义缺失）仅记录日志，不影响发布状态
+     *
+     * @return 非关键警告列表
      */
-    private void saveRelatedData(Long robotId, CrawlerProduct cp) {
+    private PublishResult saveRelatedData(Long robotId, CrawlerProduct cp) {
         LocalDateTime now = LocalDateTime.now();
+        PublishResult result = new PublishResult();
 
         // 1. 保存图片
         String gallery = cp.getGalleryLocal() != null ? cp.getGalleryLocal() : cp.getGallery();
@@ -282,8 +442,9 @@ public class PublishTransactionService {
                     publishRobotImageMapper.insert(img);
                 }
             } catch (Exception e) {
-                // JSON 格式错误属于数据质量问题，不回滚主表，记录日志继续
-                log.warn("Invalid gallery JSON for robot {}, skipping images: {}", robotId, e.getMessage());
+                // 先校验后发布：preValidateProductData 已保证 JSON 格式正确
+                // 若此处仍解析失败，说明存在预校验未覆盖的边界情况，触发事务回滚
+                throw new RuntimeException("Gallery JSON parse failed after pre-validation for robot " + robotId, e);
             }
         }
         String cover = cp.getCoverImageLocal() != null ? cp.getCoverImageLocal() : cp.getCoverImage();
@@ -309,7 +470,9 @@ public class PublishTransactionService {
                 price.setUpdateTime(now);
                 publishRobotPriceMapper.insert(price);
             } catch (NumberFormatException e) {
-                // 价格格式错误属于数据质量问题，不回滚主表
+                // 价格格式错误属于非关键警告，不影响发布状态
+                String warning = "Invalid price format: " + cp.getPrice();
+                result.warnings.add(warning);
                 log.warn("Invalid price format '{}' for robot {}, skipping: {}", cp.getPrice(), robotId, e.getMessage());
             }
         }
@@ -368,6 +531,9 @@ public class PublishTransactionService {
                             publishRobotParamValueMapper.insert(pv);
                             paramSort++;
                         } else {
+                            // 参数定义不存在属于配置问题，记录为非关键警告
+                            String warning = "Parameter definition not found: " + paramName;
+                            result.warnings.add(warning);
                             log.debug("Parameter definition not found for '{}', skipping for robot {}", paramName, robotId);
                         }
                     }
@@ -376,10 +542,13 @@ public class PublishTransactionService {
                     log.info("Saved {} parameter values for robot {}", paramSort, robotId);
                 }
             } catch (Exception e) {
-                // JSON 格式错误属于数据质量问题
-                log.warn("Invalid normalizedParams JSON for robot {}, skipping params: {}", robotId, e.getMessage());
+                // 先校验后发布：preValidateProductData 已保证 JSON 格式正确
+                // 若此处仍解析失败，说明存在预校验未覆盖的边界情况，触发事务回滚
+                throw new RuntimeException("NormalizedParams JSON parse failed after pre-validation for robot " + robotId, e);
             }
         }
+
+        return result;
     }
 
     private void deleteRelatedData(Long robotId) {
@@ -393,6 +562,47 @@ public class PublishTransactionService {
                 new LambdaQueryWrapper<PublishRobotVideo>().eq(PublishRobotVideo::getRobotId, robotId));
         publishRobotParamValueMapper.delete(
                 new LambdaQueryWrapper<PublishRobotParamValue>().eq(PublishRobotParamValue::getRobotId, robotId));
+    }
+
+    /**
+     * 预校验产品数据质量：在写入正式表之前检查关键数据格式
+     * 校验失败的产品将标记为 PENDING_REVIEW，不创建 robot 记录
+     *
+     * 校验项：
+     * - gallery JSON 格式（图集数据）
+     * - normalizedParams JSON 格式（参数数据）
+     *
+     * 非关键校验（价格格式、参数定义缺失）在 saveRelatedData 中处理，不影响发布状态
+     */
+    private PublishResult preValidateProductData(CrawlerProduct cp) {
+        PublishResult result = new PublishResult();
+
+        // 1. 校验 gallery JSON 格式
+        String gallery = cp.getGalleryLocal() != null ? cp.getGalleryLocal() : cp.getGallery();
+        if (StringUtils.hasText(gallery)) {
+            try {
+                jsonMapper.readValue(gallery, new TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                String warning = "Invalid gallery JSON: " + e.getMessage();
+                result.warnings.add(warning);
+                result.needsReview = true;
+                log.warn("Pre-validation: invalid gallery JSON for product {}: {}", cp.getProductName(), e.getMessage());
+            }
+        }
+
+        // 2. 校验 normalizedParams JSON 格式
+        if (StringUtils.hasText(cp.getNormalizedParams())) {
+            try {
+                jsonMapper.readValue(cp.getNormalizedParams(), new TypeReference<Map<String, String>>() {});
+            } catch (Exception e) {
+                String warning = "Invalid normalizedParams JSON: " + e.getMessage();
+                result.warnings.add(warning);
+                result.needsReview = true;
+                log.warn("Pre-validation: invalid normalizedParams JSON for product {}: {}", cp.getProductName(), e.getMessage());
+            }
+        }
+
+        return result;
     }
 
     private PublishArticle convertToArticle(CrawlerArticle ca, Long defaultCategoryId) {
@@ -437,7 +647,7 @@ public class PublishTransactionService {
     }
 
     /**
-     * 解析文章分类：优先匹配采集文章分类，再按品牌映射，最后使用默认分类
+     * 解析文章分类：优先匹配采集文章分类，再按名称匹配栏目表，最后使用默认分类
      * 默认分类不存在时返回 null（调用方应转入待审核）
      */
     private Long resolveArticleCategory(CrawlerArticle ca, Long defaultCategoryId) {
@@ -445,7 +655,50 @@ public class PublishTransactionService {
         if (ca.getCategoryId() != null && ca.getCategoryId() > 0) {
             return ca.getCategoryId();
         }
-        // 2. 按品牌映射（TODO: 后续可通过品牌-分类映射表优化）
+
+        // 2. 按分类名称匹配 article_category 表
+        if (StringUtils.hasText(ca.getCategory())) {
+            try {
+                ArticleCategory matched = articleCategoryMapper.selectOne(
+                        new LambdaQueryWrapper<ArticleCategory>()
+                                .eq(ArticleCategory::getName, ca.getCategory())
+                                .eq(ArticleCategory::getStatus, 1)
+                                .last("LIMIT 1")
+                );
+                if (matched != null) {
+                    return matched.getId();
+                }
+                // 模糊匹配：分类名称包含文章分类关键词
+                matched = articleCategoryMapper.selectOne(
+                        new LambdaQueryWrapper<ArticleCategory>()
+                                .like(ArticleCategory::getName, ca.getCategory())
+                                .eq(ArticleCategory::getStatus, 1)
+                                .last("LIMIT 1")
+                );
+                if (matched != null) {
+                    return matched.getId();
+                }
+                // 反向模糊匹配：文章分类包含栏目名称
+                matched = articleCategoryMapper.selectOne(
+                        new LambdaQueryWrapper<ArticleCategory>()
+                                .eq(ArticleCategory::getStatus, 1)
+                                .last("LIMIT 1")
+                );
+                // 遍历所有启用的栏目，检查文章分类是否包含栏目名称
+                List<ArticleCategory> allCategories = articleCategoryMapper.selectList(
+                        new LambdaQueryWrapper<ArticleCategory>()
+                                .eq(ArticleCategory::getStatus, 1)
+                );
+                for (ArticleCategory cat : allCategories) {
+                    if (ca.getCategory().contains(cat.getName())) {
+                        return cat.getId();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to match article category by name: {}", e.getMessage());
+            }
+        }
+
         // 3. 使用配置的默认分类
         return defaultCategoryId;
     }
@@ -461,6 +714,9 @@ public class PublishTransactionService {
         robot.setCoverImage(cp.getCoverImageLocal() != null ? cp.getCoverImageLocal() : cp.getCoverImage());
         robot.setImages(cp.getGalleryLocal() != null ? cp.getGalleryLocal() : cp.getGallery());
         robot.setMainParams(cp.getNormalizedParams());
+        robot.setDataSource("CRAWLER");
+        robot.setSourceUrl(cp.getSourceUrl());
+        robot.setSourceName(cp.getSourceName());
         robot.setReleaseDate(cp.getReleaseDate());
         robot.setStatus(1);
         robot.setIsExample(0);
@@ -479,6 +735,9 @@ public class PublishTransactionService {
         robot.setCoverImage(cp.getCoverImageLocal() != null ? cp.getCoverImageLocal() : cp.getCoverImage());
         robot.setImages(cp.getGalleryLocal() != null ? cp.getGalleryLocal() : cp.getGallery());
         robot.setMainParams(cp.getNormalizedParams());
+        robot.setDataSource("CRAWLER");
+        robot.setSourceUrl(cp.getSourceUrl());
+        robot.setSourceName(cp.getSourceName());
         robot.setReleaseDate(cp.getReleaseDate());
         robot.setUpdateTime(LocalDateTime.now());
     }

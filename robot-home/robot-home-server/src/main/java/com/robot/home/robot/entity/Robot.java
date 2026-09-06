@@ -29,6 +29,14 @@ public class Robot extends BaseEntity {
     private String images;
     private Integer videoCount;
     private String mainParams;
+    /** 数据来源: DEMO/OFFICIAL/CRAWLER/MANUAL */
+    private String dataSource;
+    /** 来源URL */
+    private String sourceUrl;
+    /** 来源名称 */
+    private String sourceName;
+    /** 最后验证时间 */
+    private java.time.LocalDateTime lastVerifiedTime;
     private Long hotScore;
     private Integer viewCount;
     private Integer likeCount;

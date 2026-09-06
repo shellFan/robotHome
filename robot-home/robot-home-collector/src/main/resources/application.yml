@@ -75,6 +75,16 @@ crawler:
     enabled: false
     wait-after-load: 2000
 
+# 发布配置
+publish:
+  # PUBLISHING 状态超时恢复阈值（分钟）
+  timeout-minutes: 30
+  # 最大重试次数，超过后标记为 MANUAL_REVIEW
+  max-retries: 3
+  # 重试基础间隔（秒），实际间隔 = base * 2^(retryCount-1)
+  # retry 1: 60s, retry 2: 120s, retry 3: 240s
+  retry-base-interval-seconds: 60
+
 logging:
   level:
     com.robot.home.collector: DEBUG

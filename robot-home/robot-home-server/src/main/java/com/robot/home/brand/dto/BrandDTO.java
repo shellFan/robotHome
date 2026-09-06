@@ -10,6 +10,8 @@ public class BrandDTO {
 
     private Long id;
     private String name;
+    private String brandNameEn;
+    private String shortName;
     private String logo;
     private Long companyId;
     private String intro;
@@ -17,6 +19,8 @@ public class BrandDTO {
     private String country;
     private String website;
     private String initial;
+    private String dataSource;
+    private String sourceUrl;
     private Long hotScore;
     private Integer sort;
     private Integer status;

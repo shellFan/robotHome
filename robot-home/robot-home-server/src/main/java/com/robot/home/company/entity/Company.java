@@ -13,10 +13,26 @@ import lombok.Data;
 public class Company extends BaseEntity {
 
     private String name;
+    /** 公司英文名 */
+    private String companyNameEn;
+    /** 简称 */
+    private String shortName;
     private String logo;
     private String intro;
+    /** 数据来源: DEMO/OFFICIAL/CRAWLER/MANUAL */
+    private String dataSource;
+    /** 经营范围 */
+    private String businessScope;
+    /** 来源URL */
+    private String sourceUrl;
+    /** 最后验证时间 */
+    private java.time.LocalDateTime lastVerifiedTime;
     private Integer foundYear;
     private String region;
+    /** 省份 */
+    private String province;
+    /** 城市 */
+    private String city;
     private String website;
     private String contactPhone;
     private String contactEmail;

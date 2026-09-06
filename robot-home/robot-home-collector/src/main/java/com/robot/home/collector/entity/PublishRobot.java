@@ -28,6 +28,9 @@ public class PublishRobot {
     private String coverImage;
     private String images;
     private String mainParams;
+    private String dataSource;
+    private String sourceUrl;
+    private String sourceName;
     private BigDecimal score;
     private Integer isExample;
     private LocalDateTime createTime;

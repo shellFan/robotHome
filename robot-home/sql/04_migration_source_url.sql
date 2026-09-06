@@ -24,7 +24,7 @@ SET @idx_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'article' AND INDEX_NAME = 'idx_source_url');
 
 SET @sql = IF(@idx_exists = 0,
-    'ALTER TABLE `article` ADD INDEX `idx_source_url` (`source_url`(255))',
+    'ALTER TABLE `article` ADD INDEX `idx_source_url` (`source_url`(191))',
     'SELECT ''idx_source_url already exists, skipping''');
 
 PREPARE stmt FROM @sql;
