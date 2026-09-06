@@ -30,6 +30,13 @@ public class FileController {
             "mp4", "webm", "mov", "avi", "mkv",
             "pdf", "doc", "docx", "xls", "xlsx", "zip");
 
+    /** 允许的 MIME 类型前缀白名单（与扩展名对应） */
+    private static final List<String> ALLOWED_MIME_PREFIXES = Arrays.asList(
+            "image/", "video/", "application/pdf",
+            "application/msword", "application/vnd.openxmlformats-officedocument",
+            "application/vnd.ms-excel", "application/zip",
+            "application/x-zip-compressed");
+
     /** 单文件最大 20MB */
     private static final long MAX_SIZE = 20 * 1024 * 1024L;
 
@@ -51,6 +58,11 @@ public class FileController {
         if (!ALLOWED.contains(ext)) {
             throw new BusinessException("不支持的文件类型: " + ext);
         }
+        // MIME 类型白名单校验：防止恶意文件伪装扩展名上传
+        String contentType = file.getContentType();
+        if (contentType != null && !isAllowedMime(contentType)) {
+            throw new BusinessException("不支持的文件类型");
+        }
         String url;
         try {
             url = fileStorageService.upload(file.getBytes(), original, module);
@@ -62,6 +74,19 @@ public class FileController {
         data.put("size", file.getSize());
         data.put("name", original);
         return Result.success(data);
+    }
+
+    /**
+     * 判断 MIME 类型是否在白名单内
+     */
+    private boolean isAllowedMime(String contentType) {
+        String mime = contentType.toLowerCase(Locale.ROOT);
+        for (String prefix : ALLOWED_MIME_PREFIXES) {
+            if (mime.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String extension(String filename) {

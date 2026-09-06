@@ -61,6 +61,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${robot.login-max-retry:5}")
     private int loginMaxRetry;
 
+    /** 同一 IP 每小时最大注册次数 */
+    private static final int REGISTER_MAX_PER_HOUR = 5;
+
     private UserVO toVO(User user) {
         if (user == null) {
             return null;
@@ -164,7 +167,16 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(password)) {
             throw new ValidationException("密码不能为空");
         }
+        // 注册限流：同一 IP 每小时最多注册 5 次，防止批量注册
+        String regKey = Constants.CACHE_LIMIT_PREFIX + "register:" + ip;
+        String regCount = redisUtils.get(regKey);
+        if (regCount != null && Integer.parseInt(regCount) >= REGISTER_MAX_PER_HOUR) {
+            throw new ValidationException("注册过于频繁，请稍后再试");
+        }
         User user = userService.register(username, phone, password, nickname, "pc");
+        // 注册成功后递增计数
+        long count = regCount == null ? 1 : Long.parseLong(regCount) + 1;
+        redisUtils.set(regKey, String.valueOf(count), 3600, TimeUnit.SECONDS);
         return buildTokenResult(user);
     }
 
