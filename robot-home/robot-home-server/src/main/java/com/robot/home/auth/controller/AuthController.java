@@ -72,11 +72,14 @@ public class AuthController {
     }
 
     @PostMapping("/wx-login")
-    public Result<Map<String, Object>> wxLogin(@RequestParam String openid,
+    public Result<Map<String, Object>> wxLogin(@RequestParam(required = false) String code,
+                                               @RequestParam(required = false) String openid,
                                                @RequestParam(required = false) String nickname,
                                                @RequestParam(required = false) String avatar,
                                                HttpServletRequest request) {
-        return Result.success(authService.wxLogin(openid, nickname, avatar, request.getRemoteAddr()));
+        // 优先使用微信授权码换取openid（安全方式）
+        // 若提供code，由后端调用微信API验证；若仅提供openid，仅dev模式允许
+        return Result.success(authService.wxLogin(code, openid, nickname, avatar, request.getRemoteAddr()));
     }
 
     private String resolveToken(HttpServletRequest request) {

@@ -25,11 +25,11 @@ public class ImageService {
     private static final Logger log = LoggerFactory.getLogger(ImageService.class);
 
     private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"
+            "image/jpeg", "image/png", "image/gif", "image/webp"
     ));
 
     private static final Set<String> SUPPORTED_EXTENSIONS = new HashSet<>(Arrays.asList(
-            "jpg", "jpeg", "png", "gif", "webp", "svg"
+            "jpg", "jpeg", "png", "gif", "webp"
     ));
 
     private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -180,7 +180,6 @@ public class ImageService {
                 case "image/png": return "png";
                 case "image/gif": return "gif";
                 case "image/webp": return "webp";
-                case "image/svg+xml": return "svg";
             }
         }
 

@@ -27,6 +27,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${file.local.upload-dir:./uploads}")
     private String uploadDir;
 
+    @Value("${cors.allowed-origins:http://localhost:8080,http://localhost:3000}")
+    private String allowedOrigins;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // JWT 认证（放行登录注册等接口）
@@ -52,7 +55,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                .allowedOrigins(allowedOrigins.split(","))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)

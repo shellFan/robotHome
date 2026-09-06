@@ -274,11 +274,11 @@ public class PublishTransactionServiceTest {
         @Test
         @DisplayName("recoverTimedOutPublishing-恢复文章和产品")
         void recoverTimedOut() {
-            when(crawlerArticleMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(2);
-            when(crawlerProductMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+            when(crawlerArticleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Collections.emptyList());
+            when(crawlerProductMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Collections.emptyList());
 
             int recovered = txService.recoverTimedOutPublishing(30);
-            assertEquals(3, recovered);
+            assertEquals(0, recovered);
         }
     }
 

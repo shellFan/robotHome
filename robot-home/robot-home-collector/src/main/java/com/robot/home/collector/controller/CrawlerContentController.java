@@ -67,7 +67,11 @@ public class CrawlerContentController {
      */
     @GetMapping("/article/{id}")
     public CrawlerArticle getArticle(@PathVariable Long id) {
-        return articleMapper.selectById(id);
+        CrawlerArticle article = articleMapper.selectById(id);
+        if (article == null) {
+            throw new RuntimeException("文章不存在: id=" + id);
+        }
+        return article;
     }
 
     /**
@@ -80,18 +84,22 @@ public class CrawlerContentController {
             @RequestParam(required = false) String reason) {
 
         CrawlerArticle article = articleMapper.selectById(id);
-        if (article == null) return null;
+        if (article == null) {
+            throw new RuntimeException("文章不存在: id=" + id);
+        }
 
+        String status;
         switch (action) {
             case "approve":
-                article.setArticleStatus("AUTO_APPROVED");
+                status = "AUTO_APPROVED";
                 break;
             case "reject":
-                article.setArticleStatus("REJECTED");
+                status = "REJECTED";
                 break;
             default:
-                article.setArticleStatus(action.toUpperCase());
+                throw new IllegalArgumentException("不支持的审核操作: " + action);
         }
+        article.setArticleStatus(status);
 
         article.setUpdateTime(LocalDateTime.now());
         articleMapper.updateById(article);
@@ -161,7 +169,11 @@ public class CrawlerContentController {
      */
     @GetMapping("/product/{id}")
     public CrawlerProduct getProduct(@PathVariable Long id) {
-        return productMapper.selectById(id);
+        CrawlerProduct product = productMapper.selectById(id);
+        if (product == null) {
+            throw new RuntimeException("产品不存在: id=" + id);
+        }
+        return product;
     }
 
     /**
@@ -174,18 +186,22 @@ public class CrawlerContentController {
             @RequestParam(required = false) String reason) {
 
         CrawlerProduct product = productMapper.selectById(id);
-        if (product == null) return null;
+        if (product == null) {
+            throw new RuntimeException("产品不存在: id=" + id);
+        }
 
+        String status;
         switch (action) {
             case "approve":
-                product.setProductStatus("AUTO_APPROVED");
+                status = "AUTO_APPROVED";
                 break;
             case "reject":
-                product.setProductStatus("REJECTED");
+                status = "REJECTED";
                 break;
             default:
-                product.setProductStatus(action.toUpperCase());
+                throw new IllegalArgumentException("不支持的审核操作: " + action);
         }
+        product.setProductStatus(status);
 
         product.setUpdateTime(LocalDateTime.now());
         productMapper.updateById(product);

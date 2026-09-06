@@ -8,6 +8,7 @@ import io.minio.RemoveObjectArgs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
@@ -29,8 +30,11 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
     @Value("${file.minio.bucket-name}")
     private String bucketName;
 
-    private MinioClient client() {
-        return MinioClient.builder()
+    private MinioClient minioClient;
+
+    @PostConstruct
+    public void init() {
+        minioClient = MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
                 .build();
@@ -47,7 +51,7 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
     public String upload(byte[] data, String originalFilename, String module) {
         String objectName = module + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
         try (InputStream is = new ByteArrayInputStream(data)) {
-            client().putObject(PutObjectArgs.builder()
+            minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
                     .stream(is, data.length, -1)
@@ -62,7 +66,7 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
     public String upload(InputStream inputStream, String originalFilename, String module) {
         String objectName = module + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
         try {
-            client().putObject(PutObjectArgs.builder()
+            minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
                     .stream(inputStream, -1, 10485760)
@@ -81,7 +85,7 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
         String prefix = endpoint + "/" + bucketName + "/";
         String objectName = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
         try {
-            client().removeObject(RemoveObjectArgs.builder()
+            minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
                     .build());

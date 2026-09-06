@@ -19,12 +19,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.annotation.Resource;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     @Resource
@@ -42,8 +46,17 @@ public class AuthServiceImpl implements AuthService {
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
 
-    @Value("${robot.sms-dev-mode:true}")
+    @Value("${robot.sms-dev-mode:false}")
     private boolean smsDevMode;
+
+    @Value("${robot.wx-dev-mode:false}")
+    private boolean wxDevMode;
+
+    @Value("${robot.wx-appid:}")
+    private String wxAppId;
+
+    @Value("${robot.wx-secret:}")
+    private String wxSecret;
 
     private UserVO toVO(User user) {
         if (user == null) {
@@ -131,12 +144,42 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Map<String, Object> wxLogin(String openid, String nickname, String avatar, String ip) {
+    public Map<String, Object> wxLogin(String code, String openid, String nickname, String avatar, String ip) {
+        // 安全方式：通过微信授权码换取openid
+        if (StrUtil.isNotBlank(code) && StrUtil.isNotBlank(wxAppId) && StrUtil.isNotBlank(wxSecret)) {
+            openid = wxCode2Session(code);
+        }
+        // 兼容方式：dev模式下允许直接传入openid（仅开发调试）
         if (StrUtil.isBlank(openid)) {
             throw new ValidationException("openid 不能为空");
         }
+        if (!wxDevMode && StrUtil.isBlank(code)) {
+            throw new ValidationException("微信登录必须提供授权码");
+        }
         User user = userService.wxLogin(openid, nickname, avatar);
         return buildTokenResult(user);
+    }
+
+    /**
+     * 调用微信 code2Session 接口换取 openid
+     * 文档：https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
+     */
+    private String wxCode2Session(String code) {
+        try {
+            String url = String.format(
+                    "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                    wxAppId, wxSecret, code);
+            String resp = cn.hutool.http.HttpUtil.get(url, 5000);
+            cn.hutool.json.JSONObject json = cn.hutool.json.JSONUtil.parseObj(resp);
+            if (json.containsKey("errcode") && json.getInt("errcode") != 0) {
+                throw new AuthenticationException("微信登录失败: " + json.getStr("errmsg", "unknown"));
+            }
+            return json.getStr("openid");
+        } catch (AuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuthenticationException("微信登录服务异常，请稍后重试");
+        }
     }
 
     @Override
@@ -144,27 +187,29 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(phone) || phone.length() != 11) {
             throw new ValidationException("手机号格式不正确");
         }
-        String code = String.format("%06d", (int) (Math.random() * 1000000));
+        String code = generateSecureCode(6);
         redisUtils.set(Constants.CACHE_SMS_CODE_PREFIX + phone, code, smsCodeExpire, TimeUnit.SECONDS);
         Map<String, Object> result = new HashMap<>(4);
         result.put("phone", phone);
         result.put("expire", smsCodeExpire);
-        // 无真实短信通道，dev 模式直接返回验证码以便联调
+        // 安全：不再在API响应中返回验证码，即使dev模式也不返回
+        // dev模式下验证码通过日志输出便于调试
         if (smsDevMode) {
-            result.put("devCode", code);
+            log.info("[DEV] SMS code for phone={}: {}", phone, code);
         }
         return result;
     }
 
     @Override
     public Map<String, Object> captcha() {
-        String code = String.format("%04d", (int) (Math.random() * 10000));
+        String code = generateSecureCode(4);
         String token = IdUtil.fastSimpleUUID();
         redisUtils.set(Constants.CACHE_CAPTCHA_PREFIX + token, code, 300, TimeUnit.SECONDS);
         Map<String, Object> result = new HashMap<>(4);
         result.put("captchaToken", token);
+        // 安全：不再在API响应中返回验证码
         if (smsDevMode) {
-            result.put("code", code);
+            log.info("[DEV] Captcha code for token={}: {}", token, code);
         }
         return result;
     }
@@ -197,7 +242,8 @@ public class AuthServiceImpl implements AuthService {
             if (remain > 0) {
                 redisUtils.set(Constants.CACHE_TOKEN_PREFIX + "black:" + token, "1", remain / 1000, TimeUnit.SECONDS);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("logout处理异常, token可能已失效: {}", e.getMessage());
         }
     }
 
@@ -207,5 +253,12 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException("请先登录");
         }
         return toVO(userService.getById(userId));
+    }
+
+    /** 使用 SecureRandom 生成指定长度的数字验证码 */
+    private String generateSecureCode(int digits) {
+        SecureRandom random = new SecureRandom();
+        int bound = (int) Math.pow(10, digits);
+        return String.format("%0" + digits + "d", random.nextInt(bound));
     }
 }

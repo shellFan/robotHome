@@ -23,8 +23,10 @@ public interface AuthService {
 
     /**
      * 微信登录（小程序）
+     * @param code 微信授权码（安全方式，后端换取openid）
+     * @param openid 直接传入openid（仅dev模式允许）
      */
-    Map<String, Object> wxLogin(String openid, String nickname, String avatar, String ip);
+    Map<String, Object> wxLogin(String code, String openid, String nickname, String avatar, String ip);
 
     /**
      * 发送短信验证码（dev 模式直接返回验证码）

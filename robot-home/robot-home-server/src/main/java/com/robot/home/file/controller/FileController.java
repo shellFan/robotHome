@@ -26,7 +26,7 @@ public class FileController {
 
     /** 允许的扩展名白名单 */
     private static final List<String> ALLOWED = Arrays.asList(
-            "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg",
+            "jpg", "jpeg", "png", "gif", "webp", "bmp",
             "mp4", "webm", "mov", "avi", "mkv",
             "pdf", "doc", "docx", "xls", "xlsx", "zip");
 

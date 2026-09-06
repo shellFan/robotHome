@@ -81,6 +81,13 @@
             <version>5.8.28</version>
         </dependency>
 
+        <!-- BCrypt 密码哈希 -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
+        </dependency>
+
         <!-- Apache Commons -->
         <dependency>
             <groupId>org.apache.commons</groupId>
