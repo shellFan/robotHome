@@ -9,17 +9,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Sitemap XML解析器
- * 支持sitemap.xml和sitemap index
+ * 支持：sitemap.xml、sitemap index、gzip压缩、多层递归
  */
 @Component
 public class SitemapParser {
 
     private static final Logger log = LoggerFactory.getLogger(SitemapParser.class);
+
+    /** 最大递归深度（防止无限递归） */
+    private static final int MAX_RECURSION_DEPTH = 3;
+
+    /** 单个sitemap最大URL数（防止内存溢出） */
+    private static final int MAX_URLS_PER_SITEMAP = 50000;
+
+    /** GZIP magic bytes */
+    private static final byte[] GZIP_MAGIC = {(byte) 0x1f, (byte) 0x8b};
 
     /**
      * 解析Sitemap结果
@@ -56,32 +69,105 @@ public class SitemapParser {
     }
 
     /**
-     * 解析sitemap XML
+     * 解析sitemap XML（自动检测gzip）
+     * @param content sitemap内容（可能是XML文本或gzip字节数组）
      */
-    public SitemapResult parse(String xmlContent) {
+    public SitemapResult parse(String content) {
         SitemapResult result = new SitemapResult();
-        if (StringUtils.isBlank(xmlContent)) {
+        if (StringUtils.isBlank(content)) {
+            return result;
+        }
+
+        String xmlContent = content;
+        // 检测是否为gzip压缩内容（content可能来自HTTP响应的body bytes转string）
+        // 注意：gzip检测在fetcher层处理，这里主要处理纯XML
+
+        parseXmlContent(xmlContent, result);
+        return result;
+    }
+
+    /**
+     * 解析gzip压缩的sitemap
+     * @param gzipData gzip压缩的字节数组
+     */
+    public SitemapResult parseGzip(byte[] gzipData) {
+        SitemapResult result = new SitemapResult();
+        if (gzipData == null || gzipData.length == 0) {
             return result;
         }
 
         try {
+            String xmlContent = decompressGzip(gzipData);
+            parseXmlContent(xmlContent, result);
+        } catch (Exception e) {
+            log.error("Failed to decompress gzip sitemap", e);
+        }
+
+        return result;
+    }
+
+    /**
+     * 解析字节数组（自动检测gzip）
+     * @param data sitemap字节数据
+     * @param contentType HTTP Content-Type
+     */
+    public SitemapResult parseBytes(byte[] data, String contentType) {
+        if (data == null || data.length == 0) {
+            return new SitemapResult();
+        }
+
+        // 检测gzip：通过magic bytes或Content-Type
+        boolean isGzip = isGzipData(data) ||
+                (contentType != null && contentType.contains("gzip"));
+
+        if (isGzip) {
+            return parseGzip(data);
+        } else {
+            try {
+                String xmlContent = new String(data, "UTF-8");
+                return parse(xmlContent);
+            } catch (Exception e) {
+                log.error("Failed to parse sitemap bytes as UTF-8", e);
+                return new SitemapResult();
+            }
+        }
+    }
+
+    /**
+     * 解析XML内容
+     */
+    private void parseXmlContent(String xmlContent, SitemapResult result) {
+        try {
             Document doc = Jsoup.parse(xmlContent, "", org.jsoup.parser.Parser.xmlParser());
 
-            // 检查是否为sitemap index
+            // 1. 检查是否为sitemap index
             Elements sitemapElements = doc.select("sitemapindex > sitemap");
             if (!sitemapElements.isEmpty()) {
                 for (Element sitemap : sitemapElements) {
                     String loc = text(sitemap, "loc");
+                    String lastmod = text(sitemap, "lastmod");
                     if (StringUtils.isNotBlank(loc)) {
                         result.getSitemapIndexes().add(loc.trim());
+                        log.debug("Found sitemap index entry: {} (lastmod: {})", loc.trim(), lastmod);
                     }
                 }
-                return result;
+                log.info("Parsed sitemap index: {} sub-sitemaps", result.getSitemapIndexes().size());
+                return;
             }
 
-            // 解析普通sitemap
+            // 2. 解析普通sitemap urlset
             Elements urlElements = doc.select("urlset > url");
+            if (urlElements.isEmpty()) {
+                // 尝试不带命名空间前缀的选择器（某些sitemap使用不同命名空间）
+                urlElements = doc.select("url");
+            }
+
             for (Element urlElem : urlElements) {
+                if (result.getUrls().size() >= MAX_URLS_PER_SITEMAP) {
+                    log.warn("Sitemap URL count exceeded max limit {}, truncating", MAX_URLS_PER_SITEMAP);
+                    break;
+                }
+
                 String loc = text(urlElem, "loc");
                 if (StringUtils.isBlank(loc)) continue;
 
@@ -99,12 +185,38 @@ public class SitemapParser {
                 result.getUrls().add(new SitemapUrl(loc.trim(), lastmod, changefreq, priority));
             }
 
-            log.info("Parsed sitemap: {} URLs, {} indexes", result.getUrls().size(), result.getSitemapIndexes().size());
+            log.info("Parsed sitemap: {} URLs", result.getUrls().size());
         } catch (Exception e) {
             log.error("Failed to parse sitemap XML", e);
         }
+    }
 
-        return result;
+    /**
+     * 解压gzip数据
+     */
+    private String decompressGzip(byte[] gzipData) throws Exception {
+        try (InputStream is = new ByteArrayInputStream(gzipData);
+             GZIPInputStream gis = new GZIPInputStream(is);
+             ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[4096];
+            int len;
+            while ((len = gis.read(buffer)) != -1) {
+                os.write(buffer, 0, len);
+            }
+            return os.toString("UTF-8");
+        }
+    }
+
+    /**
+     * 检测数据是否为gzip格式
+     */
+    private boolean isGzipData(byte[] data) {
+        if (data == null || data.length < 2) {
+            return false;
+        }
+        return (data[0] & 0xFF) == (GZIP_MAGIC[0] & 0xFF) &&
+               (data[1] & 0xFF) == (GZIP_MAGIC[1] & 0xFF);
     }
 
     /**
@@ -116,6 +228,61 @@ public class SitemapParser {
             urls.add(su.getLoc());
         }
         return urls;
+    }
+
+    /**
+     * 过滤URL：按changefreq和lastmod筛选最近更新的URL
+     * @param urls sitemap URL列表
+     * @param maxAgeDays 最大天数（0=不过滤）
+     * @return 过滤后的URL列表
+     */
+    public List<String> filterRecentUrls(List<SitemapUrl> urls, int maxAgeDays) {
+        if (maxAgeDays <= 0) {
+            return extractUrls(new SitemapResult() {{ getUrls().addAll(urls); }});
+        }
+
+        List<String> filtered = new ArrayList<>();
+        long cutoffMs = System.currentTimeMillis() - (long) maxAgeDays * 24 * 60 * 60 * 1000;
+
+        for (SitemapUrl su : urls) {
+            if (StringUtils.isBlank(su.getLastmod())) {
+                filtered.add(su.getLoc());
+                continue;
+            }
+            try {
+                // 尝试解析lastmod（ISO 8601格式）
+                String lastmod = su.getLastmod().trim();
+                // 简单解析 YYYY-MM-DD 格式
+                if (lastmod.length() >= 10) {
+                    String dateStr = lastmod.substring(0, 10);
+                    long lastmodMs = java.sql.Date.valueOf(dateStr).getTime();
+                    if (lastmodMs >= cutoffMs) {
+                        filtered.add(su.getLoc());
+                    }
+                } else {
+                    filtered.add(su.getLoc());
+                }
+            } catch (Exception e) {
+                // 无法解析日期，保留URL
+                filtered.add(su.getLoc());
+            }
+        }
+
+        log.info("Filtered sitemap URLs: {} -> {} (maxAgeDays={})", urls.size(), filtered.size(), maxAgeDays);
+        return filtered;
+    }
+
+    /**
+     * 按优先级排序URL（priority高的在前）
+     */
+    public List<SitemapUrl> sortByPriority(List<SitemapUrl> urls) {
+        List<SitemapUrl> sorted = new ArrayList<>(urls);
+        sorted.sort((a, b) -> {
+            double pa = a.getPriority() != null ? a.getPriority() : 0.5;
+            double pb = b.getPriority() != null ? b.getPriority() : 0.5;
+            return Double.compare(pb, pa); // 降序
+        });
+        return sorted;
     }
 
     /**

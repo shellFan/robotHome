@@ -10,7 +10,10 @@ import com.robot.home.collector.fetcher.FetchResult;
 import com.robot.home.collector.fetcher.HttpFetcher;
 import com.robot.home.collector.mapper.CrawlerErrorMapper;
 import com.robot.home.collector.mapper.CrawlerTaskMapper;
+import com.robot.home.collector.parser.DateParser;
+import com.robot.home.collector.parser.PageClassifier;
 import com.robot.home.collector.parser.RobotsTxtParser;
+import com.robot.home.collector.parser.RssAtomParser;
 import com.robot.home.collector.parser.SitemapParser;
 import com.robot.home.collector.service.*;
 import com.robot.home.collector.util.HashUtils;
@@ -73,6 +76,18 @@ public class CrawlerEngine {
 
     @Autowired
     private SitemapParser sitemapParser;
+
+    @Autowired
+    private RssAtomParser rssAtomParser;
+
+    @Autowired
+    private DateParser dateParser;
+
+    @Autowired
+    private PageClassifier pageClassifier;
+
+    @Autowired
+    private SourceHealthMonitor sourceHealthMonitor;
 
     @Autowired
     private CrawlerTaskMapper taskMapper;
@@ -199,6 +214,9 @@ public class CrawlerEngine {
 
         log.info("Starting crawl task: source={}, task={}, baseUrl={}", source.getSourceName(), task.getId(), source.getBaseUrl());
 
+        // 加载采集源健康状态
+        sourceHealthMonitor.loadFromEntity(source);
+
         // 重置状态（关键：清空上次任务的残留数据）
         this.currentTask = task;
         this.urlQueue = new PriorityBlockingQueue<>(1000,
@@ -263,6 +281,15 @@ public class CrawlerEngine {
 
         // 最终更新计数器
         updateTaskCounters(task);
+
+        // 同步健康度到数据库
+        try {
+            sourceHealthMonitor.syncToEntity(source);
+            log.info("Synced health status for source: {}", source.getSourceName());
+        } catch (Exception e) {
+            log.warn("Failed to sync health status: {}", e.getMessage());
+        }
+
         log.info("Crawl task completed: source={}, urlsVisited={}, discovered={}, success={}, failed={}, articles={}, products={}",
                 source.getSourceName(), visitedUrls.size(), urlsDiscovered.get(), urlsSuccess.get(), urlsFailed.get(),
                 articlesNew.get(), productsNew.get());
@@ -319,13 +346,45 @@ public class CrawlerEngine {
             log.info("Loaded {} seed URLs from source config", seedUrls.size());
         }
 
-        // 从sitemap获取URL
+        // 从sitemap获取URL（支持gzip和sitemap index）
         if (StringUtils.isNotBlank(source.getSitemapUrl())) {
             try {
                 FetchResult result = httpFetcher.fetch(source.getSitemapUrl());
                 if (result.isSuccess()) {
                     SitemapParser.SitemapResult sitemapResult = sitemapParser.parse(result.getHtml());
+                    
+                    // 处理sitemap index（递归获取子sitemap）
+                    if (sitemapResult.hasSitemapIndexes()) {
+                        log.info("Found sitemap index with {} sub-sitemaps", sitemapResult.getSitemapIndexes().size());
+                        int subIndex = 0;
+                        for (String subSitemapUrl : sitemapResult.getSitemapIndexes()) {
+                            if (subIndex >= 5) { // 最多递归5个子sitemap
+                                log.warn("Reached max sub-sitemap limit (5), skipping remaining");
+                                break;
+                            }
+                            try {
+                                FetchResult subResult = httpFetcher.fetch(subSitemapUrl);
+                                if (subResult.isSuccess()) {
+                                    // 尝试gzip解析
+                                    SitemapParser.SitemapResult subResult2;
+                                    if (subSitemapUrl.endsWith(".gz") || subResult.getContentType().contains("gzip")) {
+                                        subResult2 = sitemapParser.parseGzip(subResult.getBody());
+                                    } else {
+                                        subResult2 = sitemapParser.parse(subResult.getHtml());
+                                    }
+                                    sitemapResult.getUrls().addAll(subResult2.getUrls());
+                                    subIndex++;
+                                    log.info("Parsed sub-sitemap: {} URLs from {}", subResult2.getUrls().size(), subSitemapUrl);
+                                }
+                            } catch (Exception e) {
+                                log.warn("Failed to fetch sub-sitemap: {} - {}", subSitemapUrl, e.getMessage());
+                            }
+                        }
+                    }
+
                     List<SitemapParser.SitemapUrl> sitemapUrls = sitemapResult.getUrls();
+                    // 按优先级排序
+                    sitemapUrls = sitemapParser.sortByPriority(sitemapUrls);
                     for (SitemapParser.SitemapUrl su : sitemapUrls) {
                         seedUrls.add(su.getLoc());
                     }
@@ -335,6 +394,21 @@ public class CrawlerEngine {
                 }
             } catch (Exception e) {
                 log.warn("Failed to fetch sitemap: {}", source.getSitemapUrl(), e.getMessage());
+            }
+        }
+
+        // 从RSS/Atom feed获取URL
+        if (StringUtils.isNotBlank(source.getRssUrl())) {
+            try {
+                FetchResult rssResult = httpFetcher.fetch(source.getRssUrl());
+                if (rssResult.isSuccess() && rssResult.isXml()) {
+                    RssAtomParser.FeedResult feedResult = rssAtomParser.parse(rssResult.getHtml());
+                    List<String> feedUrls = rssAtomParser.extractUrls(feedResult);
+                    seedUrls.addAll(feedUrls);
+                    log.info("Discovered {} URLs from RSS/Atom feed: {}", feedUrls.size(), source.getRssUrl());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch RSS/Atom feed: {} - {}", source.getRssUrl(), e.getMessage());
             }
         }
 
@@ -392,6 +466,12 @@ public class CrawlerEngine {
     private void processUrl(UrlTask urlTask, CrawlerSource source, CrawlerTask task) {
         String url = urlTask.getUrl();
         String urlHash = UrlNormalizer.hash(url);
+
+        // 检查采集源健康度（DISABLED状态跳过）
+        if (!sourceHealthMonitor.canCrawl(source.getId())) {
+            log.warn("Source {} is DISABLED, skipping URL: {}", source.getId(), url);
+            return;
+        }
 
         // 检查是否已访问
         if (!visitedUrls.add(urlHash)) {
@@ -456,6 +536,8 @@ public class CrawlerEngine {
                         fetchResult.getError());
                 urlsFailed.incrementAndGet();
                 recordError(url, task.getId(), source.getId(), "FETCH_ERROR", "HTTP " + fetchResult.getStatusCode());
+                // 记录健康度失败
+                sourceHealthMonitor.recordFailure(source.getId(), "HTTP " + fetchResult.getStatusCode(), fetchResult.getFetchTimeMs());
                 // 标记为FAILED，允许后续重试
                 deduplicationService.markUrlFetched(url, "FAILED");
                 return;
@@ -488,6 +570,9 @@ public class CrawlerEngine {
             processParsedData(parsedData, url, source, task, urlTask.getDepth());
             urlsSuccess.incrementAndGet();
 
+            // 记录健康度成功
+            sourceHealthMonitor.recordSuccess(source.getId(), fetchResult.getFetchTimeMs());
+
             // 6. 提取链接并加入队列
             if (urlTask.getDepth() < maxDepth) {
                 List<String> links = adapter.extractLinks(fetchResult, config);
@@ -519,6 +604,8 @@ public class CrawlerEngine {
             urlsFailed.incrementAndGet();
             String errorMsg = e.getClass().getSimpleName() + ": " + e.getMessage();
             recordError(url, task.getId(), source.getId(), "PROCESS_ERROR", errorMsg);
+            // 记录健康度失败
+            sourceHealthMonitor.recordFailure(source.getId(), errorMsg, 0);
             // 处理异常时标记URL为FAILED，允许后续重试
             deduplicationService.markUrlFetched(url, "FAILED");
         }
@@ -763,29 +850,19 @@ public class CrawlerEngine {
     }
 
     /**
-     * 解析日期字符串为LocalDateTime
+     * 解析日期字符串为LocalDateTime（使用DateParser增强版）
      */
     private LocalDateTime parseDateTime(String dateStr) {
         if (StringUtils.isBlank(dateStr)) return null;
-
-        DateTimeFormatter[] formatters = {
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
-                DateTimeFormatter.ofPattern("yyyy-MM-dd"),
-                DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"),
-                DateTimeFormatter.ofPattern("yyyy年MM月dd日"),
-                DateTimeFormatter.ofPattern("yyyy/MM/dd"),
-                DateTimeFormatter.ofPattern("yyyyMMdd")
-        };
-
-        for (DateTimeFormatter formatter : formatters) {
-            try {
-                LocalDate date = LocalDate.parse(dateStr.trim(), formatter);
-                return date.atStartOfDay();
-            } catch (Exception ignored) {
+        try {
+            java.util.Date date = dateParser.parse(dateStr);
+            if (date != null) {
+                return date.toInstant()
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDateTime();
             }
+        } catch (Exception ignored) {
         }
-
         return null;
     }
 
