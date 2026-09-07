@@ -76,8 +76,8 @@ const rows = ref([])
 const saving = ref(false)
 
 function beforeImage(file) {
-  const ok = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(file.name)
-  if (!ok) ElMessage.error('仅支持图片格式')
+  const ok = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.name)
+  if (!ok) ElMessage.error('仅支持 jpg/png/gif/webp/bmp 图片格式')
   return ok
 }
 
