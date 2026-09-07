@@ -40,9 +40,9 @@ const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 
 function beforeUpload(file) {
-  const ok = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(file.name)
+  const ok = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.name)
   if (!ok) {
-    ElMessage.error('仅支持 jpg/png/gif/webp/bmp/svg 图片')
+    ElMessage.error('仅支持 jpg/png/gif/webp/bmp 图片')
     return false
   }
   if (file.size > 20 * 1024 * 1024) {
