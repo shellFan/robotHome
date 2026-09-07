@@ -152,16 +152,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long userId, Long commentId, boolean isAdmin) {
         Comment comment = getById(commentId);
-        if (comment == null || comment.getDeleted() != null && comment.getDeleted() == 1) {
+        if (comment == null) {
             throw new BusinessException("评论不存在或已删除");
         }
         if (!isAdmin && !comment.getUserId().equals(userId)) {
             throw new PermissionException("只能删除自己的评论");
         }
-        Comment del = new Comment();
-        del.setId(commentId);
-        del.setDeleted(1);
-        updateById(del);
+        removeById(commentId);
         bizCounter.decr(comment.getBizType(), comment.getBizId(), BizCounter.Field.COMMENT);
         if (comment.getParentId() != null && comment.getParentId() > 0) {
             update(null, Wrappers.<Comment>lambdaUpdate()

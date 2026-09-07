@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PasswordUtil;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.user.dto.UserProfileDTO;
 import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
@@ -51,8 +52,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String keyword = (String) params.get("keyword");
         Integer status = params.get("status") == null ? null : Integer.parseInt(params.get("status").toString());
         return page(page, Wrappers.<User>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), User::getUsername, keyword)
-                .like(StrUtil.isNotBlank(keyword), User::getNickname, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), User::getUsername, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), User::getNickname, keyword)
                 .like(StrUtil.isNotBlank(keyword), User::getPhone, keyword)
                 .eq(status != null, User::getStatus, status)
                 .orderByDesc(User::getId));
@@ -70,7 +71,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setUsername(StrUtil.isNotBlank(username) ? username : phone);
         user.setPhone(phone);
         user.setPassword(PasswordUtil.hash(password));
-        user.setNickname(StrUtil.isNotBlank(nickname) ? nickname : (StrUtil.isNotBlank(phone) ? maskPhone(phone) : username));
+        user.setNickname(StrUtil.isNotBlank(nickname) ? XssUtils.escapeText(nickname) : (StrUtil.isNotBlank(phone) ? maskPhone(phone) : username));
         user.setStatus(1);
         user.setUserType(1);
         user.setSource(source);
@@ -85,7 +86,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null) {
             user = new User();
             user.setOpenid(openid);
-            user.setNickname(nickname);
+            user.setNickname(XssUtils.escapeText(nickname));
             user.setAvatar(avatar);
             user.setUsername("wx_" + openid);
             user.setStatus(1);
@@ -96,7 +97,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         } else {
             user.setLastLoginTime(LocalDateTime.now());
             if (StrUtil.isNotBlank(nickname)) {
-                user.setNickname(nickname);
+                user.setNickname(XssUtils.escapeText(nickname));
             }
             if (StrUtil.isNotBlank(avatar)) {
                 user.setAvatar(avatar);
@@ -124,22 +125,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User update = new User();
         update.setId(userId);
         if (StrUtil.isNotBlank(dto.getNickname())) {
-            update.setNickname(StrUtil.trim(dto.getNickname()));
+            update.setNickname(XssUtils.escapeText(StrUtil.trim(dto.getNickname())));
         }
         if (dto.getAvatar() != null) {
             update.setAvatar(dto.getAvatar());
         }
         if (dto.getIntro() != null) {
-            update.setIntro(dto.getIntro());
+            update.setIntro(XssUtils.escapeText(dto.getIntro()));
         }
         if (dto.getGender() != null) {
             update.setGender(dto.getGender());
         }
         if (dto.getProvince() != null) {
-            update.setProvince(dto.getProvince());
+            update.setProvince(XssUtils.escapeText(dto.getProvince()));
         }
         if (dto.getCity() != null) {
-            update.setCity(dto.getCity());
+            update.setCity(XssUtils.escapeText(dto.getCity()));
         }
         if (dto.getEmail() != null) {
             update.setEmail(dto.getEmail());

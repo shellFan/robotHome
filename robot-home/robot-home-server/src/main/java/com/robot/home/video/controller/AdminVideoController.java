@@ -42,7 +42,7 @@ public class AdminVideoController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Video> page = new Page<>(pn, ps);
         IPage<Video> result = videoMapper.selectPage(page, Wrappers.<Video>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Video::getTitle, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Video::getTitle, keyword)
                 .eq(categoryId != null, Video::getCategoryId, categoryId)
                 .eq(status != null, Video::getStatus, status)
                 .orderByDesc(Video::getPublishTime));

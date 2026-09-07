@@ -4,10 +4,12 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.robot.dto.ParamValueSaveDTO;
 import com.robot.home.robot.dto.RobotCategoryDTO;
 import com.robot.home.robot.dto.RobotDTO;
@@ -16,6 +18,8 @@ import com.robot.home.robot.dto.RobotParamGroupDTO;
 import com.robot.home.robot.dto.RobotParamTemplateDTO;
 import com.robot.home.robot.dto.RobotSeriesDTO;
 import com.robot.home.robot.entity.Robot;
+
+import javax.validation.Valid;
 import com.robot.home.robot.entity.RobotCategory;
 import com.robot.home.robot.entity.RobotImage;
 import com.robot.home.robot.entity.RobotParamDef;
@@ -79,6 +83,18 @@ public class AdminRobotController {
     private RobotParamValueMapper valueMapper;
     @Resource
     private RobotTagMapper tagMapper;
+    @Resource
+    private RedisUtils redisUtils;
+
+    /** 清空机器人相关缓存（筛选器+分类树） */
+    private void clearRobotCache() {
+        for (String key : redisUtils.keys(Constants.CACHE_FILTER_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
+        for (String key : redisUtils.keys(Constants.CACHE_CATEGORY_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
+    }
 
     // ---------------- 型号 ----------------
 
@@ -94,7 +110,7 @@ public class AdminRobotController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Robot> page = new Page<>(pn, ps);
         IPage<Robot> result = robotMapper.selectPage(page, Wrappers.<Robot>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Robot::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Robot::getName, keyword)
                 .eq(categoryId != null, Robot::getCategoryId, categoryId)
                 .eq(brandId != null, Robot::getBrandId, brandId)
                 .eq(status != null, Robot::getStatus, status)
@@ -115,7 +131,7 @@ public class AdminRobotController {
     @PostMapping
     @RequirePermission("robot:add")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Long> save(@RequestBody RobotDTO dto) {
+    public Result<Long> save(@RequestBody @Valid RobotDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("产品名称不能为空");
         }
@@ -168,6 +184,7 @@ public class AdminRobotController {
                 priceMapper.insert(p);
             }
         }
+        clearRobotCache();
         return Result.success(robot.getId());
     }
 
@@ -175,6 +192,7 @@ public class AdminRobotController {
     @RequirePermission("robot:delete")
     public Result<Void> delete(@PathVariable Long id) {
         robotMapper.deleteById(id);
+        clearRobotCache();
         return Result.success();
     }
 
@@ -185,6 +203,7 @@ public class AdminRobotController {
         robot.setId(id);
         robot.setStatus(status);
         robotMapper.updateById(robot);
+        clearRobotCache();
         return Result.success();
     }
 
@@ -199,7 +218,7 @@ public class AdminRobotController {
 
     @PostMapping("/categories")
     @RequirePermission("robot:category")
-    public Result<Long> saveCategory(@RequestBody RobotCategoryDTO dto) {
+    public Result<Long> saveCategory(@RequestBody @Valid RobotCategoryDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("分类名称不能为空");
         }
@@ -216,6 +235,7 @@ public class AdminRobotController {
         } else {
             categoryMapper.updateById(entity);
         }
+        clearRobotCache();
         return Result.success(entity.getId());
     }
 
@@ -232,6 +252,7 @@ public class AdminRobotController {
             throw new BusinessException("该分类下仍有 " + robotCount + " 台机器人，不能删除");
         }
         categoryMapper.deleteById(id);
+        clearRobotCache();
         return Result.success();
     }
 
@@ -247,7 +268,7 @@ public class AdminRobotController {
 
     @PostMapping("/series")
     @RequirePermission("robot:series")
-    public Result<Long> saveSeries(@RequestBody RobotSeriesDTO dto) {
+    public Result<Long> saveSeries(@RequestBody @Valid RobotSeriesDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("系列名称不能为空");
         }
@@ -264,6 +285,10 @@ public class AdminRobotController {
     @DeleteMapping("/series/{id}")
     @RequirePermission("robot:series")
     public Result<Void> deleteSeries(@PathVariable Long id) {
+        long robotCount = robotMapper.selectCount(Wrappers.<Robot>lambdaQuery().eq(Robot::getSeriesId, id));
+        if (robotCount > 0) {
+            throw new BusinessException("该系列下仍有 " + robotCount + " 台机器人，不能删除");
+        }
         seriesMapper.deleteById(id);
         return Result.success();
     }
@@ -311,7 +336,7 @@ public class AdminRobotController {
 
     @PostMapping("/templates")
     @RequirePermission("robot:template")
-    public Result<Long> saveTemplate(@RequestBody RobotParamTemplateDTO dto) {
+    public Result<Long> saveTemplate(@RequestBody @Valid RobotParamTemplateDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getCategoryId() == null) {
             throw new BusinessException("模板名称与关联分类不能为空");
         }
@@ -341,7 +366,7 @@ public class AdminRobotController {
 
     @PostMapping("/param-groups")
     @RequirePermission("robot:template")
-    public Result<Long> saveParamGroup(@RequestBody RobotParamGroupDTO dto) {
+    public Result<Long> saveParamGroup(@RequestBody @Valid RobotParamGroupDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getTemplateId() == null) {
             throw new BusinessException("分组名称与模板不能为空");
         }
@@ -366,7 +391,7 @@ public class AdminRobotController {
 
     @PostMapping("/param-defs")
     @RequirePermission("robot:template")
-    public Result<Long> saveParamDef(@RequestBody RobotParamDefDTO dto) {
+    public Result<Long> saveParamDef(@RequestBody @Valid RobotParamDefDTO dto) {
         if (StrUtil.isBlank(dto.getName()) || dto.getGroupId() == null) {
             throw new BusinessException("参数名与分组不能为空");
         }
@@ -410,7 +435,7 @@ public class AdminRobotController {
     @PostMapping("/params")
     @RequirePermission("robot:edit")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Void> saveParams(@RequestBody ParamValueSaveDTO dto) {
+    public Result<Void> saveParams(@RequestBody @Valid ParamValueSaveDTO dto) {
         if (dto.getRobotId() == null || dto.getItems() == null) {
             throw new BusinessException("参数不能为空");
         }

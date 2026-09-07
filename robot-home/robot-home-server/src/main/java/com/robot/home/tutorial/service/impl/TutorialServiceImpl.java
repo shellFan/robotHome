@@ -56,7 +56,7 @@ public class TutorialServiceImpl extends ServiceImpl<TutorialMapper, Tutorial> i
         IPage<Tutorial> result = page(page, Wrappers.<Tutorial>lambdaQuery()
                 .eq(Tutorial::getStatus, 1)
                 .eq(categoryId != null, Tutorial::getCategoryId, categoryId)
-                .and(StrUtil.isNotBlank(keyword), w -> w.like(Tutorial::getTitle, keyword).or().like(Tutorial::getSummary, keyword))
+                .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Tutorial::getTitle, keyword).or().like(Tutorial::getSummary, keyword))
                 .orderByDesc(Tutorial::getPublishTime));
         List<TutorialListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         fillCategoryNames(vos);
@@ -132,7 +132,6 @@ public class TutorialServiceImpl extends ServiceImpl<TutorialMapper, Tutorial> i
         List<Map<String, Object>> rows = baseMapper.selectMaps(Wrappers.<Tutorial>query()
                 .select("category_id", "count(*) as cnt")
                 .eq("status", 1)
-                .eq("deleted", 0)
                 .groupBy("category_id"));
         for (Map<String, Object> row : rows) {
             Object cid = row.get("category_id");

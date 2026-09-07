@@ -47,7 +47,7 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
         IPage<Company> result = page(page, Wrappers.<Company>lambdaQuery()
                 .eq(Company::getStatus, 1)
                 .eq(StrUtil.isNotBlank(region), Company::getRegion, region)
-                .and(StrUtil.isNotBlank(keyword), w -> w.like(Company::getName, keyword).or().like(Company::getIntro, keyword))
+                .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Company::getName, keyword).or().like(Company::getIntro, keyword))
                 .orderByDesc(Company::getHotScore));
         List<CompanyListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         return PageResult.of(pn, ps, result.getTotal(), vos);

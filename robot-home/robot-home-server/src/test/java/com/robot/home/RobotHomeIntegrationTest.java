@@ -279,9 +279,9 @@ class RobotHomeIntegrationTest {
         userToken = root.path("data").path("token").asText();
         assertTrue(userToken.length() > 20, "未返回 token");
 
-        // 手机号 + 验证码登录（dev 模式可直接拿到验证码）
-        String sms = exec(post("/api/auth/send-sms-code").param("phone", phone));
-        String code = objectMapper.readTree(sms).path("data").path("devCode").asText();
+        // 手机号 + 验证码登录（从 Redis mock 获取验证码）
+        exec(post("/api/auth/send-sms-code").param("phone", phone));
+        String code = REDIS_STORE.get("robot:sms:code:" + phone);
         String smsLogin = exec(post("/api/auth/sms-login").param("phone", phone).param("code", code));
         assertEquals(200, objectMapper.readTree(smsLogin).path("code").asInt(),
                 "短信登录失败");

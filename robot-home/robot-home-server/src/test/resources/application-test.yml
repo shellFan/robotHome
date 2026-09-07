@@ -38,6 +38,7 @@ file:
 
 robot:
   sms-dev-mode: true
+  wx-dev-mode: true
   login-max-retry: 5
 
 # 采集器测试配置（仅用于 collector 模块测试）

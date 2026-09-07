@@ -98,9 +98,9 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
                 .eq(circleId != null, CommunityPost::getCircleId, circleId)
                 .eq(StrUtil.isNotBlank(topic), CommunityPost::getTopic, topic)
                 .and(StrUtil.isNotBlank(keyword), w -> w
-                        .like(CommunityPost::getTitle, keyword)
+                        .likeRight(CommunityPost::getTitle, keyword)
                         .or().like(CommunityPost::getContent, keyword)
-                        .or().like(CommunityPost::getTopic, keyword))
+                        .or().likeRight(CommunityPost::getTopic, keyword))
                 .orderByDesc(CommunityPost::getIsTop)
                 .orderBy("hot".equals(sort), false, CommunityPost::getLikeCount)
                 .orderByDesc(CommunityPost::getCreateTime));

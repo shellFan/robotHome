@@ -1,6 +1,7 @@
 package com.robot.home.robot.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -13,10 +14,12 @@ import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.favorite.service.FavoriteService;
 import com.robot.home.history.service.HistoryService;
+import com.robot.home.common.Constants;
 import com.robot.home.robot.dto.RobotQuery;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.entity.RobotCategory;
@@ -60,10 +63,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -74,6 +79,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
 
     /** 对比最多支持的机器人数量 */
     private static final int MAX_COMPARE = 4;
+    private static final long CACHE_SECONDS = 600L;
 
     @Resource
     private RobotCategoryMapper categoryMapper;
@@ -105,6 +111,8 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     private HistoryService historyService;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public PageResult<RobotListVO> page(RobotQuery query, Long currentUserId) {
@@ -129,30 +137,91 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         RobotDetailVO vo = new RobotDetailVO();
         vo.setRobot(robot);
 
+        // 批量预加载关联数据，避免N+1查询
+        Set<Long> brandIds = new HashSet<>();
+        Set<Long> companyIds = new HashSet<>();
+        Set<Long> categoryIds = new HashSet<>();
         if (robot.getBrandId() != null) {
-            Brand brand = brandMapper.selectById(robot.getBrandId());
+            brandIds.add(robot.getBrandId());
+        }
+        if (robot.getCategoryId() != null) {
+            categoryIds.add(robot.getCategoryId());
+        }
+
+        // 批量查询品牌
+        Map<Long, Brand> brandMap = Collections.emptyMap();
+        if (!brandIds.isEmpty()) {
+            brandMap = brandMapper.selectBatchIds(brandIds).stream()
+                    .collect(Collectors.toMap(Brand::getId, b -> b));
+        }
+
+        // 批量查询分类
+        Map<Long, RobotCategory> categoryMap = Collections.emptyMap();
+        if (!categoryIds.isEmpty()) {
+            categoryMap = categoryMapper.selectBatchIds(categoryIds).stream()
+                    .collect(Collectors.toMap(RobotCategory::getId, c -> c));
+        }
+
+        // 填充品牌和公司信息
+        if (robot.getBrandId() != null) {
+            Brand brand = brandMap.get(robot.getBrandId());
             if (brand != null) {
                 vo.setBrandId(brand.getId());
                 vo.setBrandName(brand.getName());
                 vo.setBrandLogo(brand.getLogo());
                 if (brand.getCompanyId() != null) {
-                    Company company = companyMapper.selectById(brand.getCompanyId());
-                    if (company != null) {
-                        vo.setCompanyId(company.getId());
-                        vo.setCompanyName(company.getName());
-                    }
+                    companyIds.add(brand.getCompanyId());
                 }
             }
         }
+
+        // 填充分类信息，并收集父分类ID
+        Set<Long> parentCategoryIds = new HashSet<>();
         if (robot.getCategoryId() != null) {
-            RobotCategory cat = categoryMapper.selectById(robot.getCategoryId());
+            RobotCategory cat = categoryMap.get(robot.getCategoryId());
             if (cat != null) {
                 vo.setCategoryName(cat.getName());
                 if (cat.getParentId() != null && cat.getParentId() > 0) {
-                    RobotCategory parent = categoryMapper.selectById(cat.getParentId());
-                    if (parent != null) {
-                        vo.setParentCategoryName(parent.getName());
-                    }
+                    parentCategoryIds.add(cat.getParentId());
+                }
+            }
+        }
+
+        // 批量查询公司
+        Map<Long, Company> companyMap = Collections.emptyMap();
+        if (!companyIds.isEmpty()) {
+            companyMap = companyMapper.selectBatchIds(companyIds).stream()
+                    .collect(Collectors.toMap(Company::getId, c -> c));
+        }
+
+        // 批量查询父分类
+        if (!parentCategoryIds.isEmpty()) {
+            // 合并已有分类Map
+            List<RobotCategory> parents = categoryMapper.selectBatchIds(parentCategoryIds);
+            for (RobotCategory parent : parents) {
+                categoryMap.put(parent.getId(), parent);
+            }
+        }
+
+        // 填充公司信息
+        if (robot.getBrandId() != null) {
+            Brand brand = brandMap.get(robot.getBrandId());
+            if (brand != null && brand.getCompanyId() != null) {
+                Company company = companyMap.get(brand.getCompanyId());
+                if (company != null) {
+                    vo.setCompanyId(company.getId());
+                    vo.setCompanyName(company.getName());
+                }
+            }
+        }
+
+        // 填充父分类名称
+        if (robot.getCategoryId() != null) {
+            RobotCategory cat = categoryMap.get(robot.getCategoryId());
+            if (cat != null && cat.getParentId() != null && cat.getParentId() > 0) {
+                RobotCategory parent = categoryMap.get(cat.getParentId());
+                if (parent != null) {
+                    vo.setParentCategoryName(parent.getName());
                 }
             }
         }
@@ -194,12 +263,22 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         List<RobotParamGroup> groups = groupMapper.selectList(Wrappers.<RobotParamGroup>lambdaQuery()
                 .eq(RobotParamGroup::getTemplateId, template.getId())
                 .orderByAsc(RobotParamGroup::getSort));
+
+        // 批量查询所有组的参数定义，避免N+1查询
+        List<Long> groupIds = groups.stream().map(RobotParamGroup::getId).collect(Collectors.toList());
+        Map<Long, List<RobotParamDef>> defsByGroup = Collections.emptyMap();
+        if (!groupIds.isEmpty()) {
+            defsByGroup = defMapper.selectList(Wrappers.<RobotParamDef>lambdaQuery()
+                    .in(RobotParamDef::getGroupId, groupIds)
+                    .eq(RobotParamDef::getIsShow, 1)
+                    .orderByAsc(RobotParamDef::getSort))
+                    .stream()
+                    .collect(Collectors.groupingBy(RobotParamDef::getGroupId));
+        }
+
         List<RobotParamGroupVO> result = new ArrayList<>();
         for (RobotParamGroup group : groups) {
-            List<RobotParamDef> defs = defMapper.selectList(Wrappers.<RobotParamDef>lambdaQuery()
-                    .eq(RobotParamDef::getGroupId, group.getId())
-                    .eq(RobotParamDef::getIsShow, 1)
-                    .orderByAsc(RobotParamDef::getSort));
+            List<RobotParamDef> defs = defsByGroup.getOrDefault(group.getId(), Collections.emptyList());
             List<RobotParamDefVO> defVos = new ArrayList<>();
             for (RobotParamDef def : defs) {
                 RobotParamDefVO defVo = new RobotParamDefVO();
@@ -287,16 +366,36 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
             List<RobotParamGroup> paramGroups = groupMapper.selectList(Wrappers.<RobotParamGroup>lambdaQuery()
                     .eq(RobotParamGroup::getTemplateId, template.getId())
                     .orderByAsc(RobotParamGroup::getSort));
-            // 各机器人参数值
-            List<Map<Long, String>> valueMaps = new ArrayList<>();
-            for (RobotListVO r : robots) {
-                valueMaps.add(valueMapOf(r.getId()));
-            }
-            for (RobotParamGroup group : paramGroups) {
-                List<RobotParamDef> defs = defMapper.selectList(Wrappers.<RobotParamDef>lambdaQuery()
-                        .eq(RobotParamDef::getGroupId, group.getId())
+
+            // 批量查询所有组的参数定义，避免N+1查询
+            List<Long> groupIds = paramGroups.stream().map(RobotParamGroup::getId).collect(Collectors.toList());
+            Map<Long, List<RobotParamDef>> defsByGroup = Collections.emptyMap();
+            if (!groupIds.isEmpty()) {
+                defsByGroup = defMapper.selectList(Wrappers.<RobotParamDef>lambdaQuery()
+                        .in(RobotParamDef::getGroupId, groupIds)
                         .eq(RobotParamDef::getIsShow, 1)
-                        .orderByAsc(RobotParamDef::getSort));
+                        .orderByAsc(RobotParamDef::getSort))
+                        .stream()
+                        .collect(Collectors.groupingBy(RobotParamDef::getGroupId));
+            }
+
+            // 批量查询各机器人的参数值，避免N+1查询
+            List<Map<Long, String>> valueMaps = new ArrayList<>();
+            List<Long> robotIds = robots.stream().map(RobotListVO::getId).collect(Collectors.toList());
+            // 一次性查询所有机器人的参数值
+            List<RobotParamValue> allValues = valueMapper.selectList(Wrappers.<RobotParamValue>lambdaQuery()
+                    .in(RobotParamValue::getRobotId, robotIds));
+            Map<Long, Map<Long, String>> valueMapByRobot = new HashMap<>();
+            for (RobotParamValue v : allValues) {
+                valueMapByRobot.computeIfAbsent(v.getRobotId(), k -> new HashMap<>())
+                        .put(v.getDefId(), v.getValue());
+            }
+            for (RobotListVO r : robots) {
+                valueMaps.add(valueMapByRobot.getOrDefault(r.getId(), Collections.emptyMap()));
+            }
+
+            for (RobotParamGroup group : paramGroups) {
+                List<RobotParamDef> defs = defsByGroup.getOrDefault(group.getId(), Collections.emptyList());
                 if (defs.isEmpty()) {
                     continue;
                 }
@@ -361,6 +460,18 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
 
     @Override
     public RobotFilterVO filters() {
+        String key = Constants.CACHE_FILTER_PREFIX + "robot";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                RobotFilterVO vo = JSONUtil.toBean(cached, RobotFilterVO.class);
+                if (vo != null) {
+                    return vo;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         RobotFilterVO vo = new RobotFilterVO();
         vo.setCategories(categoryTree());
 
@@ -387,6 +498,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 new PriceRangeVO("5-20万", new BigDecimal("50000"), new BigDecimal("200000")),
                 new PriceRangeVO("20-50万", new BigDecimal("200000"), new BigDecimal("500000")),
                 new PriceRangeVO("50万以上", new BigDecimal("500000"), null)));
+        redisUtils.set(key, JSONUtil.toJsonStr(vo), CACHE_SECONDS, TimeUnit.SECONDS);
         return vo;
     }
 
@@ -536,6 +648,18 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     }
 
     private List<CategoryNodeVO> categoryTree() {
+        String key = Constants.CACHE_CATEGORY_PREFIX + "robot";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<CategoryNodeVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryNodeVO.class);
+                if (list != null) {
+                    return list;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         List<RobotCategory> all = categoryMapper.selectList(Wrappers.<RobotCategory>lambdaQuery()
                 .eq(RobotCategory::getStatus, 1)
                 .orderByAsc(RobotCategory::getSort));
@@ -564,6 +688,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 }
             }
         }
+        redisUtils.set(key, JSONUtil.toJsonStr(roots), CACHE_SECONDS, TimeUnit.SECONDS);
         return roots;
     }
 

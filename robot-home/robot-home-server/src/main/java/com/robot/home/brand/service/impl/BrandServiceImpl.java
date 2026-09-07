@@ -1,6 +1,7 @@
 package com.robot.home.brand.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -11,9 +12,11 @@ import com.robot.home.brand.service.BrandService;
 import com.robot.home.brand.vo.BrandDetailVO;
 import com.robot.home.brand.vo.BrandLetterGroupVO;
 import com.robot.home.brand.vo.BrandListVO;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.robot.entity.Robot;
@@ -26,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -34,10 +38,14 @@ import java.util.stream.Collectors;
 @Service
 public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements BrandService {
 
+    private static final long CACHE_SECONDS = 600L;
+
     @Resource
     private CompanyMapper companyMapper;
     @Resource
     private RobotMapper robotMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public PageResult<BrandListVO> page(String keyword, String initial, Boolean hot, Integer pageNum, Integer pageSize) {
@@ -47,7 +55,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
         IPage<Brand> result = page(page, Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
                 .eq(StrUtil.isNotBlank(initial), Brand::getInitial, initial)
-                .like(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
                 .orderBy(Boolean.TRUE.equals(hot), false, Brand::getHotScore)
                 .orderBy(true, true, Brand::getSort)
                 .orderByDesc(Brand::getHotScore));
@@ -98,6 +106,18 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
 
     @Override
     public List<BrandLetterGroupVO> groupByLetter() {
+        String key = Constants.CACHE_BRAND_PREFIX + "letter";
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<BrandLetterGroupVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandLetterGroupVO.class);
+                if (list != null) {
+                    return list;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         List<Brand> brands = list(Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
                 .orderByAsc(Brand::getInitial)
@@ -107,21 +127,38 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
             String letter = StrUtil.isBlank(b.getInitial()) ? "#" : b.getInitial().toUpperCase();
             map.computeIfAbsent(letter, k -> new ArrayList<>()).add(toListVO(b));
         }
-        return map.entrySet().stream().map(e -> {
+        List<BrandLetterGroupVO> result = map.entrySet().stream().map(e -> {
             BrandLetterGroupVO g = new BrandLetterGroupVO();
             g.setLetter(e.getKey());
             g.setBrands(e.getValue());
             return g;
         }).collect(Collectors.toList());
+        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        return result;
     }
 
     @Override
     public List<BrandListVO> hot(int limit) {
+        int size = Math.max(1, Math.min(limit, 50));
+        String key = Constants.CACHE_BRAND_PREFIX + "hot:" + size;
+        String cached = redisUtils.get(key);
+        if (cached != null) {
+            try {
+                List<BrandListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandListVO.class);
+                if (list != null) {
+                    return list;
+                }
+            } catch (Exception ignored) {
+                // 缓存解析失败时回源数据库
+            }
+        }
         List<Brand> brands = list(Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
                 .orderByDesc(Brand::getHotScore)
-                .last("LIMIT " + Math.max(1, Math.min(limit, 50))));
-        return brands.stream().map(this::toListVO).collect(Collectors.toList());
+                .last("LIMIT " + size));
+        List<BrandListVO> result = brands.stream().map(this::toListVO).collect(Collectors.toList());
+        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        return result;
     }
 
     private BrandListVO toListVO(Brand b) {

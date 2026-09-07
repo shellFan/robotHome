@@ -15,6 +15,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 采集定时任务调度器
@@ -27,6 +31,9 @@ public class CrawlerJob {
 
     private static final Logger log = LoggerFactory.getLogger(CrawlerJob.class);
 
+    /** 采集任务线程池，限制最大2个并发采集 */
+    private final ExecutorService crawlExecutor = Executors.newFixedThreadPool(2, new CrawlerThreadFactory());
+
     @Autowired
     private CrawlerSourceMapper sourceMapper;
 
@@ -35,6 +42,17 @@ public class CrawlerJob {
 
     @Autowired
     private CrawlerEngine crawlerEngine;
+
+    /** 采集线程工厂，命名线程便于排查 */
+    private static class CrawlerThreadFactory implements ThreadFactory {
+        private final AtomicInteger counter = new AtomicInteger(0);
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "crawler-task-" + counter.incrementAndGet());
+            t.setDaemon(true);
+            return t;
+        }
+    }
 
     /**
      * 定时检查并触发需要执行的采集任务
@@ -104,9 +122,9 @@ public class CrawlerJob {
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.insert(task);
 
-        // 异步启动采集
+        // 异步启动采集（使用线程池，避免原始Thread创建）
         final Long taskId = task.getId();
-        new Thread(() -> {
+        crawlExecutor.submit(() -> {
             try {
                 // 重新查询确保数据最新
                 CrawlerTask runningTask = taskMapper.selectById(taskId);
@@ -147,6 +165,6 @@ public class CrawlerJob {
                 source.setLastCrawlStatus("FAILED");
                 sourceMapper.updateById(source);
             }
-        }, "crawler-scheduled-" + source.getId()).start();
+        });
     }
 }

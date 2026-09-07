@@ -1,0 +1,16 @@
+# ============================================================
+# 采集器生产环境覆盖配置（application-prod.yml）
+# 激活方式：SPRING_PROFILES_ACTIVE=prod
+# ============================================================
+
+# MyBatis-Plus：生产环境使用 Slf4j（可由 logback 控制级别）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 日志级别：生产环境降低日志级别
+logging:
+  level:
+    root: WARN
+    com.robot.home.collector: INFO
+    com.baomidou.mybatisplus: WARN

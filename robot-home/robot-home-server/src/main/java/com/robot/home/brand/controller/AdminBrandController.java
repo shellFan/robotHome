@@ -7,10 +7,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.robot.home.brand.dto.BrandDTO;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.security.RequirePermission;
@@ -18,6 +20,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 
 /**
  * 后台品牌管理
@@ -30,6 +33,8 @@ public class AdminBrandController {
     private BrandMapper brandMapper;
     @Resource
     private RobotMapper robotMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     @GetMapping
     @RequirePermission("brand:list")
@@ -41,7 +46,7 @@ public class AdminBrandController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Brand> page = new Page<>(pn, ps);
         IPage<Brand> result = brandMapper.selectPage(page, Wrappers.<Brand>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Brand::getName, keyword)
                 .eq(status != null, Brand::getStatus, status)
                 .orderByDesc(Brand::getHotScore));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));
@@ -66,7 +71,7 @@ public class AdminBrandController {
 
     @PostMapping
     @RequirePermission("brand:add")
-    public Result<Long> save(@RequestBody BrandDTO dto) {
+    public Result<Long> save(@RequestBody @Valid BrandDTO dto) {
         if (StrUtil.isBlank(dto.getName())) {
             throw new BusinessException("品牌名称不能为空");
         }
@@ -87,6 +92,7 @@ public class AdminBrandController {
             brandMapper.updateById(entity);
         }
         refreshRobotCount(entity.getId());
+        clearBrandCache();
         return Result.success(entity.getId());
     }
 
@@ -98,6 +104,7 @@ public class AdminBrandController {
             throw new BusinessException("该品牌下仍有 " + count + " 台机器人，不能删除");
         }
         brandMapper.deleteById(id);
+        clearBrandCache();
         return Result.success();
     }
 
@@ -108,6 +115,7 @@ public class AdminBrandController {
         brand.setId(id);
         brand.setStatus(status);
         brandMapper.updateById(brand);
+        clearBrandCache();
         return Result.success();
     }
 
@@ -117,5 +125,11 @@ public class AdminBrandController {
         update.setId(brandId);
         update.setRobotCount((int) count);
         brandMapper.updateById(update);
+    }
+
+    private void clearBrandCache() {
+        for (String key : redisUtils.keys(Constants.CACHE_BRAND_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
     }
 }

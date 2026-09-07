@@ -8,10 +8,12 @@ import com.robot.home.article.entity.Article;
 import com.robot.home.article.entity.ArticleCategory;
 import com.robot.home.article.mapper.ArticleCategoryMapper;
 import com.robot.home.article.mapper.ArticleMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.common.util.XssUtils;
 import com.robot.home.security.RequirePermission;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +33,15 @@ public class AdminArticleController {
     private ArticleMapper articleMapper;
     @Resource
     private ArticleCategoryMapper categoryMapper;
+    @Resource
+    private RedisUtils redisUtils;
+
+    /** 清空资讯栏目缓存 */
+    private void clearArticleCategoryCache() {
+        for (String key : redisUtils.keys(Constants.CACHE_ARTICLE_CATEGORY_PREFIX + "*")) {
+            redisUtils.delete(key);
+        }
+    }
 
     @GetMapping
     @RequirePermission("article:list")
@@ -43,7 +54,7 @@ public class AdminArticleController {
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Article> page = new Page<>(pn, ps);
         IPage<Article> result = articleMapper.selectPage(page, Wrappers.<Article>lambdaQuery()
-                .like(StrUtil.isNotBlank(keyword), Article::getTitle, keyword)
+                .likeRight(StrUtil.isNotBlank(keyword), Article::getTitle, keyword)
                 .eq(categoryId != null, Article::getCategoryId, categoryId)
                 .eq(status != null, Article::getStatus, status)
                 .orderByDesc(Article::getPublishTime));
@@ -126,6 +137,7 @@ public class AdminArticleController {
         } else {
             categoryMapper.updateById(category);
         }
+        clearArticleCategoryCache();
         return Result.success(category.getId());
     }
 
@@ -137,6 +149,7 @@ public class AdminArticleController {
             throw new BusinessException("该栏目下仍有 " + count + " 篇文章，不能删除");
         }
         categoryMapper.deleteById(id);
+        clearArticleCategoryCache();
         return Result.success();
     }
 }

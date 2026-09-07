@@ -44,10 +44,10 @@ public class AdminInquiryController {
         Page<Inquiry> page = new Page<>(pn, ps);
         IPage<Inquiry> result = inquiryMapper.selectPage(page, Wrappers.<Inquiry>lambdaQuery()
                 .and(StrUtil.isNotBlank(keyword), w -> w
-                        .like(Inquiry::getName, keyword)
+                        .likeRight(Inquiry::getName, keyword)
                         .or().like(Inquiry::getPhone, keyword)
-                        .or().like(Inquiry::getRobotName, keyword)
-                        .or().like(Inquiry::getCompanyName, keyword))
+                        .or().likeRight(Inquiry::getRobotName, keyword)
+                        .or().likeRight(Inquiry::getCompanyName, keyword))
                 .eq(status != null, Inquiry::getStatus, status)
                 .orderByDesc(Inquiry::getCreateTime));
         return Result.success(PageResult.of(pn, ps, result.getTotal(), result.getRecords()));

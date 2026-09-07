@@ -8,6 +8,7 @@ import com.robot.home.collector.entity.*;
 import com.robot.home.collector.fetcher.BrowserFetcher;
 import com.robot.home.collector.fetcher.FetchResult;
 import com.robot.home.collector.fetcher.HttpFetcher;
+import com.robot.home.collector.mapper.CrawlerErrorMapper;
 import com.robot.home.collector.mapper.CrawlerTaskMapper;
 import com.robot.home.collector.parser.RobotsTxtParser;
 import com.robot.home.collector.parser.SitemapParser;
@@ -75,6 +76,9 @@ public class CrawlerEngine {
 
     @Autowired
     private CrawlerTaskMapper taskMapper;
+
+    @Autowired
+    private CrawlerErrorMapper errorMapper;
 
     @Value("${crawler.max-depth:3}")
     private int maxDepth;
@@ -451,7 +455,7 @@ public class CrawlerEngine {
                         fetchResult.getBody() != null ? fetchResult.getBody().length : "null",
                         fetchResult.getError());
                 urlsFailed.incrementAndGet();
-                recordError(url, task.getId(), "FETCH_ERROR", "HTTP " + fetchResult.getStatusCode());
+                recordError(url, task.getId(), source.getId(), "FETCH_ERROR", "HTTP " + fetchResult.getStatusCode());
                 // 标记为FAILED，允许后续重试
                 deduplicationService.markUrlFetched(url, "FAILED");
                 return;
@@ -513,7 +517,8 @@ public class CrawlerEngine {
         } catch (Exception e) {
             log.error("Error processing URL: {}", url, e);
             urlsFailed.incrementAndGet();
-            recordError(url, task.getId(), "PROCESS_ERROR", e.getMessage());
+            String errorMsg = e.getClass().getSimpleName() + ": " + e.getMessage();
+            recordError(url, task.getId(), source.getId(), "PROCESS_ERROR", errorMsg);
             // 处理异常时标记URL为FAILED，允许后续重试
             deduplicationService.markUrlFetched(url, "FAILED");
         }
@@ -737,10 +742,24 @@ public class CrawlerEngine {
     }
 
     /**
-     * 记录错误
+     * 记录错误（持久化到crawler_error表，便于后续分析和重试）
      */
-    private void recordError(String url, Long taskId, String errorType, String errorMessage) {
+    private void recordError(String url, Long taskId, Long sourceId, String errorType, String errorMessage) {
         log.warn("Crawl error: type={}, url={}, msg={}", errorType, url, errorMessage);
+        try {
+            CrawlerError error = new CrawlerError();
+            error.setSourceId(sourceId);
+            error.setTaskId(taskId);
+            error.setUrl(url);
+            error.setErrorType(errorType);
+            error.setErrorMessage(errorMessage != null && errorMessage.length() > 500
+                    ? errorMessage.substring(0, 500) : errorMessage);
+            error.setRetryCount(0);
+            error.setResolved(0);
+            errorMapper.insert(error);
+        } catch (Exception e) {
+            log.warn("Failed to persist crawl error: {}", e.getMessage());
+        }
     }
 
     /**
@@ -772,15 +791,7 @@ public class CrawlerEngine {
 
     private String toJsonString(Map<String, String> map) {
         if (map == null || map.isEmpty()) return "{}";
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, String> e : map.entrySet()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(e.getKey()).append("\":\"").append(e.getValue()).append("\"");
-            first = false;
-        }
-        sb.append("}");
-        return sb.toString();
+        return cn.hutool.json.JSONUtil.toJsonStr(map);
     }
 
     /**
