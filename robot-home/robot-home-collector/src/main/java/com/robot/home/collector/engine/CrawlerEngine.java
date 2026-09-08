@@ -39,11 +39,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 采集引擎核心
  * 负责任务调度、URL队列管理、适配器路由、状态机流转
+ *
+ * Phase5.3重构：所有任务级可变状态已迁移至CrawlTaskContext，
+ * CrawlerEngine作为无状态执行服务，支持多任务并发安全
  */
 @Component
 public class CrawlerEngine {
 
     private static final Logger log = LoggerFactory.getLogger(CrawlerEngine.class);
+
+    /** 默认URL队列硬上限 */
+    private static final int DEFAULT_MAX_QUEUE_SIZE = 10000;
+
+    /** 心跳更新间隔（秒） */
+    private static final int HEARTBEAT_INTERVAL_SECONDS = 30;
 
     @Autowired
     private HttpFetcher httpFetcher;
@@ -97,52 +106,25 @@ public class CrawlerEngine {
     private CrawlerErrorMapper errorMapper;
 
     @Value("${crawler.max-depth:3}")
-    private int maxDepth;
+    private int defaultMaxDepth;
 
     @Value("${crawler.max-urls-per-task:1000}")
-    private int maxUrlsPerTask;
+    private int defaultMaxUrlsPerTask;
 
     @Value("${crawler.thread-count:3}")
     private int threadCount;
 
     @Value("${crawler.respect-robots:true}")
-    private boolean respectRobots;
+    private boolean defaultRespectRobots;
 
-    /** 适配器注册表 */
+    /** 适配器注册表（全局共享，线程安全） */
     private final Map<String, CrawlerAdapter> adapterRegistry = new ConcurrentHashMap<>();
 
-    /** URL队列 */
-    private PriorityBlockingQueue<UrlTask> urlQueue;
+    /** 活跃任务上下文表（taskId → CrawlTaskContext），支持多任务并发 */
+    private final ConcurrentHashMap<Long, CrawlTaskContext> activeContexts = new ConcurrentHashMap<>();
 
-    /** 已访问URL集合 */
-    private Set<String> visitedUrls;
-
-    /** 运行状态 */
-    private volatile boolean running = false;
-
-    /** 任务锁：防止并发执行多个采集任务（引擎为单例，共享可变状态） */
-    private final Object taskLock = new Object();
-
-    /** 工作线程池 */
-    private ExecutorService executorService;
-
-    /** 任务计数器 */
-    private AtomicInteger urlsDiscovered = new AtomicInteger(0);
-    private AtomicInteger urlsSuccess = new AtomicInteger(0);
-    private AtomicInteger urlsFailed = new AtomicInteger(0);
-    private AtomicInteger articlesNew = new AtomicInteger(0);
-    private AtomicInteger articlesUpdated = new AtomicInteger(0);
-    private AtomicInteger articlesDuplicate = new AtomicInteger(0);
-    private AtomicInteger productsNew = new AtomicInteger(0);
-    private AtomicInteger productsUpdated = new AtomicInteger(0);
-    private AtomicInteger imagesDownloaded = new AtomicInteger(0);
-    private AtomicInteger imagesFailed = new AtomicInteger(0);
-
-    /** 活跃工作线程计数器（用于防止主循环过早退出） */
-    private AtomicInteger activeWorkers = new AtomicInteger(0);
-
-    /** 当前任务引用 */
-    private volatile CrawlerTask currentTask;
+    /** 活跃任务线程池表（taskId → ExecutorService），每个任务独立线程池 */
+    private final ConcurrentHashMap<Long, ExecutorService> taskExecutors = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
@@ -151,17 +133,17 @@ public class CrawlerEngine {
         // 注册微信适配器
         registerAdapter(weChatAdapter);
 
-        // 崩溃恢复：将上次异常退出时遗留的RUNNING任务重置为FAILED，允许重新执行
+        // 崩溃恢复：将上次异常退出时遗留的RUNNING/QUEUED任务重置为FAILED，允许重新执行
         try {
             int recovered = taskMapper.update(null,
                     new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CrawlerTask>()
-                            .eq(CrawlerTask::getStatus, "RUNNING")
+                            .in(CrawlerTask::getStatus, "RUNNING", "QUEUED")
                             .set(CrawlerTask::getStatus, "FAILED")
                             .set(CrawlerTask::getErrorMessage, "Task interrupted by server restart")
                             .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
             );
             if (recovered > 0) {
-                log.info("Crash recovery: reset {} RUNNING task(s) to FAILED", recovered);
+                log.info("Crash recovery: reset {} RUNNING/QUEUED task(s) to FAILED", recovered);
             }
         } catch (Exception e) {
             log.warn("Crash recovery check failed (non-critical): {}", e.getMessage());
@@ -169,29 +151,39 @@ public class CrawlerEngine {
     }
 
     /**
-     * 优雅停机：Spring容器关闭时停止正在运行的采集任务
+     * 优雅停机：Spring容器关闭时停止所有正在运行的采集任务
      */
     @PreDestroy
     public void destroy() {
-        if (running) {
-            log.info("Shutting down CrawlerEngine gracefully...");
-            stop();
-            // 将当前任务标记为中断
-            if (currentTask != null) {
-                try {
-                    taskMapper.update(null,
-                            new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CrawlerTask>()
-                                    .eq(CrawlerTask::getId, currentTask.getId())
-                                    .set(CrawlerTask::getStatus, "FAILED")
-                                    .set(CrawlerTask::getErrorMessage, "Task interrupted by server shutdown")
-                                    .set(CrawlerTask::getEndTime, LocalDateTime.now())
-                                    .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
-                    );
-                } catch (Exception e) {
-                    log.warn("Failed to update task status during shutdown: {}", e.getMessage());
+        // 停止所有活跃任务
+        for (Map.Entry<Long, CrawlTaskContext> entry : activeContexts.entrySet()) {
+            CrawlTaskContext ctx = entry.getValue();
+            if (!ctx.isStopRequested()) {
+                log.info("Shutting down task {} gracefully...", entry.getKey());
+                ctx.requestStop();
+                CrawlerTask task = ctx.getTask();
+                if (task != null) {
+                    try {
+                        taskMapper.update(null,
+                                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CrawlerTask>()
+                                        .eq(CrawlerTask::getId, task.getId())
+                                        .set(CrawlerTask::getStatus, "FAILED")
+                                        .set(CrawlerTask::getErrorMessage, "Task interrupted by server shutdown")
+                                        .set(CrawlerTask::getEndTime, LocalDateTime.now())
+                                        .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
+                        );
+                    } catch (Exception e) {
+                        log.warn("Failed to update task status during shutdown: {}", e.getMessage());
+                    }
                 }
             }
         }
+        // 关闭所有线程池
+        for (Map.Entry<Long, ExecutorService> entry : taskExecutors.entrySet()) {
+            shutdownExecutor(entry.getValue());
+        }
+        activeContexts.clear();
+        taskExecutors.clear();
     }
 
     /**
@@ -204,72 +196,79 @@ public class CrawlerEngine {
 
     /**
      * 启动采集任务
+     * 所有任务级状态封装在CrawlTaskContext中，引擎本身无状态
+     * 支持多任务并发：每个任务通过taskId独立追踪上下文和线程池
      */
     public void startTask(CrawlerSource source, CrawlerTask task) {
-        synchronized (taskLock) {
-            if (running) {
-                throw new IllegalStateException("另一个采集任务正在运行，请等待完成后再启动新任务");
-            }
-            running = true;
+        Long taskId = task.getId();
+
+        // 检查是否已有同名任务在运行
+        if (activeContexts.containsKey(taskId)) {
+            log.warn("Task {} is already running, skip.", taskId);
+            return;
         }
 
-        log.info("Starting crawl task: source={}, task={}, baseUrl={}", source.getSourceName(), task.getId(), source.getBaseUrl());
+        // 解析source级配置覆盖全局默认值
+        int maxDepth = source.getMaxDepth() != null ? source.getMaxDepth() : defaultMaxDepth;
+        int maxUrlsPerTask = source.getMaxPages() != null ? source.getMaxPages() : defaultMaxUrlsPerTask;
+        boolean respectRobots = source.getRespectRobots() != null ? source.getRespectRobots() == 1 : defaultRespectRobots;
+
+        // 创建独立的任务上下文
+        CrawlTaskContext ctx = new CrawlTaskContext(source, task, maxDepth, maxUrlsPerTask,
+                DEFAULT_MAX_QUEUE_SIZE, respectRobots);
+        activeContexts.put(taskId, ctx);
+
+        log.info("Starting crawl task: source={}, task={}, baseUrl={}, maxDepth={}, maxUrls={}, respectRobots={}",
+                source.getSourceName(), taskId, source.getBaseUrl(), maxDepth, maxUrlsPerTask, respectRobots);
 
         // 加载采集源健康状态
         sourceHealthMonitor.loadFromEntity(source);
 
-        // 重置状态（关键：清空上次任务的残留数据）
-        this.currentTask = task;
-        this.urlQueue = new PriorityBlockingQueue<>(1000,
-                Comparator.comparingInt(UrlTask::getPriority).reversed());
-        this.visitedUrls = ConcurrentHashMap.newKeySet();
-        this.running = true;
-
-        // 重置计数器
-        urlsDiscovered.set(0);
-        urlsSuccess.set(0);
-        urlsFailed.set(0);
-        articlesNew.set(0);
-        articlesUpdated.set(0);
-        articlesDuplicate.set(0);
-        productsNew.set(0);
-        productsUpdated.set(0);
-        imagesDownloaded.set(0);
-        imagesFailed.set(0);
-        activeWorkers.set(0);
-
         // 初始化种子URL
-        initializeSeedUrls(source, task);
-        log.info("Seed URLs initialized: {} URLs in queue", urlQueue.size());
+        initializeSeedUrls(ctx);
+        log.info("Seed URLs initialized: {} URLs in queue", ctx.getQueueSize());
 
-        if (urlQueue.isEmpty()) {
+        if (ctx.isQueueEmpty()) {
             log.warn("No seed URLs found for source: {}. Task will complete with 0 results.", source.getSourceName());
-            running = false;
-            updateTaskCounters(task);
+            ctx.requestStop();
+            updateTaskCounters(ctx);
+            activeContexts.remove(taskId);
             return;
         }
 
-        // 创建线程池
-        executorService = Executors.newFixedThreadPool(threadCount);
+        // 创建该任务的独立线程池
+        ExecutorService taskExecutor = Executors.newFixedThreadPool(threadCount, r -> {
+            Thread t = new Thread(r, "crawler-worker-task" + taskId + "-" + System.currentTimeMillis() % 1000);
+            t.setDaemon(true);
+            return t;
+        });
+        taskExecutors.put(taskId, taskExecutor);
 
         // 启动工作线程
         for (int i = 0; i < threadCount; i++) {
-            executorService.submit(() -> workerLoop(source, task));
+            taskExecutor.submit(() -> workerLoop(ctx));
         }
 
         // 等待队列清空或任务停止（同时等待活跃工作线程完成，防止过早退出）
         int lastUpdateSize = 0;
-        while (running && (!urlQueue.isEmpty() || activeWorkers.get() > 0)) {
+        long lastHeartbeatTime = System.currentTimeMillis();
+        while (!ctx.isStopRequested() && (!ctx.isQueueEmpty() || ctx.getActiveWorkers() > 0)) {
             try {
                 Thread.sleep(2000);
 
                 // 定期更新任务计数器到数据库
-                int currentSize = visitedUrls.size();
+                int currentSize = ctx.getVisitedCount();
                 if (currentSize != lastUpdateSize) {
-                    updateTaskCounters(task);
+                    updateTaskCounters(ctx);
                     lastUpdateSize = currentSize;
-                    log.info("Crawl progress: visited={}, queue={}, discovered={}, success={}, failed={}",
-                            visitedUrls.size(), urlQueue.size(), urlsDiscovered.get(), urlsSuccess.get(), urlsFailed.get());
+                    log.info("Crawl progress: {}", ctx.getProgressSummary());
+                }
+
+                // 心跳更新：防止任务被误判为超时
+                long now = System.currentTimeMillis();
+                if (now - lastHeartbeatTime >= HEARTBEAT_INTERVAL_SECONDS * 1000L) {
+                    heartbeatUpdate(task);
+                    lastHeartbeatTime = now;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -278,10 +277,11 @@ public class CrawlerEngine {
         }
 
         // 等待工作线程完成当前URL
-        stop();
+        shutdownExecutor(taskExecutor);
+        taskExecutors.remove(taskId);
 
         // 最终更新计数器
-        updateTaskCounters(task);
+        updateTaskCounters(ctx);
 
         // 同步健康度到数据库
         try {
@@ -291,20 +291,70 @@ public class CrawlerEngine {
             log.warn("Failed to sync health status: {}", e.getMessage());
         }
 
-        log.info("Crawl task completed: source={}, urlsVisited={}, discovered={}, success={}, failed={}, articles={}, products={}",
-                source.getSourceName(), visitedUrls.size(), urlsDiscovered.get(), urlsSuccess.get(), urlsFailed.get(),
-                articlesNew.get(), productsNew.get());
+        log.info("Crawl task completed: source={}, {}", source.getSourceName(), ctx.getProgressSummary());
+        activeContexts.remove(taskId);
     }
 
     /**
-     * 停止采集
+     * 停止指定任务（通过stopFlag实现，工作线程在当前URL完成后退出）
      */
+    public void stopTask(Long taskId) {
+        CrawlTaskContext ctx = activeContexts.get(taskId);
+        if (ctx != null) {
+            ctx.requestStop();
+            log.info("Stop requested for task: {}", taskId);
+        } else {
+            log.warn("Task {} not found in active contexts", taskId);
+        }
+    }
+
+    /**
+     * 停止所有活跃任务
+     */
+    public void stopAll() {
+        log.info("Requesting stop for all {} active tasks", activeContexts.size());
+        activeContexts.values().forEach(CrawlTaskContext::requestStop);
+    }
+
+    /**
+     * @deprecated 使用 stopTask(Long taskId) 替代
+     */
+    @Deprecated
     public void stop() {
-        running = false;
-        if (executorService != null) {
-            executorService.shutdownNow();
+        stopAll();
+    }
+
+    /**
+     * 获取指定任务的活跃上下文
+     */
+    public CrawlTaskContext getActiveContext(Long taskId) {
+        return activeContexts.get(taskId);
+    }
+
+    /**
+     * 获取所有活跃任务上下文
+     */
+    public Map<Long, CrawlTaskContext> getAllActiveContexts() {
+        return Collections.unmodifiableMap(activeContexts);
+    }
+
+    /**
+     * @deprecated 使用 getActiveContext(Long taskId) 替代
+     */
+    @Deprecated
+    public CrawlTaskContext getActiveContext() {
+        // 向后兼容：返回任意一个活跃上下文
+        return activeContexts.values().stream().findFirst().orElse(null);
+    }
+
+    /**
+     * 优雅关闭线程池
+     */
+    private void shutdownExecutor(ExecutorService es) {
+        if (es != null) {
+            es.shutdownNow();
             try {
-                executorService.awaitTermination(10, TimeUnit.SECONDS);
+                es.awaitTermination(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -312,22 +362,36 @@ public class CrawlerEngine {
     }
 
     /**
-     * 更新任务计数器到数据库
+     * 心跳更新：更新任务updateTime防止被误判为超时
      */
-    private void updateTaskCounters(CrawlerTask task) {
+    private void heartbeatUpdate(CrawlerTask task) {
         try {
             CrawlerTask updateTask = new CrawlerTask();
             updateTask.setId(task.getId());
-            updateTask.setUrlsDiscovered(urlsDiscovered.get());
-            updateTask.setUrlsSuccess(urlsSuccess.get());
-            updateTask.setUrlsFailed(urlsFailed.get());
-            updateTask.setArticlesNew(articlesNew.get());
-            updateTask.setArticlesUpdated(articlesUpdated.get());
-            updateTask.setArticlesDuplicate(articlesDuplicate.get());
-            updateTask.setProductsNew(productsNew.get());
-            updateTask.setProductsUpdated(productsUpdated.get());
-            updateTask.setImagesDownloaded(imagesDownloaded.get());
-            updateTask.setImagesFailed(imagesFailed.get());
+            updateTask.setUpdateTime(LocalDateTime.now());
+            taskMapper.updateById(updateTask);
+        } catch (Exception e) {
+            log.warn("Heartbeat update failed for task {}: {}", task.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 更新任务计数器到数据库
+     */
+    private void updateTaskCounters(CrawlTaskContext ctx) {
+        try {
+            CrawlerTask updateTask = new CrawlerTask();
+            updateTask.setId(ctx.getTask().getId());
+            updateTask.setUrlsDiscovered(ctx.getUrlsDiscovered());
+            updateTask.setUrlsSuccess(ctx.getUrlsSuccess());
+            updateTask.setUrlsFailed(ctx.getUrlsFailed());
+            updateTask.setArticlesNew(ctx.getArticlesNew());
+            updateTask.setArticlesUpdated(ctx.getArticlesUpdated());
+            updateTask.setArticlesDuplicate(ctx.getArticlesDuplicate());
+            updateTask.setProductsNew(ctx.getProductsNew());
+            updateTask.setProductsUpdated(ctx.getProductsUpdated());
+            updateTask.setImagesDownloaded(ctx.getImagesDownloaded());
+            updateTask.setImagesFailed(ctx.getImagesFailed());
             updateTask.setUpdateTime(LocalDateTime.now());
             taskMapper.updateById(updateTask);
         } catch (Exception e) {
@@ -338,7 +402,9 @@ public class CrawlerEngine {
     /**
      * 初始化种子URL
      */
-    private void initializeSeedUrls(CrawlerSource source, CrawlerTask task) {
+    private void initializeSeedUrls(CrawlTaskContext ctx) {
+        CrawlerSource source = ctx.getSource();
+        CrawlerTask task = ctx.getTask();
         List<String> seedUrls = new ArrayList<>();
 
         // 从数据源配置获取种子URL
@@ -424,32 +490,34 @@ public class CrawlerEngine {
         for (String url : seedUrls) {
             String normalized = UrlNormalizer.normalize(url.trim());
             if (StringUtils.isNotBlank(normalized)) {
-                enqueue(normalized, 0, 10, task.getId()); // 种子URL高优先级
-                addedCount++;
+                UrlTask urlTask = new UrlTask(normalized, 0, 10, task.getId()); // 种子URL高优先级
+                if (ctx.enqueue(urlTask)) {
+                    addedCount++;
+                }
             }
         }
 
-        urlsDiscovered.addAndGet(addedCount);
+        ctx.addUrlsDiscovered(addedCount);
         log.info("Initialized {} seed URLs for source: {} (total {} raw seeds)", addedCount, source.getSourceName(), seedUrls.size());
     }
 
     /**
      * 工作线程循环
      */
-    private void workerLoop(CrawlerSource source, CrawlerTask task) {
-        while (running) {
+    private void workerLoop(CrawlTaskContext ctx) {
+        while (!ctx.isStopRequested()) {
             try {
-                UrlTask urlTask = urlQueue.poll(5, TimeUnit.SECONDS);
+                UrlTask urlTask = ctx.pollUrl();
                 if (urlTask == null) {
-                    if (urlQueue.isEmpty() && activeWorkers.get() == 0) break;
+                    if (ctx.isQueueEmpty() && ctx.getActiveWorkers() == 0) break;
                     continue;
                 }
 
-                activeWorkers.incrementAndGet();
+                ctx.incrementActiveWorkers();
                 try {
-                    processUrl(urlTask, source, task);
+                    processUrl(urlTask, ctx);
                 } finally {
-                    activeWorkers.decrementAndGet();
+                    ctx.decrementActiveWorkers();
                 }
 
             } catch (InterruptedException e) {
@@ -464,9 +532,11 @@ public class CrawlerEngine {
     /**
      * 处理单个URL
      */
-    private void processUrl(UrlTask urlTask, CrawlerSource source, CrawlerTask task) {
+    private void processUrl(UrlTask urlTask, CrawlTaskContext ctx) {
         String url = urlTask.getUrl();
         String urlHash = UrlNormalizer.hash(url);
+        CrawlerSource source = ctx.getSource();
+        CrawlerTask task = ctx.getTask();
 
         // 检查采集源健康度（DISABLED状态跳过）
         if (!sourceHealthMonitor.canCrawl(source.getId())) {
@@ -475,33 +545,33 @@ public class CrawlerEngine {
         }
 
         // 检查是否已访问
-        if (!visitedUrls.add(urlHash)) {
+        if (!ctx.markVisited(urlHash)) {
             log.info("URL already visited in this task: {}", url);
             return;
         }
 
         // 检查robots.txt
-        if (respectRobots && !robotsTxtParser.isAllowed(url, "RobotHomeCrawler")) {
+        if (ctx.isRespectRobots() && !robotsTxtParser.isAllowed(url, "RobotHomeCrawler")) {
             log.warn("Blocked by robots.txt: {}", url);
-            urlsFailed.incrementAndGet();
+            ctx.incrementUrlsFailed();
             return;
         }
 
         // 检查URL去重（跨任务去重）
         if (deduplicationService.isUrlDuplicate(url)) {
             log.info("URL already processed in previous task: {}", url);
-            articlesDuplicate.incrementAndGet();
+            ctx.incrementArticlesDuplicate();
             return;
         }
 
         // 检查URL数量限制
-        if (visitedUrls.size() >= maxUrlsPerTask) {
-            log.info("Reached max URLs limit: {}", maxUrlsPerTask);
-            running = false;
+        if (ctx.isMaxUrlsReached()) {
+            log.info("Reached max URLs limit: {}", ctx.getMaxUrlsPerTask());
+            ctx.requestStop();
             return;
         }
 
-        log.info("Processing URL: {} (depth={}, visited={}/{})", url, urlTask.getDepth(), visitedUrls.size(), maxUrlsPerTask);
+        log.info("Processing URL: {} (depth={}, visited={}/{})", url, urlTask.getDepth(), ctx.getVisitedCount(), ctx.getMaxUrlsPerTask());
 
         try {
             // 1. 抓取页面
@@ -518,19 +588,21 @@ public class CrawlerEngine {
                     // SSRF防护：校验重定向目标URL
                     if (!UrlSecurityUtil.isAllowedUrl(redirectUrl)) {
                         log.warn("SSRF protection: redirect to private/blocked URL blocked: {} -> {}", url, redirectUrl);
-                        urlsFailed.incrementAndGet();
+                        ctx.incrementUrlsFailed();
                         deduplicationService.markUrlFetched(url, "FAILED");
                         return;
                     }
                     log.info("Redirect detected: {} -> {} (HTTP {})", url, redirectUrl, fetchResult.getStatusCode());
-                    if (urlTask.getDepth() < maxDepth && shouldFollowDomain(redirectUrl, source)) {
-                        enqueue(redirectUrl, urlTask.getDepth(), urlTask.getPriority(), task.getId());
-                        urlsDiscovered.incrementAndGet();
+                    if (urlTask.getDepth() < ctx.getMaxDepth() && shouldFollowDomain(redirectUrl, source)) {
+                        UrlTask redirectTask = new UrlTask(redirectUrl, urlTask.getDepth(), urlTask.getPriority(), task.getId());
+                        if (ctx.enqueue(redirectTask)) {
+                            ctx.incrementUrlsDiscovered();
+                        }
                     }
                 } else {
                     log.warn("Redirect without Location header: {} -> HTTP {}", url, fetchResult.getStatusCode());
                 }
-                urlsFailed.incrementAndGet();
+                ctx.incrementUrlsFailed();
                 // 重定向失败，标记为FAILED允许重试
                 deduplicationService.markUrlFetched(url, "FAILED");
                 return;
@@ -542,7 +614,7 @@ public class CrawlerEngine {
                         fetchResult.getHtml() != null ? fetchResult.getHtml().length() : "null",
                         fetchResult.getBody() != null ? fetchResult.getBody().length : "null",
                         fetchResult.getError());
-                urlsFailed.incrementAndGet();
+                ctx.incrementUrlsFailed();
                 recordError(url, task.getId(), source.getId(), "FETCH_ERROR", "HTTP " + fetchResult.getStatusCode());
                 // 记录健康度失败
                 sourceHealthMonitor.recordFailure(source.getId(), "HTTP " + fetchResult.getStatusCode(), fetchResult.getFetchTimeMs());
@@ -568,35 +640,36 @@ public class CrawlerEngine {
             if (parsedData == null || !parsedData.isSuccess()) {
                 log.warn("Parse failed for url={}, reason={}", url,
                         parsedData != null ? parsedData.getError() : "null result");
-                urlsFailed.incrementAndGet();
+                ctx.incrementUrlsFailed();
                 // 解析失败，标记为FAILED允许重试
                 deduplicationService.markUrlFetched(url, "FAILED");
                 return;
             }
 
             // 5. 处理解析结果
-            processParsedData(parsedData, url, source, task, urlTask.getDepth());
-            urlsSuccess.incrementAndGet();
+            processParsedData(parsedData, url, source, task, urlTask.getDepth(), ctx);
+            ctx.incrementUrlsSuccess();
 
             // 记录健康度成功
             sourceHealthMonitor.recordSuccess(source.getId(), fetchResult.getFetchTimeMs());
 
             // 6. 提取链接并加入队列
-            if (urlTask.getDepth() < maxDepth) {
+            if (urlTask.getDepth() < ctx.getMaxDepth()) {
                 List<String> links = adapter.extractLinks(fetchResult, config);
                 int newLinksCount = 0;
                 for (String link : links) {
                     String normalized = UrlNormalizer.normalize(link);
-                    if (adapter.shouldFollow(normalized, urlTask.getDepth() + 1, maxDepth, config)) {
+                    if (adapter.shouldFollow(normalized, urlTask.getDepth() + 1, ctx.getMaxDepth(), config)) {
                         if (shouldFollowDomain(normalized, source)) {
-                            if (enqueue(normalized, urlTask.getDepth() + 1, 1, task.getId())) {
+                            UrlTask linkTask = new UrlTask(normalized, urlTask.getDepth() + 1, 1, task.getId());
+                            if (ctx.enqueue(linkTask)) {
                                 newLinksCount++;
                             }
                         }
                     }
                 }
-                urlsDiscovered.addAndGet(newLinksCount);
                 if (newLinksCount > 0) {
+                    ctx.addUrlsDiscovered(newLinksCount);
                     log.info("Discovered {} new links from: {}", newLinksCount, url);
                 }
             }
@@ -609,7 +682,7 @@ public class CrawlerEngine {
 
         } catch (Exception e) {
             log.error("Error processing URL: {}", url, e);
-            urlsFailed.incrementAndGet();
+            ctx.incrementUrlsFailed();
             String errorMsg = e.getClass().getSimpleName() + ": " + e.getMessage();
             recordError(url, task.getId(), source.getId(), "PROCESS_ERROR", errorMsg);
             // 记录健康度失败
@@ -697,7 +770,7 @@ public class CrawlerEngine {
      * 处理解析后的数据
      */
     private void processParsedData(ParsedData data, String url, CrawlerSource source,
-                                    CrawlerTask task, int depth) {
+                                    CrawlerTask task, int depth, CrawlTaskContext ctx) {
         String contentType = data.getType();
 
         // 内容去重检查
@@ -712,7 +785,7 @@ public class CrawlerEngine {
         String dupResult = deduplicationService.checkDuplicate(url, contentText);
         if (dupResult != null) {
             log.info("Duplicate content detected: type={}, url={}, contentHash={}", dupResult, url, contentHash);
-            articlesDuplicate.incrementAndGet();
+            ctx.incrementArticlesDuplicate();
             return;
         }
 
@@ -723,11 +796,11 @@ public class CrawlerEngine {
         // 根据内容类型存储
         if ("product".equals(contentType)) {
             storeProduct(data, url, source, task, brandMatch, contentHash);
-            productsNew.incrementAndGet();
+            ctx.incrementProductsNew();
         } else {
             // 默认作为文章处理
             storeArticle(data, url, source, task, brandMatch, contentHash);
-            articlesNew.incrementAndGet();
+            ctx.incrementArticlesNew();
         }
     }
 
@@ -820,19 +893,6 @@ public class CrawlerEngine {
             }
         }
 
-        return true;
-    }
-
-    /**
-     * 入队
-     * @return true if URL was newly enqueued, false if already visited
-     */
-    private boolean enqueue(String url, int depth, int priority, Long taskId) {
-        String normalized = UrlNormalizer.normalize(url);
-        if (StringUtils.isBlank(normalized)) return false;
-        if (visitedUrls.contains(UrlNormalizer.hash(normalized))) return false;
-
-        urlQueue.offer(new UrlTask(normalized, depth, priority, taskId));
         return true;
     }
 

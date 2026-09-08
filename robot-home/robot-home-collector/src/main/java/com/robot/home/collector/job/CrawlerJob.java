@@ -1,6 +1,8 @@
 package com.robot.home.collector.job;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.robot.home.collector.common.constants.CrawlerConstants;
 import com.robot.home.collector.entity.CrawlerSource;
 import com.robot.home.collector.entity.CrawlerTask;
 import com.robot.home.collector.engine.CrawlerEngine;
@@ -23,6 +25,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 采集定时任务调度器
  * 基于Spring @Scheduled实现定时触发采集
+ * 
+ * Phase5.3重构：
+ * - 任务创建时status=QUEUED（等待被抢占）
+ * - 使用CAS原子更新抢占任务（QUEUED→RUNNING），防止多实例并发重复执行
+ * - 支持多任务并发（配合CrawlTaskContext状态隔离）
+ * 
  * ⚠️ 测试环境通过 @Profile("!test") 禁用，避免定时任务干扰测试
  */
 @Component
@@ -98,49 +106,75 @@ public class CrawlerJob {
 
     /**
      * 触发指定数据源的采集任务
+     * 
+     * Phase5.3: 使用CAS原子抢占机制
+     * 1. 创建任务 status=QUEUED
+     * 2. CAS原子更新: UPDATE SET status='RUNNING' WHERE id=? AND status='QUEUED'
+     * 3. 只有affectedRows==1的线程才真正执行采集
      */
     private void triggerCrawl(CrawlerSource source) {
         log.info("Triggering crawl for source: {}, id={}", source.getSourceName(), source.getId());
 
-        // 检查是否有正在运行的任务
-        Long runningCount = taskMapper.selectCount(
+        // 检查是否有正在运行或已入队的任务（QUEUED也算，避免重复创建）
+        Long activeCount = taskMapper.selectCount(
                 new LambdaQueryWrapper<CrawlerTask>()
                         .eq(CrawlerTask::getSourceId, source.getId())
-                        .eq(CrawlerTask::getStatus, "RUNNING"));
+                        .in(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_RUNNING, CrawlerConstants.TASK_STATUS_QUEUED));
 
-        if (runningCount > 0) {
-            log.warn("Source {} has running task, skip triggering.", source.getSourceName());
+        if (activeCount > 0) {
+            log.warn("Source {} has active task (RUNNING or QUEUED), skip triggering.", source.getSourceName());
             return;
         }
 
-        // 创建新任务
+        // 创建新任务，status=QUEUED（等待被调度器抢占）
         CrawlerTask task = new CrawlerTask();
         task.setSourceId(source.getId());
-        task.setTaskType("FULL");
-        task.setStatus("PENDING");
+        task.setTaskType(CrawlerConstants.TASK_TYPE_FULL);
+        task.setStatus(CrawlerConstants.TASK_STATUS_QUEUED);
         task.setCreateTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.insert(task);
 
-        // 异步启动采集（使用线程池，避免原始Thread创建）
         final Long taskId = task.getId();
+
+        // 异步启动采集（使用线程池，避免原始Thread创建）
         crawlExecutor.submit(() -> {
             try {
-                // 重新查询确保数据最新
-                CrawlerTask runningTask = taskMapper.selectById(taskId);
-                if (runningTask == null) return;
+                // CAS原子抢占：只有status=QUEUED才能更新为RUNNING
+                // 防止多实例/多线程并发重复执行同一任务
+                int affected = taskMapper.update(null,
+                        new LambdaUpdateWrapper<CrawlerTask>()
+                                .eq(CrawlerTask::getId, taskId)
+                                .eq(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_QUEUED)
+                                .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_RUNNING)
+                                .set(CrawlerTask::getStartTime, LocalDateTime.now())
+                                .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
+                );
 
-                runningTask.setStatus("RUNNING");
-                runningTask.setStartTime(LocalDateTime.now());
-                runningTask.setUpdateTime(LocalDateTime.now());
-                taskMapper.updateById(runningTask);
+                if (affected == 0) {
+                    log.warn("CAS claim failed for task {}, another instance may have claimed it. Skipping.", taskId);
+                    return;
+                }
+
+                log.info("CAS claim succeeded for task {}, starting crawl...", taskId);
+
+                // 抢占成功，重新查询最新task数据
+                CrawlerTask runningTask = taskMapper.selectById(taskId);
+                if (runningTask == null) {
+                    log.error("Task {} not found after CAS claim, skipping.", taskId);
+                    return;
+                }
 
                 crawlerEngine.startTask(source, runningTask);
 
-                runningTask.setStatus("COMPLETED");
-                runningTask.setEndTime(LocalDateTime.now());
-                runningTask.setUpdateTime(LocalDateTime.now());
-                taskMapper.updateById(runningTask);
+                // 采集完成，更新状态
+                taskMapper.update(null,
+                        new LambdaUpdateWrapper<CrawlerTask>()
+                                .eq(CrawlerTask::getId, taskId)
+                                .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_COMPLETED)
+                                .set(CrawlerTask::getEndTime, LocalDateTime.now())
+                                .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
+                );
 
                 // 更新数据源上次采集时间
                 source.setLastCrawlTime(LocalDateTime.now());
@@ -152,14 +186,18 @@ public class CrawlerJob {
             } catch (Exception e) {
                 log.error("Crawl failed for source: {}", source.getSourceName(), e);
 
-                CrawlerTask failedTask = taskMapper.selectById(taskId);
-                if (failedTask != null) {
-                    failedTask.setStatus("FAILED");
-                    failedTask.setEndTime(LocalDateTime.now());
-                    failedTask.setErrorMessage(e.getMessage());
-                    failedTask.setUpdateTime(LocalDateTime.now());
-                    taskMapper.updateById(failedTask);
-                }
+                // 更新任务状态为FAILED（使用CAS防止覆盖其他状态）
+                taskMapper.update(null,
+                        new LambdaUpdateWrapper<CrawlerTask>()
+                                .eq(CrawlerTask::getId, taskId)
+                                .in(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_RUNNING, CrawlerConstants.TASK_STATUS_QUEUED)
+                                .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_FAILED)
+                                .set(CrawlerTask::getErrorMessage,
+                                        e.getMessage() != null && e.getMessage().length() > 500
+                                                ? e.getMessage().substring(0, 500) : e.getMessage())
+                                .set(CrawlerTask::getEndTime, LocalDateTime.now())
+                                .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
+                );
 
                 source.setLastCrawlTime(LocalDateTime.now());
                 source.setLastCrawlStatus("FAILED");
