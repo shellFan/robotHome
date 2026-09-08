@@ -1,5 +1,7 @@
 package com.robot.home.collector.fetcher;
 
+import com.robot.home.collector.util.UrlSecurityUtil;
+
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -57,7 +59,7 @@ public class HttpFetcher {
     private void initDefaultHeaders() {
         defaultHeaders.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml;q=0.9,application/atom+xml;q=0.9,*/*;q=0.8");
         defaultHeaders.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7");
-        defaultHeaders.put("Accept-Encoding", "gzip, deflate, br");
+        defaultHeaders.put("Accept-Encoding", "gzip, deflate");
         defaultHeaders.put("Connection", "keep-alive");
         defaultHeaders.put("Cache-Control", "max-age=0");
         defaultHeaders.put("Upgrade-Insecure-Requests", "1");
@@ -78,6 +80,17 @@ public class HttpFetcher {
      * 抓取URL（带自定义Headers）
      */
     public FetchResult fetch(String url, Map<String, String> extraHeaders) {
+        // SSRF防护：校验URL安全性
+        if (!UrlSecurityUtil.isAllowedUrl(url)) {
+            String reason = UrlSecurityUtil.getRejectionReason(url);
+            log.warn("SSRF protection: fetch blocked for URL '{}': {}", url, reason);
+            FetchResult result = new FetchResult();
+            result.setUrl(url);
+            result.setStatusCode(0);
+            result.setError("SSRF protection: " + (reason != null ? reason : "URL not allowed"));
+            return result;
+        }
+
         // 限速
         enforceRateLimit(url);
 
@@ -220,6 +233,13 @@ public class HttpFetcher {
      * 抓取并解析为Jsoup Document（带自定义Headers）
      */
     public Document fetchDocument(String url, Map<String, String> extraHeaders) throws IOException {
+        // SSRF防护：校验URL安全性
+        if (!UrlSecurityUtil.isAllowedUrl(url)) {
+            String reason = UrlSecurityUtil.getRejectionReason(url);
+            log.warn("SSRF protection: fetchDocument blocked for URL '{}': {}", url, reason);
+            throw new IOException("SSRF protection: " + (reason != null ? reason : "URL not allowed"));
+        }
+
         enforceRateLimit(url);
 
         Connection conn = buildConnection(url, extraHeaders);
@@ -233,6 +253,17 @@ public class HttpFetcher {
      * 检查URL是否可访问（HEAD请求）
      */
     public FetchResult head(String url) {
+        // SSRF防护：校验URL安全性
+        if (!UrlSecurityUtil.isAllowedUrl(url)) {
+            String reason = UrlSecurityUtil.getRejectionReason(url);
+            log.warn("SSRF protection: head blocked for URL '{}': {}", url, reason);
+            FetchResult result = new FetchResult();
+            result.setUrl(url);
+            result.setStatusCode(0);
+            result.setError("SSRF protection: " + (reason != null ? reason : "URL not allowed"));
+            return result;
+        }
+
         enforceRateLimit(url);
 
         FetchResult result = new FetchResult();

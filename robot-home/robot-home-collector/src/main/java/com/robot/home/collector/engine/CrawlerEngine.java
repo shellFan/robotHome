@@ -19,6 +19,7 @@ import com.robot.home.collector.service.*;
 import com.robot.home.collector.util.HashUtils;
 import com.robot.home.collector.util.TextCleanUtils;
 import com.robot.home.collector.util.UrlNormalizer;
+import com.robot.home.collector.util.UrlSecurityUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -513,6 +514,13 @@ public class CrawlerEngine {
                     // 解析相对路径
                     if (!redirectUrl.startsWith("http")) {
                         redirectUrl = UrlNormalizer.resolve(url, redirectUrl);
+                    }
+                    // SSRF防护：校验重定向目标URL
+                    if (!UrlSecurityUtil.isAllowedUrl(redirectUrl)) {
+                        log.warn("SSRF protection: redirect to private/blocked URL blocked: {} -> {}", url, redirectUrl);
+                        urlsFailed.incrementAndGet();
+                        deduplicationService.markUrlFetched(url, "FAILED");
+                        return;
                     }
                     log.info("Redirect detected: {} -> {} (HTTP {})", url, redirectUrl, fetchResult.getStatusCode());
                     if (urlTask.getDepth() < maxDepth && shouldFollowDomain(redirectUrl, source)) {

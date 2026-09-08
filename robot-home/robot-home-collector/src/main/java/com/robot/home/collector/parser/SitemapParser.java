@@ -19,6 +19,12 @@ import java.util.zip.GZIPInputStream;
 /**
  * Sitemap XML解析器
  * 支持：sitemap.xml、sitemap index、gzip压缩、多层递归
+ * 
+ * 安全说明（XXE防护）：
+ * 本解析器使用 Jsoup.parse(xml, Parser.xmlParser())，Jsoup的XML解析器
+ * 默认不解析外部实体(External Entities)和DTD，因此天然免疫XXE攻击。
+ * 不需要像标准Java XML解析器(SAXParserFactory/DocumentBuilderFactory)那样
+ * 显式禁用外部实体。如未来切换到标准XML解析器，必须添加XXE防护配置。
  */
 @Component
 public class SitemapParser {
