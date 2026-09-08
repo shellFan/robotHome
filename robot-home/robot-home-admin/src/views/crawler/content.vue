@@ -18,6 +18,9 @@
         <div class="stat-value stat-pending">{{ stats.pendingProducts || 0 }}</div>
         <div class="stat-label">待审核产品</div>
       </div>
+      <div class="stat-card stat-action">
+        <el-button type="primary" :loading="publishing" @click="handlePublish">发布到主站</el-button>
+      </div>
     </div>
 
     <div class="page-card" style="margin-top: 16px">
@@ -27,8 +30,8 @@
           <div class="filter-bar">
             <el-input v-model="articleQuery.title" placeholder="标题关键词" clearable style="width: 180px" @keyup.enter="searchArticles" />
             <el-select v-model="articleQuery.articleStatus" placeholder="状态" clearable style="width: 130px">
-              <el-option label="待审核" value="PENDING" />
-              <el-option label="已通过" value="APPROVED" />
+              <el-option label="待审核" value="PENDING_REVIEW" />
+              <el-option label="已通过" value="AUTO_APPROVED" />
               <el-option label="已拒绝" value="REJECTED" />
             </el-select>
             <el-select v-model="articleQuery.matchStatus" placeholder="匹配" clearable style="width: 130px">
@@ -38,10 +41,10 @@
             </el-select>
             <el-button type="primary" @click="searchArticles">查询</el-button>
             <el-button @click="resetArticleQuery">重置</el-button>
-            <el-button type="success" :disabled="!articleSelection.length" @click="batchReviewArticles('APPROVED')">
+            <el-button type="success" :disabled="!articleSelection.length" @click="batchReviewArticles('approve')">
               批量通过 ({{ articleSelection.length }})
             </el-button>
-            <el-button type="danger" :disabled="!articleSelection.length" @click="batchReviewArticles('REJECTED')">
+            <el-button type="danger" :disabled="!articleSelection.length" @click="batchReviewArticles('reject')">
               批量拒绝 ({{ articleSelection.length }})
             </el-button>
           </div>
@@ -66,8 +69,8 @@
             <el-table-column label="操作" width="160" fixed="right">
               <template #default="{ row }">
                 <el-button link type="primary" @click="previewArticle(row)">预览</el-button>
-                <el-button v-if="row.articleStatus === 'PENDING'" link type="success" @click="reviewArticle(row, 'APPROVED')">通过</el-button>
-                <el-button v-if="row.articleStatus === 'PENDING'" link type="danger" @click="reviewArticle(row, 'REJECTED')">拒绝</el-button>
+                <el-button v-if="row.articleStatus === 'PENDING_REVIEW'" link type="success" @click="reviewArticle(row, 'approve')">通过</el-button>
+                <el-button v-if="row.articleStatus === 'PENDING_REVIEW'" link type="danger" @click="reviewArticle(row, 'reject')">拒绝</el-button>
               </template>
             </el-table-column>
             <template #empty><el-empty description="暂无文章" /></template>
@@ -85,8 +88,8 @@
           <div class="filter-bar">
             <el-input v-model="productQuery.productName" placeholder="产品名称" clearable style="width: 180px" @keyup.enter="searchProducts" />
             <el-select v-model="productQuery.productStatus" placeholder="状态" clearable style="width: 130px">
-              <el-option label="待审核" value="PENDING" />
-              <el-option label="已通过" value="APPROVED" />
+              <el-option label="待审核" value="PENDING_REVIEW" />
+              <el-option label="已通过" value="AUTO_APPROVED" />
               <el-option label="已拒绝" value="REJECTED" />
             </el-select>
             <el-select v-model="productQuery.matchStatus" placeholder="匹配" clearable style="width: 130px">
@@ -96,10 +99,10 @@
             </el-select>
             <el-button type="primary" @click="searchProducts">查询</el-button>
             <el-button @click="resetProductQuery">重置</el-button>
-            <el-button type="success" :disabled="!productSelection.length" @click="batchReviewProducts('APPROVED')">
+            <el-button type="success" :disabled="!productSelection.length" @click="batchReviewProducts('approve')">
               批量通过 ({{ productSelection.length }})
             </el-button>
-            <el-button type="danger" :disabled="!productSelection.length" @click="batchReviewProducts('REJECTED')">
+            <el-button type="danger" :disabled="!productSelection.length" @click="batchReviewProducts('reject')">
               批量拒绝 ({{ productSelection.length }})
             </el-button>
           </div>
@@ -125,8 +128,8 @@
             <el-table-column label="操作" width="160" fixed="right">
               <template #default="{ row }">
                 <el-button link type="primary" @click="previewProduct(row)">预览</el-button>
-                <el-button v-if="row.productStatus === 'PENDING'" link type="success" @click="reviewProduct(row, 'APPROVED')">通过</el-button>
-                <el-button v-if="row.productStatus === 'PENDING'" link type="danger" @click="reviewProduct(row, 'REJECTED')">拒绝</el-button>
+                <el-button v-if="row.productStatus === 'PENDING_REVIEW'" link type="success" @click="reviewProduct(row, 'approve')">通过</el-button>
+                <el-button v-if="row.productStatus === 'PENDING_REVIEW'" link type="danger" @click="reviewProduct(row, 'reject')">拒绝</el-button>
               </template>
             </el-table-column>
             <template #empty><el-empty description="暂无产品" /></template>
@@ -156,8 +159,8 @@
       </div>
       <template #footer>
         <el-button @click="articlePreviewVisible = false">关 闭</el-button>
-        <el-button v-if="articlePreview && articlePreview.articleStatus === 'PENDING'" type="success" @click="reviewArticle(articlePreview, 'APPROVED'); articlePreviewVisible = false">通 过</el-button>
-        <el-button v-if="articlePreview && articlePreview.articleStatus === 'PENDING'" type="danger" @click="reviewArticle(articlePreview, 'REJECTED'); articlePreviewVisible = false">拒 绝</el-button>
+        <el-button v-if="articlePreview && articlePreview.articleStatus === 'PENDING_REVIEW'" type="success" @click="reviewArticle(articlePreview, 'approve'); articlePreviewVisible = false">通 过</el-button>
+        <el-button v-if="articlePreview && articlePreview.articleStatus === 'PENDING_REVIEW'" type="danger" @click="reviewArticle(articlePreview, 'reject'); articlePreviewVisible = false">拒 绝</el-button>
       </template>
     </el-dialog>
 
@@ -183,8 +186,8 @@
       </div>
       <template #footer>
         <el-button @click="productPreviewVisible = false">关 闭</el-button>
-        <el-button v-if="productPreview && productPreview.productStatus === 'PENDING'" type="success" @click="reviewProduct(productPreview, 'APPROVED'); productPreviewVisible = false">通 过</el-button>
-        <el-button v-if="productPreview && productPreview.productStatus === 'PENDING'" type="danger" @click="reviewProduct(productPreview, 'REJECTED'); productPreviewVisible = false">拒 绝</el-button>
+        <el-button v-if="productPreview && productPreview.productStatus === 'PENDING_REVIEW'" type="success" @click="reviewProduct(productPreview, 'approve'); productPreviewVisible = false">通 过</el-button>
+        <el-button v-if="productPreview && productPreview.productStatus === 'PENDING_REVIEW'" type="danger" @click="reviewProduct(productPreview, 'reject'); productPreviewVisible = false">拒 绝</el-button>
       </template>
     </el-dialog>
   </div>
@@ -196,19 +199,20 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getCrawlerArticlePage, getCrawlerArticle, reviewCrawlerArticle, batchReviewCrawlerArticles,
   getCrawlerProductPage, getCrawlerProduct, reviewCrawlerProduct, batchReviewCrawlerProducts,
-  getCrawlerContentStats
+  getCrawlerContentStats, publishCrawlerAll
 } from '@/api/crawler'
 import { cleanParams } from '@/utils'
 
 const activeTab = ref('article')
 const stats = ref({})
+const publishing = ref(false)
 
 // ---- 文章 ----
 const articleLoading = ref(false)
 const articleList = ref([])
 const articleSelection = ref([])
 const articlePage = reactive({ pageNum: 1, pageSize: 20, total: 0 })
-const articleQuery = reactive({ title: '', articleStatus: 'PENDING', matchStatus: '' })
+const articleQuery = reactive({ title: '', articleStatus: 'PENDING_REVIEW', matchStatus: '' })
 const articlePreviewVisible = ref(false)
 const articlePreview = ref(null)
 
@@ -217,16 +221,16 @@ const productLoading = ref(false)
 const productList = ref([])
 const productSelection = ref([])
 const productPage = reactive({ pageNum: 1, pageSize: 20, total: 0 })
-const productQuery = reactive({ productName: '', productStatus: 'PENDING', matchStatus: '' })
+const productQuery = reactive({ productName: '', productStatus: 'PENDING_REVIEW', matchStatus: '' })
 const productPreviewVisible = ref(false)
 const productPreview = ref(null)
 
 function reviewStatusLabel(s) {
-  const map = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已拒绝' }
+  const map = { PENDING_REVIEW: '待审核', AUTO_APPROVED: '已通过', REJECTED: '已拒绝' }
   return map[s] || s
 }
 function reviewStatusType(s) {
-  const map = { PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' }
+  const map = { PENDING_REVIEW: 'warning', AUTO_APPROVED: 'success', REJECTED: 'danger' }
   return map[s] || 'info'
 }
 function matchStatusLabel(s) {
@@ -239,7 +243,16 @@ function matchStatusType(s) {
 }
 
 async function loadStats() {
-  try { stats.value = await getCrawlerContentStats() || {} } catch { stats.value = {} }
+  try {
+    const data = await getCrawlerContentStats() || {}
+    // 后端返回 articleTotal/articlePending/productTotal/productPending，映射为前端字段
+    stats.value = {
+      totalArticles: data.articleTotal || 0,
+      pendingArticles: data.articlePending || 0,
+      totalProducts: data.productTotal || 0,
+      pendingProducts: data.productPending || 0
+    }
+  } catch { stats.value = {} }
 }
 
 async function loadArticles() {
@@ -261,9 +274,9 @@ async function loadProducts() {
 }
 
 function searchArticles() { articlePage.pageNum = 1; loadArticles() }
-function resetArticleQuery() { articleQuery.title = ''; articleQuery.articleStatus = 'PENDING'; articleQuery.matchStatus = ''; searchArticles() }
+function resetArticleQuery() { articleQuery.title = ''; articleQuery.articleStatus = 'PENDING_REVIEW'; articleQuery.matchStatus = ''; searchArticles() }
 function searchProducts() { productPage.pageNum = 1; loadProducts() }
-function resetProductQuery() { productQuery.productName = ''; productQuery.productStatus = 'PENDING'; productQuery.matchStatus = ''; searchProducts() }
+function resetProductQuery() { productQuery.productName = ''; productQuery.productStatus = 'PENDING_REVIEW'; productQuery.matchStatus = ''; searchProducts() }
 function handleTabChange() { if (activeTab.value === 'article') loadArticles(); else loadProducts() }
 function onArticleSelection(rows) { articleSelection.value = rows }
 function onProductSelection(rows) { productSelection.value = rows }
@@ -280,38 +293,48 @@ async function previewProduct(row) {
   productPreviewVisible.value = true
 }
 
-async function reviewArticle(row, status) {
-  const reason = status === 'REJECTED' ? await ElMessageBox.prompt('请输入拒绝原因', '拒绝文章', { confirmButtonText: '确认', cancelButtonText: '取消', inputPlaceholder: '拒绝原因' }).then(r => r.value).catch(() => null) : ''
-  if (status === 'REJECTED' && reason === null) return
-  await reviewCrawlerArticle(row.id, { status, reason: reason || '' })
-  ElMessage.success(status === 'APPROVED' ? '已通过' : '已拒绝')
+async function reviewArticle(row, action) {
+  const reason = action === 'reject' ? await ElMessageBox.prompt('请输入拒绝原因', '拒绝文章', { confirmButtonText: '确认', cancelButtonText: '取消', inputPlaceholder: '拒绝原因' }).then(r => r.value).catch(() => null) : ''
+  if (action === 'reject' && reason === null) return
+  await reviewCrawlerArticle(row.id, action, reason || '')
+  ElMessage.success(action === 'approve' ? '已通过' : '已拒绝')
   loadArticles(); loadStats()
 }
 
-async function reviewProduct(row, status) {
-  const reason = status === 'REJECTED' ? await ElMessageBox.prompt('请输入拒绝原因', '拒绝产品', { confirmButtonText: '确认', cancelButtonText: '取消', inputPlaceholder: '拒绝原因' }).then(r => r.value).catch(() => null) : ''
-  if (status === 'REJECTED' && reason === null) return
-  await reviewCrawlerProduct(row.id, { status, reason: reason || '' })
-  ElMessage.success(status === 'APPROVED' ? '已通过' : '已拒绝')
+async function reviewProduct(row, action) {
+  const reason = action === 'reject' ? await ElMessageBox.prompt('请输入拒绝原因', '拒绝产品', { confirmButtonText: '确认', cancelButtonText: '取消', inputPlaceholder: '拒绝原因' }).then(r => r.value).catch(() => null) : ''
+  if (action === 'reject' && reason === null) return
+  await reviewCrawlerProduct(row.id, action, reason || '')
+  ElMessage.success(action === 'approve' ? '已通过' : '已拒绝')
   loadProducts(); loadStats()
 }
 
-async function batchReviewArticles(status) {
+async function batchReviewArticles(action) {
   const ids = articleSelection.value.map(r => r.id)
-  const action = status === 'APPROVED' ? '通过' : '拒绝'
-  try { await ElMessageBox.confirm(`确认批量${action} ${ids.length} 篇文章？`, '提示', { type: 'warning' }) } catch { return }
-  await batchReviewCrawlerArticles({ ids, status })
-  ElMessage.success(`批量${action}成功`)
+  const label = action === 'approve' ? '通过' : '拒绝'
+  try { await ElMessageBox.confirm(`确认批量${label} ${ids.length} 篇文章？`, '提示', { type: 'warning' }) } catch { return }
+  await batchReviewCrawlerArticles(ids, action)
+  ElMessage.success(`批量${label}成功`)
   loadArticles(); loadStats()
 }
 
-async function batchReviewProducts(status) {
+async function batchReviewProducts(action) {
   const ids = productSelection.value.map(r => r.id)
-  const action = status === 'APPROVED' ? '通过' : '拒绝'
-  try { await ElMessageBox.confirm(`确认批量${action} ${ids.length} 个产品？`, '提示', { type: 'warning' }) } catch { return }
-  await batchReviewCrawlerProducts({ ids, status })
-  ElMessage.success(`批量${action}成功`)
+  const label = action === 'approve' ? '通过' : '拒绝'
+  try { await ElMessageBox.confirm(`确认批量${label} ${ids.length} 个产品？`, '提示', { type: 'warning' }) } catch { return }
+  await batchReviewCrawlerProducts(ids, action)
+  ElMessage.success(`批量${label}成功`)
   loadProducts(); loadStats()
+}
+
+async function handlePublish() {
+  try { await ElMessageBox.confirm('确认将所有已通过审核的内容发布到主站？', '发布确认', { type: 'warning' }) } catch { return }
+  publishing.value = true
+  try {
+    const res = await publishCrawlerAll()
+    ElMessage.success(res.message || '发布成功')
+    loadStats()
+  } finally { publishing.value = false }
 }
 
 onMounted(() => { loadStats(); loadArticles() })
@@ -323,4 +346,5 @@ onMounted(() => { loadStats(); loadArticles() })
 .stat-value { font-size: 28px; font-weight: 700; color: #303133; }
 .stat-value.stat-pending { color: #e6a23c; }
 .stat-label { font-size: 13px; color: #909399; margin-top: 6px; }
+.stat-action { display: flex; align-items: center; justify-content: center; }
 </style>
