@@ -17,6 +17,7 @@ import com.robot.home.collector.parser.RssAtomParser;
 import com.robot.home.collector.parser.SitemapParser;
 import com.robot.home.collector.service.*;
 import com.robot.home.collector.util.HashUtils;
+import com.robot.home.collector.util.HtmlSanitizer;
 import com.robot.home.collector.util.TextCleanUtils;
 import com.robot.home.collector.util.UrlNormalizer;
 import com.robot.home.collector.util.UrlSecurityUtil;
@@ -817,7 +818,7 @@ public class CrawlerEngine {
         article.setSourceSite(UrlNormalizer.getDomain(url));
         article.setTitle(StringUtils.isNotBlank(data.getTitle()) ? data.getTitle() : UrlNormalizer.getDomain(url) + " - " + url.hashCode());
         article.setContentText(data.getContent());
-        article.setContentHtml(data.getContentHtml());
+        article.setContentHtml(HtmlSanitizer.sanitizeWithEnhancements(data.getContentHtml()));
         article.setSummary(data.getSummary());
         article.setAuthor(data.getAuthor());
         article.setPublishTime(parseDateTime(data.getPublishDate()));

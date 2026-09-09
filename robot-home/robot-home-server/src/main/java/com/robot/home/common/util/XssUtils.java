@@ -1,55 +1,80 @@
 package com.robot.home.common.util;
 
-import cn.hutool.core.util.StrUtil;
-
-import java.util.regex.Pattern;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 
 /**
- * XSS 防护：对用户输入的富文本 / 评论做基础清洗
- * 说明：富文本正文由后台编辑发布，前台用户内容一律按纯文本清洗后再入库
+ * XSS 防护工具 — 基于 Jsoup Safelist 白名单机制
+ * <p>
+ * 正则方案无法防御所有 XSS 向量（如编码绕过、嵌套标签、DOM clobbering等），
+ * 必须使用基于白名单的 HTML 清洗器。
+ * <p>
+ * 两个清洗级别:
+ * - clean(): 富文本清洗，保留安全的 HTML 标签和属性
+ * - escapeText(): 纯文本转义，用于评论等不允许 HTML 的字段
  */
 public final class XssUtils {
 
     private XssUtils() {
     }
 
-    private static final Pattern SCRIPT_TAG = Pattern.compile("<\\s*(script|iframe|object|embed|link|style)\\b[^>]*>.*?<\\s*/\\s*\\1\\s*>",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern SINGLE_TAG = Pattern.compile("<\\s*(script|iframe|object|embed|link|style)\\b[^>]*/?\\s*>",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern EVENT_ATTR = Pattern.compile("\\son[a-zA-Z]+\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]+)",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern JS_URL = Pattern.compile("(?i)\\b(href|src|action)\\s*=\\s*([\"']?)\\s*javascript:",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern EXPR = Pattern.compile("(?i)expression\\s*\\(");
+    /** 富文本白名单: 允许常见格式化标签 + 链接 + 图片 + 表格 */
+    private static final Safelist RICH_TEXT_SAFELIST = Safelist.relaxed()
+            .removeTags("iframe", "object", "embed", "form", "input", "textarea",
+                    "select", "button", "meta", "link", "style", "base",
+                    "applet", "frame", "frameset")
+            .addTags("figure", "figcaption", "details", "summary", "abbr",
+                    "mark", "sub", "sup", "ins", "del", "hr", "dl", "dt", "dd")
+            .addAttributes(":all", "class", "id")
+            .addAttributes("a", "target", "rel", "download")
+            .addAttributes("img", "loading", "decoding", "width", "height")
+            .addAttributes("td", "colspan", "rowspan")
+            .addAttributes("th", "colspan", "rowspan", "scope")
+            .addAttributes("ol", "start", "reversed", "type")
+            .addProtocols("a", "href", "http", "https", "ftp", "mailto")
+            .addProtocols("img", "src", "http", "https");
 
     /**
-     * 清洗 HTML：移除脚本标签、事件属性与 javascript: 协议
+     * 清洗 HTML 富文本：移除危险标签和属性，只保留白名单内的安全内容
+     * <p>
+     * Jsoup Safelist 机制:
+     * - 自动移除所有 on* 事件属性 (onclick, onerror 等)
+     * - 自动移除 javascript:/vbscript:/data:text/html 协议
+     * - 自动移除不在白名单中的标签和属性
+     *
+     * @param html 原始 HTML
+     * @return 安全的 HTML，可安全写入数据库或渲染
      */
     public static String clean(String html) {
-        if (StrUtil.isBlank(html)) {
+        if (html == null || html.trim().isEmpty()) {
             return html;
         }
-        String result = html;
-        result = SCRIPT_TAG.matcher(result).replaceAll("");
-        result = SINGLE_TAG.matcher(result).replaceAll("");
-        result = EVENT_ATTR.matcher(result).replaceAll("");
-        result = JS_URL.matcher(result).replaceAll("$1=$2#");
-        result = EXPR.matcher(result).replaceAll("");
-        return result;
+        return Jsoup.clean(html, RICH_TEXT_SAFELIST);
     }
 
     /**
      * 纯文本转义：用于评论等不允许 HTML 的字段
+     * 将 HTML 特殊字符转义为实体，防止 XSS 注入
+     *
+     * @param text 原始文本
+     * @return 转义后的安全文本
      */
     public static String escapeText(String text) {
-        if (StrUtil.isBlank(text)) {
+        if (text == null || text.trim().isEmpty()) {
             return text;
         }
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+        StringBuilder sb = new StringBuilder(text.length() * 2);
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '&':  sb.append("&amp;");  break;
+                case '<':  sb.append("&lt;");   break;
+                case '>':  sb.append("&gt;");   break;
+                case '"':  sb.append("&quot;"); break;
+                case '\'': sb.append("&#39;");  break;
+                default:   sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }
