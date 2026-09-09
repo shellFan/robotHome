@@ -134,6 +134,9 @@ services:
       ADMIN_INIT_USERNAME: ${ADMIN_INIT_USERNAME:-admin}
       ADMIN_INIT_PASSWORD: ${ADMIN_INIT_PASSWORD:?ADMIN_INIT_PASSWORD必须设置}
       ROBOT_SMS_DEV_MODE: "false"
+      # Collector Gateway 配置 — Server 内部调用 Collector，不暴露 API Key 给浏览器
+      COLLECTOR_URL: http://collector:8082
+      COLLECTOR_API_KEY: ${CRAWLER_API_KEY:?CRAWLER_API_KEY必须设置}
     volumes:
       - uploads_data:/app/uploads
     healthcheck:
@@ -160,7 +163,6 @@ services:
       - "${NGINX_PORT:-80}:80"
     depends_on:
       - backend
-      - collector
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./robot-home-web/dist:/usr/share/nginx/html/web:ro

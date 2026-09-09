@@ -154,7 +154,7 @@
           <span v-if="articlePreview.sourceName" style="margin-left: 16px">来源: {{ articlePreview.sourceName }}</span>
         </div>
         <el-image v-if="articlePreview.coverImage" :src="articlePreview.coverImage" style="max-width: 100%; margin-bottom: 16px" fit="contain" />
-        <div v-if="articlePreview.contentHtml" v-html="articlePreview.contentHtml" style="line-height: 1.8" />
+        <div v-if="articlePreview.contentHtml" v-html="XssUtil.clean(articlePreview.contentHtml)" style="line-height: 1.8" />
         <div v-else-if="articlePreview.contentText" style="white-space: pre-wrap; line-height: 1.8">{{ articlePreview.contentText }}</div>
       </div>
       <template #footer>
@@ -202,6 +202,7 @@ import {
   getCrawlerContentStats, publishCrawlerAll
 } from '@/api/crawler'
 import { cleanParams } from '@/utils'
+import { XssUtil } from '@/utils/xss'
 
 const activeTab = ref('article')
 const stats = ref({})
