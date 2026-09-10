@@ -113,7 +113,12 @@ public class RankingServiceImpl implements RankingService {
         int size = Math.max(1, Math.min(limit, 100));
 
         String cacheKey = Constants.CACHE_RANKING_PREFIX + rankType + ":" + range + ":" + size;
-        List<Long> ids = parseIds(redisUtils.get(cacheKey));
+        List<Long> ids = null;
+        try {
+            ids = parseIds(redisUtils.get(cacheKey));
+        } catch (Exception e) {
+            log.warn("Redis排行榜缓存读取失败，降级到DB查询: rankType={}, error={}", rankType, e.getMessage());
+        }
         if (ids == null || ids.isEmpty()) {
             Long categoryId = TYPE_CATEGORY.get(rankType);
             List<Long> categoryIds = null;
@@ -139,7 +144,11 @@ public class RankingServiceImpl implements RankingService {
                 ids.add(robots.get(i).getId());
             }
             if (!ids.isEmpty()) {
-                redisUtils.set(cacheKey, joinIds(ids), rankingCacheSeconds, TimeUnit.SECONDS);
+                try {
+                    redisUtils.set(cacheKey, joinIds(ids), rankingCacheSeconds, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.warn("Redis排行榜缓存写入失败（不影响返回）: rankType={}, error={}", rankType, e.getMessage());
+                }
             }
         }
         if (ids.isEmpty()) {
@@ -186,8 +195,12 @@ public class RankingServiceImpl implements RankingService {
             updated++;
         }
         // 刷新后清空榜单缓存
-        for (String key : new ArrayList<>(redisUtils.keys(Constants.CACHE_RANKING_PREFIX + "*"))) {
-            redisUtils.delete(key);
+        try {
+            for (String key : new ArrayList<>(redisUtils.keys(Constants.CACHE_RANKING_PREFIX + "*"))) {
+                redisUtils.delete(key);
+            }
+        } catch (Exception e) {
+            log.warn("Redis排行榜缓存清空失败: error={}", e.getMessage());
         }
         return updated;
     }
@@ -203,13 +216,24 @@ public class RankingServiceImpl implements RankingService {
         int count = 0;
         for (String rankType : rankTypes) {
             String zsetKey = Constants.CACHE_HOT_PREFIX + rankType;
-            Set<String> members = redisUtils.zReverseRange(zsetKey, 0, 99);
+            Set<String> members = null;
+            try {
+                members = redisUtils.zReverseRange(zsetKey, 0, 99);
+            } catch (Exception e) {
+                log.warn("Redis ZSET读取失败，跳过排行榜快照: rankType={}, error={}", rankType, e.getMessage());
+                continue;
+            }
             if (members == null || members.isEmpty()) {
                 continue;
             }
             int rank = 1;
             for (String member : members) {
-                Double score = redisUtils.zScore(zsetKey, member);
+                Double score = null;
+                try {
+                    score = redisUtils.zScore(zsetKey, member);
+                } catch (Exception e) {
+                    log.warn("Redis ZSET分数读取失败: rankType={}, member={}, error={}", rankType, member, e.getMessage());
+                }
                 RankingSnapshot snapshot = new RankingSnapshot();
                 snapshot.setRankType(rankType);
                 snapshot.setSnapshotDate(now);

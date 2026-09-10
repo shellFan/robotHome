@@ -22,6 +22,8 @@ import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.robot.vo.RobotSummaryVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -37,6 +39,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements BrandService {
+
+    private static final Logger log = LoggerFactory.getLogger(BrandServiceImpl.class);
 
     private static final long CACHE_SECONDS = 600L;
 
@@ -107,16 +111,20 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
     @Override
     public List<BrandLetterGroupVO> groupByLetter() {
         String key = Constants.CACHE_BRAND_PREFIX + "letter";
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<BrandLetterGroupVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandLetterGroupVO.class);
-                if (list != null) {
-                    return list;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<BrandLetterGroupVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandLetterGroupVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis品牌字母分组缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         List<Brand> brands = list(Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
@@ -133,7 +141,11 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
             g.setBrands(e.getValue());
             return g;
         }).collect(Collectors.toList());
-        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis品牌字母分组缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return result;
     }
 
@@ -141,23 +153,31 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
     public List<BrandListVO> hot(int limit) {
         int size = Math.max(1, Math.min(limit, 50));
         String key = Constants.CACHE_BRAND_PREFIX + "hot:" + size;
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<BrandListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandListVO.class);
-                if (list != null) {
-                    return list;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<BrandListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), BrandListVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis热门品牌缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         List<Brand> brands = list(Wrappers.<Brand>lambdaQuery()
                 .eq(Brand::getStatus, 1)
                 .orderByDesc(Brand::getHotScore)
                 .last("LIMIT " + size));
         List<BrandListVO> result = brands.stream().map(this::toListVO).collect(Collectors.toList());
-        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis热门品牌缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return result;
     }
 

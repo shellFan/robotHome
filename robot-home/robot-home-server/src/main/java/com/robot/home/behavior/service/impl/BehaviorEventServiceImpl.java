@@ -2,16 +2,12 @@ package com.robot.home.behavior.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.robot.home.behavior.dto.BehaviorEventDTO;
-import com.robot.home.behavior.entity.BehaviorEvent;
-import com.robot.home.behavior.mapper.BehaviorEventMapper;
+import com.robot.home.behavior.service.BehaviorEventAsyncService;
 import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.RedisUtils;
-import com.robot.home.article.entity.Article;
 import com.robot.home.article.mapper.ArticleMapper;
-import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
-import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.ranking.entity.RankingWeight;
 import com.robot.home.ranking.mapper.RankingWeightMapper;
@@ -24,7 +20,6 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +56,6 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     private volatile Map<String, Integer> weightMap = new HashMap<>();
 
     @Resource
-    private BehaviorEventMapper behaviorEventMapper;
-    @Resource
     private RedisUtils redisUtils;
     @Resource
     private RankingWeightMapper rankingWeightMapper;
@@ -72,6 +65,8 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     private ArticleMapper articleMapper;
     @Resource
     private VideoMapper videoMapper;
+    @Resource
+    private BehaviorEventAsyncService behaviorEventAsyncService;
 
     /** 权重缓存时间戳 */
     private volatile long weightCacheTime = 0;
@@ -130,13 +125,25 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
 
     @Override
     public void record(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId) {
-        // 1. 参数校验
+        // 1. 参数校验（含SERVER_ONLY事件类型拒绝）
         validate(dto);
 
-        // 2. 异步写入MySQL
-        saveEvent(userId, dto, ip, ua);
+        // 2. 异步写入MySQL（通过独立Bean调用，确保@Async生效）
+        behaviorEventAsyncService.saveEvent(userId, dto, ip, ua);
 
         // 3. Redis热度更新
+        updateHotScore(userId, dto, sessionId);
+    }
+
+    @Override
+    public void recordTrusted(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId) {
+        // 服务端受信调用，跳过SERVER_ONLY校验
+        validateBasic(dto);
+
+        // 异步写入MySQL
+        behaviorEventAsyncService.saveEvent(userId, dto, ip, ua);
+
+        // Redis热度更新
         updateHotScore(userId, dto, sessionId);
     }
 
@@ -158,38 +165,75 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
 
     @Override
     public double getHotScore(String bizType, Long bizId) {
-        String key = HOT_ZSET_PREFIX + bizType;
-        Double score = redisUtils.zScore(key, String.valueOf(bizId));
-        return score == null ? 0.0 : score;
+        try {
+            String key = HOT_ZSET_PREFIX + bizType;
+            Double score = redisUtils.zScore(key, String.valueOf(bizId));
+            return score == null ? 0.0 : score;
+        } catch (Exception e) {
+            log.warn("Redis读取热度分失败，返回0: bizType={}, bizId={}, error={}", bizType, bizId, e.getMessage());
+            return 0.0;
+        }
     }
 
     @Override
     public List<Map<String, Object>> getTopHot(String bizType, int limit) {
-        String key = HOT_ZSET_PREFIX + bizType;
-        int size = Math.max(1, Math.min(limit, 100));
-        // ZREVRANGE 按score降序
-        Set<String> members = redisUtils.zReverseRange(key, 0, size - 1);
-        if (members == null || members.isEmpty()) {
+        try {
+            String key = HOT_ZSET_PREFIX + bizType;
+            int size = Math.max(1, Math.min(limit, 100));
+            // ZREVRANGE 按score降序
+            Set<String> members = redisUtils.zReverseRange(key, 0, size - 1);
+            if (members == null || members.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            int rank = 1;
+            for (String member : members) {
+                Double score = redisUtils.zScore(key, member);
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", Long.valueOf(member));
+                item.put("score", score == null ? 0 : score);
+                item.put("rank", rank++);
+                result.add(item);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Redis读取热度排行榜失败，返回空: bizType={}, error={}", bizType, e.getMessage());
             return Collections.emptyList();
         }
-
-        List<Map<String, Object>> result = new ArrayList<>();
-        int rank = 1;
-        for (String member : members) {
-            Double score = redisUtils.zScore(key, member);
-            Map<String, Object> item = new HashMap<>();
-            item.put("id", Long.valueOf(member));
-            item.put("score", score == null ? 0 : score);
-            item.put("rank", rank++);
-            result.add(item);
-        }
-        return result;
     }
 
     /**
-     * 参数校验：事件类型和业务类型白名单 + bizId存在性校验
+     * 参数校验：事件类型和业务类型白名单 + SERVER_ONLY拒绝 + bizId存在性校验
+     * <p>
+     * 客户端API入口使用此校验，INQUIRY/FAVORITE/UNFAVORITE等高权重事件被拒绝
      */
     private void validate(BehaviorEventDTO dto) {
+        if (!VALID_EVENT_TYPES.contains(dto.getEventType())) {
+            throw new BusinessException("不支持的事件类型: " + dto.getEventType());
+        }
+        // 高权重事件仅允许服务端触发，防止客户端刷榜
+        if (SERVER_ONLY_EVENT_TYPES.contains(dto.getEventType())) {
+            throw new BusinessException("事件类型 " + dto.getEventType() + " 仅允许服务端触发");
+        }
+        if (dto.getBizType() != null && !VALID_BIZ_TYPES.contains(dto.getBizType())) {
+            throw new BusinessException("不支持的业务类型: " + dto.getBizType());
+        }
+        if (StrUtil.isNotBlank(dto.getExtra()) && dto.getExtra().length() > 512) {
+            throw new BusinessException("扩展信息过长");
+        }
+        // bizId存在性校验（仅核心bizType，避免伪造数据污染热度）
+        if (dto.getBizType() != null && dto.getBizId() != null) {
+            validateBizId(dto.getBizType(), dto.getBizId());
+        }
+    }
+
+    /**
+     * 基础校验：事件类型和业务类型白名单 + bizId存在性（不检查SERVER_ONLY）
+     * <p>
+     * 供recordTrusted()使用，允许INQUIRY/FAVORITE等高权重事件
+     */
+    private void validateBasic(BehaviorEventDTO dto) {
         if (!VALID_EVENT_TYPES.contains(dto.getEventType())) {
             throw new BusinessException("不支持的事件类型: " + dto.getEventType());
         }
@@ -199,7 +243,6 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
         if (StrUtil.isNotBlank(dto.getExtra()) && dto.getExtra().length() > 512) {
             throw new BusinessException("扩展信息过长");
         }
-        // bizId存在性校验（仅核心bizType，避免伪造数据污染热度）
         if (dto.getBizType() != null && dto.getBizId() != null) {
             validateBizId(dto.getBizType(), dto.getBizId());
         }
@@ -230,28 +273,6 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     }
 
     /**
-     * 异步写入MySQL
-     */
-    @Async("asyncExecutor")
-    public void saveEvent(Long userId, BehaviorEventDTO dto, String ip, String ua) {
-        try {
-            BehaviorEvent event = new BehaviorEvent();
-            event.setUserId(userId);
-            event.setEventType(dto.getEventType());
-            event.setBizType(dto.getBizType());
-            event.setBizId(dto.getBizId());
-            event.setExtra(StrUtil.isBlank(dto.getExtra()) ? null : dto.getExtra());
-            event.setIp(ip != null && ip.length() > 64 ? ip.substring(0, 64) : ip);
-            event.setUserAgent(ua != null && ua.length() > 512 ? ua.substring(0, 512) : ua);
-            event.setCreateTime(new Date());
-            behaviorEventMapper.insert(event);
-        } catch (Exception e) {
-            log.error("保存行为事件失败: eventType={}, bizType={}, bizId={}",
-                    dto.getEventType(), dto.getBizType(), dto.getBizId(), e);
-        }
-    }
-
-    /**
      * Redis热度更新
      * <p>
      * 1. 去重检查：同一用户+同一对象+同一事件，60秒内不重复计数
@@ -263,37 +284,43 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
             return; // 搜索等事件无业务对象，不更新热度
         }
 
-        // 去重检查：同一用户/会话+同一对象+同一事件，60秒内不重复计数
-        String dedupIdentity = userId != null ? String.valueOf(userId) : "session:" + sessionId;
-        String dedupKey = DEDUP_PREFIX + dto.getEventType() + ":" + dto.getBizType()
-                + ":" + dto.getBizId() + ":" + dedupIdentity;
-        if (redisUtils.hasKey(dedupKey)) {
-            return; // 60秒内已记录过，跳过
-        }
-        redisUtils.set(dedupKey, "1", DEDUP_WINDOW_SECONDS, TimeUnit.SECONDS);
+        try {
+            // 去重检查：同一用户/会话+同一对象+同一事件，60秒内不重复计数
+            String dedupIdentity = userId != null ? String.valueOf(userId) : "session:" + sessionId;
+            String dedupKey = DEDUP_PREFIX + dto.getEventType() + ":" + dto.getBizType()
+                    + ":" + dto.getBizId() + ":" + dedupIdentity;
+            if (redisUtils.hasKey(dedupKey)) {
+                return; // 60秒内已记录过，跳过
+            }
+            redisUtils.set(dedupKey, "1", DEDUP_WINDOW_SECONDS, TimeUnit.SECONDS);
 
-        // 确保权重已加载
-        ensureWeightsLoaded();
+            // 确保权重已加载
+            ensureWeightsLoaded();
 
-        // 获取权重
-        Integer weight = weightMap.get(dto.getEventType());
-        if (weight == null) {
-            weight = 1; // 默认权重1
-        }
+            // 获取权重
+            Integer weight = weightMap.get(dto.getEventType());
+            if (weight == null) {
+                weight = 1; // 默认权重1
+            }
 
-        // UNFAVORITE 是负向事件
-        if ("UNFAVORITE".equals(dto.getEventType())) {
-            weight = -Math.abs(weight);
-        }
+            // UNFAVORITE 是负向事件
+            if ("UNFAVORITE".equals(dto.getEventType())) {
+                weight = -Math.abs(weight);
+            }
 
-        // ZINCRBY 更新热度
-        String zsetKey = HOT_ZSET_PREFIX + dto.getBizType();
-        redisUtils.zIncrBy(zsetKey, String.valueOf(dto.getBizId()), weight.doubleValue());
+            // ZINCRBY 更新热度
+            String zsetKey = HOT_ZSET_PREFIX + dto.getBizType();
+            redisUtils.zIncrBy(zsetKey, String.valueOf(dto.getBizId()), weight.doubleValue());
 
-        // 设置ZSET过期时间（避免永久占用内存）
-        Long ttl = redisUtils.getExpire(zsetKey);
-        if (ttl == null || ttl < 0) {
-            redisUtils.expire(zsetKey, ZSET_EXPIRE_DAYS, TimeUnit.DAYS);
+            // 设置ZSET过期时间（避免永久占用内存）
+            Long ttl = redisUtils.getExpire(zsetKey);
+            if (ttl == null || ttl < 0) {
+                redisUtils.expire(zsetKey, ZSET_EXPIRE_DAYS, TimeUnit.DAYS);
+            }
+        } catch (Exception e) {
+            // Redis故障不影响行为事件记录主流程，热度更新可降级
+            log.warn("Redis热度更新失败（可降级）: eventType={}, bizType={}, bizId={}, error={}",
+                    dto.getEventType(), dto.getBizType(), dto.getBizId(), e.getMessage());
         }
     }
 }

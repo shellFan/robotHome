@@ -58,6 +58,8 @@ import com.robot.home.robot.vo.RobotParamDefVO;
 import com.robot.home.robot.vo.RobotParamGroupVO;
 import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,6 +82,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements RobotService {
+
+    private static final Logger log = LoggerFactory.getLogger(RobotServiceImpl.class);
 
     /** 对比最多支持的机器人数量 */
     private static final int MAX_COMPARE = 4;
@@ -543,16 +547,20 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     @Override
     public RobotFilterVO filters() {
         String key = Constants.CACHE_FILTER_PREFIX + "robot";
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                RobotFilterVO vo = JSONUtil.toBean(cached, RobotFilterVO.class);
-                if (vo != null) {
-                    return vo;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    RobotFilterVO vo = JSONUtil.toBean(cached, RobotFilterVO.class);
+                    if (vo != null) {
+                        return vo;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis筛选缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         RobotFilterVO vo = new RobotFilterVO();
         vo.setCategories(categoryTree());
@@ -580,7 +588,11 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 new PriceRangeVO("5-20万", new BigDecimal("50000"), new BigDecimal("200000")),
                 new PriceRangeVO("20-50万", new BigDecimal("200000"), new BigDecimal("500000")),
                 new PriceRangeVO("50万以上", new BigDecimal("500000"), null)));
-        redisUtils.set(key, JSONUtil.toJsonStr(vo), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(vo), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis筛选缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return vo;
     }
 
@@ -731,16 +743,20 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
 
     private List<CategoryNodeVO> categoryTree() {
         String key = Constants.CACHE_CATEGORY_PREFIX + "robot";
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<CategoryNodeVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryNodeVO.class);
-                if (list != null) {
-                    return list;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<CategoryNodeVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryNodeVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis分类缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         List<RobotCategory> all = categoryMapper.selectList(Wrappers.<RobotCategory>lambdaQuery()
                 .eq(RobotCategory::getStatus, 1)
@@ -770,7 +786,11 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                 }
             }
         }
-        redisUtils.set(key, JSONUtil.toJsonStr(roots), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(roots), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis分类缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return roots;
     }
 

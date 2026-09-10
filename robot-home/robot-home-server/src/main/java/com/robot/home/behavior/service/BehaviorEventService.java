@@ -27,7 +27,18 @@ public interface BehaviorEventService {
     );
 
     /**
+     * 仅允许服务端触发的事件类型（高权重行为，禁止客户端直接上报）
+     * <p>
+     * 这些事件对排行榜影响大，必须从业务服务成功后触发，防止刷榜
+     */
+    List<String> SERVER_ONLY_EVENT_TYPES = java.util.Arrays.asList(
+            "INQUIRY", "FAVORITE", "UNFAVORITE"
+    );
+
+    /**
      * 记录行为事件（异步写入MySQL + Redis热度更新）
+     * <p>
+     * 客户端API入口，SERVER_ONLY事件类型会被拒绝
      *
      * @param userId     用户ID（可为空，匿名浏览）
      * @param dto        事件DTO
@@ -36,6 +47,20 @@ public interface BehaviorEventService {
      * @param sessionId  会话ID（匿名用户去重用）
      */
     void record(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId);
+
+    /**
+     * 服务端受信事件记录（跳过SERVER_ONLY校验）
+     * <p>
+     * 仅供InquiryService/FavoriteService等业务服务在操作成功后调用，
+     * 确保INQUIRY/FAVORITE等高权重行为只能从服务端触发，防止客户端刷榜。
+     *
+     * @param userId     用户ID
+     * @param dto        事件DTO
+     * @param ip         请求IP（可为空）
+     * @param ua         User-Agent（可为空）
+     * @param sessionId  会话ID（可为空）
+     */
+    void recordTrusted(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId);
 
     /**
      * 批量记录行为事件

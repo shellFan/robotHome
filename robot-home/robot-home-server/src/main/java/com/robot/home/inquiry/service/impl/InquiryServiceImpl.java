@@ -12,6 +12,8 @@ import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.SensitiveUtils;
 import com.robot.home.common.util.XssUtils;
+import com.robot.home.behavior.dto.BehaviorEventDTO;
+import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.inquiry.dto.InquiryDTO;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
@@ -19,6 +21,8 @@ import com.robot.home.inquiry.service.InquiryService;
 import com.robot.home.inquiry.vo.InquiryVO;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +35,14 @@ import java.util.stream.Collectors;
 @Service
 public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> implements InquiryService {
 
+    private static final Logger log = LoggerFactory.getLogger(InquiryServiceImpl.class);
+
     @Resource
     private RobotMapper robotMapper;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private BehaviorEventService behaviorEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -64,6 +72,21 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         if (dto.getRobotId() != null) {
             bizCounter.incr("robot", dto.getRobotId(), BizCounter.Field.INQUIRY);
         }
+
+        // 询价成功后触发INQUIRY行为事件（服务端受信，更新热度排行）
+        if (dto.getRobotId() != null) {
+            try {
+                BehaviorEventDTO eventDto = new BehaviorEventDTO();
+                eventDto.setEventType("INQUIRY");
+                eventDto.setBizType("robot");
+                eventDto.setBizId(dto.getRobotId());
+                behaviorEventService.recordTrusted(userId, eventDto, null, null, null);
+            } catch (Exception e) {
+                // 行为事件记录失败不影响询价主流程
+                log.warn("触发INQUIRY行为事件失败: robotId={}, error={}", dto.getRobotId(), e.getMessage());
+            }
+        }
+
         return inquiry.getId();
     }
 

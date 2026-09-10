@@ -25,6 +25,8 @@ import com.robot.home.robot.vo.RobotListVO;
 import com.robot.home.video.service.VideoService;
 import com.robot.home.video.vo.VideoListVO;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -36,6 +38,8 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class HomeServiceImpl implements HomeService {
+
+    private static final Logger log = LoggerFactory.getLogger(HomeServiceImpl.class);
 
     @Resource
     private BannerService bannerService;
@@ -62,11 +66,15 @@ public class HomeServiceImpl implements HomeService {
     @Override
     public HomeIndexVO index(String position) {
         String pos = "app".equals(position) ? "app" : "pc";
-        // 尝试从缓存获取
+        // 尝试从缓存获取（Redis故障时降级到DB查询）
         String cacheKey = "robot:home:" + pos;
-        HomeIndexVO cached = redisUtils.getObj(cacheKey, HomeIndexVO.class);
-        if (cached != null) {
-            return cached;
+        try {
+            HomeIndexVO cached = redisUtils.getObj(cacheKey, HomeIndexVO.class);
+            if (cached != null) {
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("Redis首页缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
 
         Long userId = SecurityUtils.currentUserId();
@@ -95,8 +103,12 @@ public class HomeServiceImpl implements HomeService {
         blocks.add(block(Constants.RANK_QUADRUPED, "机器狗榜", 10));
         blocks.add(block(Constants.RANK_INDUSTRIAL, "工业机器人榜", 10));
         vo.setRankings(blocks);
-        // 缓存3分钟
-        redisUtils.setObj(cacheKey, vo, HOME_CACHE_SECONDS, TimeUnit.SECONDS);
+        // 缓存3分钟（Redis故障时跳过缓存写入）
+        try {
+            redisUtils.setObj(cacheKey, vo, HOME_CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis首页缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return vo;
     }
 
