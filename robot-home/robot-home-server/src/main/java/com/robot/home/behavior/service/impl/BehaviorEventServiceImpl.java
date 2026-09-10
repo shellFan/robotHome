@@ -7,6 +7,12 @@ import com.robot.home.behavior.mapper.BehaviorEventMapper;
 import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.RedisUtils;
+import com.robot.home.article.entity.Article;
+import com.robot.home.article.mapper.ArticleMapper;
+import com.robot.home.video.entity.Video;
+import com.robot.home.video.mapper.VideoMapper;
+import com.robot.home.robot.entity.Robot;
+import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.ranking.entity.RankingWeight;
 import com.robot.home.ranking.mapper.RankingWeightMapper;
 import org.slf4j.Logger;
@@ -60,6 +66,12 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     private RedisUtils redisUtils;
     @Resource
     private RankingWeightMapper rankingWeightMapper;
+    @Resource
+    private RobotMapper robotMapper;
+    @Resource
+    private ArticleMapper articleMapper;
+    @Resource
+    private VideoMapper videoMapper;
 
     /** 权重缓存时间戳 */
     private volatile long weightCacheTime = 0;
@@ -175,7 +187,7 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     }
 
     /**
-     * 参数校验：事件类型和业务类型白名单
+     * 参数校验：事件类型和业务类型白名单 + bizId存在性校验
      */
     private void validate(BehaviorEventDTO dto) {
         if (!VALID_EVENT_TYPES.contains(dto.getEventType())) {
@@ -186,6 +198,34 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
         }
         if (StrUtil.isNotBlank(dto.getExtra()) && dto.getExtra().length() > 512) {
             throw new BusinessException("扩展信息过长");
+        }
+        // bizId存在性校验（仅核心bizType，避免伪造数据污染热度）
+        if (dto.getBizType() != null && dto.getBizId() != null) {
+            validateBizId(dto.getBizType(), dto.getBizId());
+        }
+    }
+
+    /**
+     * 校验bizId对应实体是否存在
+     */
+    private void validateBizId(String bizType, Long bizId) {
+        boolean exists;
+        switch (bizType) {
+            case "robot":
+                exists = robotMapper.selectById(bizId) != null;
+                break;
+            case "article":
+                exists = articleMapper.selectById(bizId) != null;
+                break;
+            case "video":
+                exists = videoMapper.selectById(bizId) != null;
+                break;
+            default:
+                // 其他bizType暂不做存在性校验
+                return;
+        }
+        if (!exists) {
+            throw new BusinessException("指定的" + bizType + "不存在: " + bizId);
         }
     }
 

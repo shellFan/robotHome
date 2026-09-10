@@ -18,6 +18,7 @@ import com.robot.home.security.RequirePermission;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -54,7 +55,7 @@ public class AdminRankingController {
      */
     @PutMapping("/weights/{id}")
     @RequirePermission("ranking:edit")
-    public Result<Void> updateWeight(@PathVariable Long id, @RequestBody RankingWeight weight) {
+    public Result<Void> updateWeight(@PathVariable Long id, @RequestBody @Valid RankingWeight weight) {
         RankingWeight existing = rankingWeightMapper.selectById(id);
         if (existing == null) {
             return Result.fail("权重配置不存在");
@@ -71,7 +72,7 @@ public class AdminRankingController {
      */
     @PostMapping("/weights")
     @RequirePermission("ranking:edit")
-    public Result<Long> addWeight(@RequestBody RankingWeight weight) {
+    public Result<Long> addWeight(@RequestBody @Valid RankingWeight weight) {
         if (StrUtil.isBlank(weight.getEventType()) || weight.getWeight() == null) {
             return Result.fail("事件类型和权重不能为空");
         }
@@ -97,7 +98,7 @@ public class AdminRankingController {
      */
     @PutMapping("/decay-configs/{id}")
     @RequirePermission("ranking:edit")
-    public Result<Void> updateDecayConfig(@PathVariable Long id, @RequestBody RankingDecayConfig config) {
+    public Result<Void> updateDecayConfig(@PathVariable Long id, @RequestBody @Valid RankingDecayConfig config) {
         RankingDecayConfig existing = rankingDecayConfigMapper.selectById(id);
         if (existing == null) {
             return Result.fail("衰减配置不存在");
