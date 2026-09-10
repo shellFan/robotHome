@@ -6,10 +6,12 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.robot.home.comment.entity.Comment;
 import com.robot.home.comment.mapper.CommentMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.community.entity.CommunityCircle;
 import com.robot.home.community.entity.CommunityPost;
 import com.robot.home.community.mapper.CommunityCircleMapper;
@@ -17,10 +19,13 @@ import com.robot.home.community.mapper.CommunityPostMapper;
 import com.robot.home.security.RequirePermission;
 import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 后台社区管理：圈子 / 帖子审核 / 评论
@@ -28,6 +33,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/community")
 public class AdminCommunityController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminCommunityController.class);
 
     @Resource
     private CommunityCircleMapper circleMapper;
@@ -37,6 +44,8 @@ public class AdminCommunityController {
     private CommentMapper commentMapper;
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     // ---------------- 圈子 ----------------
 
@@ -61,6 +70,7 @@ public class AdminCommunityController {
         } else {
             circleMapper.updateById(circle);
         }
+        clearCache();
         return Result.success(circle.getId());
     }
 
@@ -73,6 +83,7 @@ public class AdminCommunityController {
             throw new BusinessException("该圈子下仍有 " + count + " 个帖子，不能删除");
         }
         circleMapper.deleteById(id);
+        clearCache();
         return Result.success();
     }
 
@@ -110,6 +121,7 @@ public class AdminCommunityController {
         update.setId(id);
         update.setStatus(status);
         postMapper.updateById(update);
+        clearCache();
         return Result.success();
     }
 
@@ -132,6 +144,7 @@ public class AdminCommunityController {
                 userMapper.updateById(update);
             }
         }
+        clearCache();
         return Result.success();
     }
 
@@ -162,5 +175,19 @@ public class AdminCommunityController {
         }
         commentMapper.deleteById(id);
         return Result.success();
+    }
+
+    /**
+     * 清理社区缓存，保证后台修改即时生效
+     */
+    private void clearCache() {
+        try {
+            Set<String> keys = redisUtils.keys(Constants.CACHE_COMMUNITY_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Redis社区缓存清空失败: error={}", e.getMessage());
+        }
     }
 }

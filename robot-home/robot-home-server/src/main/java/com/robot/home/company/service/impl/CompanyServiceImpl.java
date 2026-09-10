@@ -1,16 +1,19 @@
 package com.robot.home.company.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.JsonUtils;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.company.service.CompanyService;
@@ -19,6 +22,8 @@ import com.robot.home.company.vo.CompanyListVO;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.robot.vo.RobotSummaryVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -26,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -34,10 +40,16 @@ import java.util.stream.Collectors;
 @Service
 public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> implements CompanyService {
 
+    private static final Logger log = LoggerFactory.getLogger(CompanyServiceImpl.class);
+
+    private static final long CACHE_SECONDS = 300L;
+
     @Resource
     private BrandMapper brandMapper;
     @Resource
     private RobotMapper robotMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public PageResult<CompanyListVO> page(String keyword, String region, Integer pageNum, Integer pageSize) {
@@ -55,6 +67,22 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
 
     @Override
     public CompanyDetailVO detail(Long id) {
+        String key = Constants.CACHE_COMPANY_PREFIX + "detail:" + id;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    CompanyDetailVO vo = JSONUtil.toBean(cached, CompanyDetailVO.class);
+                    if (vo != null) {
+                        return vo;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis企业详情缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         Company company = getById(id);
         if (company == null) {
             throw new BusinessException("企业不存在");
@@ -67,6 +95,11 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
                 .orderByDesc(Brand::getHotScore)));
         PageResult<RobotSummaryVO> products = robots(id, 1, 20);
         vo.setProductList(products.getList());
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(vo), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis企业详情缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return vo;
     }
 
@@ -99,6 +132,22 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
 
     @Override
     public List<String> regions() {
+        String key = Constants.CACHE_COMPANY_PREFIX + "regions";
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<String> list = JSONUtil.toList(JSONUtil.parseArray(cached), String.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis企业地区缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<Company> list = list(Wrappers.<Company>lambdaQuery().eq(Company::getStatus, 1));
         Set<String> set = new LinkedHashSet<>();
         for (Company c : list) {
@@ -106,16 +155,45 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
                 set.add(c.getRegion());
             }
         }
-        return new ArrayList<>(set);
+        List<String> result = new ArrayList<>(set);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS * 2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis企业地区缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
+        return result;
     }
 
     @Override
     public List<CompanyListVO> hot(int limit) {
+        int size = Math.max(1, Math.min(limit, 50));
+        String key = Constants.CACHE_COMPANY_PREFIX + "hot:" + size;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<CompanyListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CompanyListVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis热门企业缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<Company> list = list(Wrappers.<Company>lambdaQuery()
                 .eq(Company::getStatus, 1)
                 .orderByDesc(Company::getHotScore)
-                .last("LIMIT " + Math.max(1, Math.min(limit, 50))));
-        return list.stream().map(this::toListVO).collect(Collectors.toList());
+                .last("LIMIT " + size));
+        List<CompanyListVO> result = list.stream().map(this::toListVO).collect(Collectors.toList());
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis热门企业缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
+        return result;
     }
 
     private CompanyListVO toListVO(Company c) {

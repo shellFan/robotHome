@@ -31,6 +31,9 @@ public final class Constants {
     public static final String CACHE_FILTER_PREFIX = "robot:filter:";
     public static final String CACHE_ARTICLE_CATEGORY_PREFIX = "robot:article:cat:";
     public static final String CACHE_ARTICLE_HOT_PREFIX = "robot:article:hot:";
+    public static final String CACHE_COMPANY_PREFIX = "robot:company:";
+    public static final String CACHE_VIDEO_PREFIX = "robot:video:";
+    public static final String CACHE_COMMUNITY_PREFIX = "robot:community:";
 
     // 行为事件
     public static final String CACHE_BEHAVIOR_DEDUP_PREFIX = "robot:hot:dedup:";  // 去重前缀
