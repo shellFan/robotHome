@@ -41,6 +41,7 @@ import com.robot.home.robot.mapper.RobotPriceMapper;
 import com.robot.home.robot.mapper.RobotTagMapper;
 import com.robot.home.robot.mapper.RobotVideoMapper;
 import com.robot.home.robot.service.RobotService;
+import com.robot.home.robot.service.UnitConversionService;
 import com.robot.home.robot.vo.BrandOptionVO;
 import com.robot.home.robot.vo.CategoryNodeVO;
 import com.robot.home.robot.vo.CompareGroupVO;
@@ -49,11 +50,14 @@ import com.robot.home.robot.vo.CompareRowVO;
 import com.robot.home.robot.vo.CompareVO;
 import com.robot.home.robot.vo.PriceRangeVO;
 import com.robot.home.robot.vo.RelatedArticleVO;
+import com.robot.home.robot.vo.RelatedRobotVO;
 import com.robot.home.robot.vo.RobotDetailVO;
 import com.robot.home.robot.vo.RobotFilterVO;
 import com.robot.home.robot.vo.RobotListVO;
 import com.robot.home.robot.vo.RobotParamDefVO;
 import com.robot.home.robot.vo.RobotParamGroupVO;
+import com.robot.home.video.entity.Video;
+import com.robot.home.video.mapper.VideoMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -113,6 +117,10 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     private BizCounter bizCounter;
     @Resource
     private RedisUtils redisUtils;
+    @Resource
+    private UnitConversionService unitConversionService;
+    @Resource
+    private VideoMapper videoMapper;
 
     @Override
     public PageResult<RobotListVO> page(RobotQuery query, Long currentUserId) {
@@ -244,6 +252,77 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
             vo.setFavorited(false);
         }
         vo.setFavoriteCount(robot.getFavoriteCount() == null ? 0L : robot.getFavoriteCount().longValue());
+
+        // ===== Phase6 产品化增强字段 =====
+
+        // SEO字段：优先使用robot自带SEO，否则自动生成
+        if (StrUtil.isNotBlank(robot.getSeoTitle())) {
+            vo.setSeoTitle(robot.getSeoTitle());
+        } else {
+            vo.setSeoTitle(robot.getName() + (StrUtil.isNotBlank(robot.getSubtitle()) ? " - " + robot.getSubtitle() : ""));
+        }
+        vo.setSeoKeywords(robot.getSeoKeywords());
+        if (StrUtil.isNotBlank(robot.getSeoDescription())) {
+            vo.setSeoDescription(robot.getSeoDescription());
+        } else {
+            String autoDesc = robot.getName();
+            if (StrUtil.isNotBlank(robot.getSubtitle())) {
+                autoDesc += "，" + robot.getSubtitle();
+            }
+            if (robot.getGuidePrice() != null) {
+                autoDesc += "，指导价¥" + robot.getGuidePrice().stripTrailingZeros().toPlainString();
+            }
+            vo.setSeoDescription(autoDesc);
+        }
+
+        // 核心参数
+        vo.setWeight(robot.getWeight());
+        vo.setPayload(robot.getPayload());
+        vo.setMaxSpeed(robot.getMaxSpeed());
+        vo.setBatteryLife(robot.getBatteryLife());
+        vo.setOperatingTemp(robot.getOperatingTemp());
+        vo.setProtectionLevel(robot.getProtectionLevel());
+
+        // 同品牌其他机器人（最多6个，排除当前）
+        if (robot.getBrandId() != null) {
+            List<Robot> sameBrandRobots = list(Wrappers.<Robot>lambdaQuery()
+                    .eq(Robot::getBrandId, robot.getBrandId())
+                    .ne(Robot::getId, id)
+                    .eq(Robot::getStatus, 1)
+                    .orderByDesc(Robot::getHotScore)
+                    .last("LIMIT 6"));
+            List<RelatedRobotVO> relatedRobots = sameBrandRobots.stream().map(r -> {
+                RelatedRobotVO rv = new RelatedRobotVO();
+                rv.setId(r.getId());
+                rv.setName(r.getName());
+                rv.setModel(r.getModel());
+                rv.setCoverImage(r.getCoverImage());
+                rv.setGuidePrice(r.getGuidePrice());
+                rv.setSubtitle(r.getSubtitle());
+                rv.setWeight(r.getWeight());
+                rv.setPayload(r.getPayload());
+                return rv;
+            }).collect(Collectors.toList());
+            vo.setSameBrandRobots(relatedRobots);
+        }
+
+        // 相关视频（通过robotId关联的视频，最多6个）
+        List<Video> relatedVideoList = videoMapper.selectList(Wrappers.<Video>lambdaQuery()
+                .eq(Video::getRobotId, id)
+                .eq(Video::getStatus, 1)
+                .orderByDesc(Video::getPublishTime)
+                .last("LIMIT 6"));
+        List<RelatedArticleVO> relatedVideoVOs = relatedVideoList.stream().map(v -> {
+            RelatedArticleVO rv = new RelatedArticleVO();
+            rv.setId(v.getId());
+            rv.setTitle(v.getTitle());
+            rv.setCover(v.getCover());
+            rv.setSummary(v.getSummary());
+            rv.setPublishTime(v.getPublishTime());
+            rv.setViewCount(v.getViewCount());
+            return rv;
+        }).collect(Collectors.toList());
+        vo.setRelatedVideos(relatedVideoVOs);
 
         recordView(id, currentUserId);
         return vo;
@@ -407,6 +486,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                     row.setDefId(def.getId());
                     row.setParamName(def.getName());
                     row.setUnit(def.getUnit());
+                    row.setComparisonType(def.getComparisonType());
                     List<String> values = new ArrayList<>();
                     Set<String> distinct = new LinkedHashSet<>();
                     for (Map<Long, String> vm : valueMaps) {
@@ -419,6 +499,8 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                     }
                     row.setValues(values);
                     row.setDifferent(distinct.size() > 1);
+                    // 计算 bestIndex：基于 comparisonType 和单位归一化
+                    row.setBestIndex(calcBestIndex(values, def.getUnit(), def.getUnitGroup(), def.getComparisonType()));
                     rows.add(row);
                 }
                 gvo.setRows(rows);
@@ -702,5 +784,91 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
             }
         }
         return new ArrayList<>(set);
+    }
+
+    /**
+     * 计算对比参数行的 bestIndex（最优值所在索引）
+     * <p>
+     * 逻辑：
+     * 1. HIGHER_BETTER: 归一化后数值最大的索引
+     * 2. LOWER_BETTER: 归一化后数值最小的索引
+     * 3. BOOLEAN: "是"/"有"/"1"/"true"/"支持" 的索引优先
+     * 4. NEUTRAL/TEXT/其他: 返回 -1（无法判断优劣）
+     * <p>
+     * 如果所有值相同或无法归一化，返回 -1
+     */
+    private int calcBestIndex(List<String> values, String unit, String unitGroup, String comparisonType) {
+        if (values == null || values.isEmpty() || comparisonType == null) {
+            return -1;
+        }
+
+        // TEXT 和 NEUTRAL 类型无法判断优劣
+        if ("TEXT".equals(comparisonType) || "NEUTRAL".equals(comparisonType)) {
+            return -1;
+        }
+
+        // BOOLEAN 类型：找第一个为"真"值的索引
+        if ("BOOLEAN".equals(comparisonType)) {
+            for (int i = 0; i < values.size(); i++) {
+                String v = values.get(i);
+                if (v != null && !"-".equals(v)) {
+                    String lower = v.toLowerCase();
+                    if ("是".equals(v) || "有".equals(v) || "1".equals(v) || "true".equals(lower)
+                            || "支持".equals(v) || "yes".equals(lower)) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        // HIGHER_BETTER / LOWER_BETTER：尝试归一化后比较
+        boolean higherBetter = "HIGHER_BETTER".equals(comparisonType);
+        BigDecimal bestVal = null;
+        int bestIdx = -1;
+        boolean allSame = true;
+        BigDecimal firstVal = null;
+
+        for (int i = 0; i < values.size(); i++) {
+            String v = values.get(i);
+            if (v == null || "-".equals(v)) {
+                continue;
+            }
+            BigDecimal normalized;
+            if (unitGroup != null && unitConversionService.isSupported(unitGroup)) {
+                normalized = unitConversionService.normalize(v, unit, unitGroup);
+            } else {
+                // 无单位组，尝试直接解析数值
+                try {
+                    String numStr = v.trim().replaceAll("[^0-9.\\-]", "");
+                    if (numStr.isEmpty()) {
+                        continue;
+                    }
+                    normalized = new BigDecimal(numStr);
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+            }
+            if (normalized == null) {
+                continue;
+            }
+            if (firstVal == null) {
+                firstVal = normalized;
+            } else if (normalized.compareTo(firstVal) != 0) {
+                allSame = false;
+            }
+            if (bestVal == null
+                    || (higherBetter && normalized.compareTo(bestVal) > 0)
+                    || (!higherBetter && normalized.compareTo(bestVal) < 0)) {
+                bestVal = normalized;
+                bestIdx = i;
+            }
+        }
+
+        // 所有有效值相同，不标记最优
+        if (allSame) {
+            return -1;
+        }
+        return bestIdx;
     }
 }

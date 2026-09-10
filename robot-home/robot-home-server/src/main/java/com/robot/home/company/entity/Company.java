@@ -41,6 +41,14 @@ public class Company extends BaseEntity {
     private Integer brandCount;
     private Integer productCount;
     private Long hotScore;
+    /** SEO标题 */
+    private String seoTitle;
+    /** SEO关键词 */
+    private String seoKeywords;
+    /** SEO描述 */
+    private String seoDescription;
+    /** 企业介绍（富文本） */
+    private String detail;
     private Integer sort;
     private Integer status;
 }

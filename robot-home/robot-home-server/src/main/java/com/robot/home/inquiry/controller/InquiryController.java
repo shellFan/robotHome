@@ -6,6 +6,7 @@ import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.inquiry.dto.InquiryDTO;
 import com.robot.home.inquiry.service.InquiryService;
 import com.robot.home.inquiry.vo.InquiryVO;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -27,6 +28,7 @@ public class InquiryController {
      * 提交询价（支持未登录，userId 为空时记录为游客询价）
      */
     @PostMapping
+    @RateLimit(action = "inquiry", windowSeconds = 60, maxRequests = 5, dimension = "IP_USER")
     public Result<Map<String, Object>> submit(@RequestBody @Valid InquiryDTO dto) {
         Long id = inquiryService.submit(SecurityUtils.currentUserId(), dto);
         return Result.success(Collections.singletonMap("id", id));

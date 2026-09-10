@@ -32,6 +32,19 @@ public final class Constants {
     public static final String CACHE_ARTICLE_CATEGORY_PREFIX = "robot:article:cat:";
     public static final String CACHE_ARTICLE_HOT_PREFIX = "robot:article:hot:";
 
+    // 行为事件
+    public static final String CACHE_BEHAVIOR_DEDUP_PREFIX = "robot:hot:dedup:";  // 去重前缀
+    public static final long BEHAVIOR_DEDUP_WINDOW_SECONDS = 60L;  // 去重窗口60秒
+    public static final String CACHE_HOT_ZSET_PREFIX = "robot:hot:";  // 热度ZSET前缀
+    public static final long BEHAVIOR_ZSET_EXPIRE_DAYS = 7L;  // ZSET默认过期天数
+
+    // 搜索建议
+    public static final String CACHE_SEARCH_SUGGESTION_PREFIX = "robot:search:suggest:";
+
+    // 排行榜配置缓存
+    public static final String CACHE_RANKING_WEIGHT_PREFIX = "robot:ranking:weight:";
+    public static final String CACHE_RANKING_DECAY_PREFIX = "robot:ranking:decay:";
+
     // 登录 token 有效期（与 jwt.expiration 保持一致，单位秒）
     public static final long TOKEN_EXPIRE_SECONDS = 86400L;
 
@@ -73,4 +86,24 @@ public final class Constants {
     public static final int INQUIRY_CONTACTED = 3;   // 已联系
     public static final int INQUIRY_DEAL = 4;        // 已成交
     public static final int INQUIRY_CLOSED = 5;      // 已关闭
+
+    // 社区帖子类型
+    public static final String POST_TYPE_DISCUSSION = "discussion";
+    public static final String POST_TYPE_QUESTION = "question";
+    public static final String POST_TYPE_DIY = "diy";
+    public static final String POST_TYPE_REVIEW = "review";
+    public static final String POST_TYPE_NEWS_SHARE = "news_share";
+
+    // 用户反馈类型
+    public static final String FEEDBACK_TYPE_BUG = "bug";
+    public static final String FEEDBACK_TYPE_FEATURE = "feature";
+    public static final String FEEDBACK_TYPE_IMPROVEMENT = "improvement";
+    public static final String FEEDBACK_TYPE_OTHER = "other";
+
+    // 对比参数类型
+    public static final String COMPARE_HIGHER_BETTER = "HIGHER_BETTER";
+    public static final String COMPARE_LOWER_BETTER = "LOWER_BETTER";
+    public static final String COMPARE_NEUTRAL = "NEUTRAL";
+    public static final String COMPARE_BOOLEAN = "BOOLEAN";
+    public static final String COMPARE_TEXT = "TEXT";
 }

@@ -29,6 +29,24 @@ public class Robot extends BaseEntity {
     private String images;
     private Integer videoCount;
     private String mainParams;
+    /** 重量(kg) */
+    private BigDecimal weight;
+    /** 负载(kg) */
+    private BigDecimal payload;
+    /** 最大速度(m/s) */
+    private BigDecimal maxSpeed;
+    /** 续航时间(h) */
+    private BigDecimal batteryLife;
+    /** 工作温度范围 */
+    private String operatingTemp;
+    /** 防护等级(IP54等) */
+    private String protectionLevel;
+    /** SEO标题 */
+    private String seoTitle;
+    /** SEO关键词 */
+    private String seoKeywords;
+    /** SEO描述 */
+    private String seoDescription;
     /** 图文详情（富文本HTML） */
     private String detail;
     /** 数据来源: DEMO/OFFICIAL/CRAWLER/MANUAL */

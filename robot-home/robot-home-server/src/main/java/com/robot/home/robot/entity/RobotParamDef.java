@@ -25,6 +25,12 @@ public class RobotParamDef {
     private String options;
     private Integer sort;
     private Integer isCompare;
+    /** 对比类型: HIGHER_BETTER/LOWER_BETTER/NEUTRAL/BOOLEAN/TEXT */
+    private String comparisonType;
+    /** 单位组(kg/g/m/mm/km/h等)用于归一化 */
+    private String unitGroup;
+    /** 显示格式模板，如 {value}{unit} */
+    private String displayFormat;
     private Integer isShow;
     private LocalDateTime createTime;
 }

@@ -11,9 +11,13 @@ import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.inquiry.dto.InquiryFollowDTO;
 import com.robot.home.inquiry.entity.Inquiry;
+import com.robot.home.inquiry.entity.InquiryFollow;
 import com.robot.home.inquiry.mapper.InquiryMapper;
+import com.robot.home.inquiry.service.InquiryFollowService;
 import com.robot.home.security.RequirePermission;
+import com.robot.home.security.UserContext;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -32,6 +36,8 @@ public class AdminInquiryController {
 
     @Resource
     private InquiryMapper inquiryMapper;
+    @Resource
+    private InquiryFollowService inquiryFollowService;
 
     @GetMapping
     @RequirePermission("inquiry:list")
@@ -139,5 +145,29 @@ public class AdminInquiryController {
                     .eq(Inquiry::getStatus, Integer.valueOf(status))));
         }
         return Result.success(map);
+    }
+
+    /**
+     * 添加跟进记录（Phase6 结构化跟进）
+     * POST /api/admin/inquiries/{id}/follow
+     */
+    @PostMapping("/{id}/follow")
+    @RequirePermission("inquiry:handle")
+    public Result<InquiryFollow> addFollow(@PathVariable Long id,
+                                            @RequestBody InquiryFollowDTO dto) {
+        dto.setInquiryId(id);
+        Long adminUserId = UserContext.getUserId();
+        InquiryFollow follow = inquiryFollowService.addFollow(adminUserId, dto);
+        return Result.success(follow);
+    }
+
+    /**
+     * 查询跟进记录列表
+     * GET /api/admin/inquiries/{id}/follows
+     */
+    @GetMapping("/{id}/follows")
+    @RequirePermission("inquiry:list")
+    public Result<List<InquiryFollow>> listFollows(@PathVariable Long id) {
+        return Result.success(inquiryFollowService.listByInquiryId(id));
     }
 }

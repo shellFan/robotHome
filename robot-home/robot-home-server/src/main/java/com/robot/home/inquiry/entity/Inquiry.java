@@ -18,6 +18,14 @@ public class Inquiry extends BaseEntity {
     private Long userId;
     private String name;
     private String phone;
+    /** 联系人姓名 */
+    private String contactName;
+    /** 联系邮箱 */
+    private String email;
+    /** 来源(pc/miniapp) */
+    private String source;
+    /** 分配给（后台管理员ID） */
+    private Long assignedTo;
     private String region;
     /** 1个人 2企业 */
     private Integer customerType;

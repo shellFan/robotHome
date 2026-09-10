@@ -14,6 +14,8 @@ import lombok.EqualsAndHashCode;
 public class CommunityPost extends BaseEntity {
 
     private Long circleId;
+    /** 帖子类型: discussion/question/diy/review/news_share */
+    private String postType;
     private Long userId;
     private String title;
     private String content;
