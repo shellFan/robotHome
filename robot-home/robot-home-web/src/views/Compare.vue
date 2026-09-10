@@ -18,7 +18,7 @@
         <div class="compare-slots">
           <div v-for="idx in 4" :key="idx" class="compare-slot">
             <template v-if="ids[idx - 1]">
-              <img :src="imageOf(robots[idx - 1] && robots[idx - 1].coverImage)" alt="" />
+              <img :src="imageOf(robots[idx - 1] && robots[idx - 1].coverImage)" alt="" loading="lazy" />
               <div class="compare-slot__name rh-ellipsis">
                 {{ (robots[idx - 1] && robots[idx - 1].name) || '加载中…' }}
               </div>

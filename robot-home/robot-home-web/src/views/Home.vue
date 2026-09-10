@@ -6,7 +6,7 @@
         <el-carousel height="360px" indicator-position="outside" arrow="hover">
           <el-carousel-item v-for="banner in data.banners" :key="banner.id">
             <a :href="banner.url || 'javascript:void(0)'" class="home-banner__item">
-              <img :src="imageOf(banner.image)" :alt="banner.title" />
+              <img :src="imageOf(banner.image)" :alt="banner.title" loading="lazy" />
               <div v-if="banner.title" class="home-banner__title">{{ banner.title }}</div>
             </a>
           </el-carousel-item>
@@ -96,7 +96,7 @@
             :to="'/brand/' + brand.id"
             class="brand-grid__item"
           >
-            <img :src="imageOf(brand.logo)" :alt="brand.name" />
+            <img :src="imageOf(brand.logo)" :alt="brand.name" loading="lazy" />
             <span class="rh-ellipsis">{{ brand.name }}</span>
           </router-link>
         </div>
@@ -116,7 +116,7 @@
               :to="'/article/' + article.id"
               class="article-list__item"
             >
-              <img :src="imageOf(article.cover)" :alt="article.title" />
+              <img :src="imageOf(article.cover)" :alt="article.title" loading="lazy" />
               <div class="article-list__body">
                 <div class="article-list__title rh-clamp-2">{{ article.title }}</div>
                 <div class="article-list__meta rh-text-light">
@@ -140,7 +140,7 @@
               :to="'/video/' + video.id"
               class="video-mini"
             >
-              <img :src="imageOf(video.cover)" :alt="video.title" />
+              <img :src="imageOf(video.cover)" :alt="video.title" loading="lazy" />
               <span class="video-mini__title rh-clamp-2">{{ video.title }}</span>
             </router-link>
           </div>
@@ -182,7 +182,7 @@
             :to="'/company/' + company.id"
             class="company-grid__item"
           >
-            <img :src="imageOf(company.logo)" :alt="company.name" />
+            <img :src="imageOf(company.logo)" :alt="company.name" loading="lazy" />
             <div class="company-grid__name rh-ellipsis">{{ company.name }}</div>
             <div class="company-grid__meta rh-text-light">
               {{ company.region }} · {{ company.productCount || 0 }} 款产品

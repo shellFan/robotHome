@@ -52,7 +52,7 @@
               :to="'/article/' + item.id"
               class="side-item"
             >
-              <img :src="imageOf(item.cover)" :alt="item.title" />
+              <img :src="imageOf(item.cover)" :alt="item.title" loading="lazy" />
               <span class="rh-clamp-2">{{ item.title }}</span>
             </router-link>
           </section>

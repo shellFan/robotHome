@@ -39,7 +39,7 @@
           <el-form-item label="图片">
             <div class="post-create__images">
               <div v-for="(img, idx) in form.images" :key="idx" class="post-create__thumb">
-                <img :src="imageOf(img)" alt="" />
+                <img :src="imageOf(img)" alt="" loading="lazy" />
                 <span class="post-create__remove" @click="removeImage(idx)">×</span>
               </div>
               <el-upload

@@ -48,7 +48,7 @@
               <em :class="{ 'is-top': index < 3 }">{{ index + 1 }}</em>
             </span>
             <span class="rank-row__name">
-              <img :src="imageOf(robot.coverImage)" :alt="robot.name" />
+              <img :src="imageOf(robot.coverImage)" :alt="robot.name" loading="lazy" />
               <b class="rh-ellipsis">{{ robot.name }}</b>
               <span class="rh-text-light rh-ellipsis">{{ robot.subtitle }}</span>
             </span>

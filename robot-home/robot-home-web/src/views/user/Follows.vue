@@ -21,7 +21,7 @@
     <div v-else class="item-list">
       <div v-for="item in list" :key="item.id" class="item-row">
         <router-link :to="item.url || '#'" class="item-row__main">
-          <img :src="imageOf(item.avatar)" :alt="item.name" />
+          <img :src="imageOf(item.avatar)" :alt="item.name" loading="lazy" />
           <div>
             <div class="item-row__title">{{ item.name }}</div>
             <div class="item-row__meta rh-text-light">

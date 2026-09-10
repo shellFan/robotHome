@@ -124,7 +124,7 @@
               :to="'/robot/' + id + '/videos'"
               class="side-video"
             >
-              <img :src="imageOf(video.cover)" :alt="video.title" />
+              <img :src="imageOf(video.cover)" :alt="video.title" loading="lazy" />
               <span class="rh-ellipsis">{{ video.title }}</span>
             </router-link>
           </section>
@@ -137,7 +137,7 @@
               :to="'/article/' + article.id"
               class="side-article"
             >
-              <img :src="imageOf(article.cover)" :alt="article.title" />
+              <img :src="imageOf(article.cover)" :alt="article.title" loading="lazy" />
               <span class="rh-clamp-2">{{ article.title }}</span>
             </router-link>
           </section>
@@ -145,7 +145,7 @@
           <section v-if="detail.brandId" class="rh-card rh-section">
             <h2 class="rh-section__title">所属品牌</h2>
             <router-link :to="'/brand/' + detail.brandId" class="side-brand">
-              <img :src="imageOf(detail.brandLogo)" :alt="detail.brandName" />
+              <img :src="imageOf(detail.brandLogo)" :alt="detail.brandName" loading="lazy" />
               <div>
                 <div class="side-brand__name">{{ detail.brandName }}</div>
                 <div class="rh-text-light">查看品牌全部产品 ›</div>

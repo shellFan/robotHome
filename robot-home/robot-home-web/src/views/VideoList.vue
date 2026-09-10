@@ -40,7 +40,7 @@
             class="video-item"
           >
             <div class="video-item__cover">
-              <img :src="imageOf(item.cover)" :alt="item.title" />
+              <img :src="imageOf(item.cover)" :alt="item.title" loading="lazy" />
               <span v-if="item.duration" class="video-item__duration">{{ formatDuration(item.duration) }}</span>
             </div>
             <div class="video-item__title rh-clamp-2">{{ item.title }}</div>

@@ -35,12 +35,12 @@
         <div class="post-detail__content">{{ detail.content }}</div>
 
         <div v-if="detail.images && detail.images.length" class="post-detail__images">
-          <img v-for="(img, idx) in detail.images" :key="idx" :src="imageOf(img)" alt="" />
+          <img v-for="(img, idx) in detail.images" :key="idx" :src="imageOf(img)" alt="" loading="lazy" />
         </div>
 
         <div v-if="detail.robotId" class="post-detail__robot">
           <router-link :to="'/robot/' + detail.robotId" class="post-detail__robot-link">
-            <img :src="imageOf(detail.robotCover)" :alt="detail.robotName" />
+            <img :src="imageOf(detail.robotCover)" :alt="detail.robotName" loading="lazy" />
             <span>关联机器人：{{ detail.robotName }}</span>
           </router-link>
         </div>

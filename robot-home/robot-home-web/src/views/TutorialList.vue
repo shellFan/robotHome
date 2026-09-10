@@ -39,7 +39,7 @@
             :to="'/tutorial/' + item.id"
             class="tutorial-item"
           >
-            <img :src="imageOf(item.cover)" :alt="item.title" />
+            <img :src="imageOf(item.cover)" :alt="item.title" loading="lazy" />
             <div class="tutorial-item__body">
               <div class="tutorial-item__title rh-clamp-2">{{ item.title }}</div>
               <div class="tutorial-item__summary rh-clamp-2 rh-text-sub">{{ item.summary }}</div>

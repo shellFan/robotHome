@@ -72,7 +72,7 @@
             :to="item.url || typePath(item)"
             class="result-item"
           >
-            <img :src="imageOf(item.image)" :alt="item.title" />
+            <img :src="imageOf(item.image)" :alt="item.title" loading="lazy" />
             <div class="result-item__body">
               <div class="result-item__type">{{ typeName(item.type) }}</div>
               <div class="result-item__title rh-ellipsis">{{ item.title }}</div>

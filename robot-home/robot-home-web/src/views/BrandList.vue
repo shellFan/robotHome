@@ -39,7 +39,7 @@
             :to="'/brand/' + brand.id"
             class="brand-item"
           >
-            <img :src="imageOf(brand.logo)" :alt="brand.name" />
+            <img :src="imageOf(brand.logo)" :alt="brand.name" loading="lazy" />
             <div class="brand-item__body">
               <div class="brand-item__name rh-ellipsis">{{ brand.name }}</div>
               <div class="brand-item__meta rh-text-light">

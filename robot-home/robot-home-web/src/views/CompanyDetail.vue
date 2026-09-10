@@ -8,7 +8,7 @@
       </el-breadcrumb>
 
       <section class="rh-card company-head">
-        <img :src="imageOf(detail.company.logo)" :alt="detail.company.name" class="company-head__logo" />
+        <img :src="imageOf(detail.company.logo)" :alt="detail.company.name" class="company-head__logo" loading="lazy" />
         <div class="company-head__body">
           <h1 class="company-head__name">{{ detail.company.name }}</h1>
           <div class="company-head__meta">
@@ -42,7 +42,7 @@
             :to="'/brand/' + brand.id"
             class="brand-row__item"
           >
-            <img :src="imageOf(brand.logo)" :alt="brand.name" />
+            <img :src="imageOf(brand.logo)" :alt="brand.name" loading="lazy" />
             <span class="rh-ellipsis">{{ brand.name }}</span>
           </router-link>
         </div>

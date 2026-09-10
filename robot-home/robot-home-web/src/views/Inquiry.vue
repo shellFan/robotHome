@@ -54,7 +54,7 @@
         </div>
 
         <aside class="rh-card inquiry-robot" v-if="robot">
-          <img :src="imageOf(robot.coverImage)" :alt="robot.name" />
+          <img :src="imageOf(robot.coverImage)" :alt="robot.name" loading="lazy" />
           <div class="inquiry-robot__name">{{ robot.name }}</div>
           <div class="inquiry-robot__price rh-price">{{ formatPrice(robot.guidePrice) }}</div>
           <div class="rh-text-light">指导价仅供参考，询价可获更优方案</div>
