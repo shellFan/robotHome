@@ -15,6 +15,8 @@ import com.robot.home.sys.mapper.SysRoleMenuMapper;
 import com.robot.home.sys.mapper.SysRolePermissionMapper;
 import com.robot.home.sys.mapper.SysUserRoleMapper;
 import com.robot.home.sys.service.SysRoleService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> implements SysRoleService {
+
+    private static final Logger log = LoggerFactory.getLogger(SysRoleServiceImpl.class);
 
     @Resource
     private SysRoleMenuMapper roleMenuMapper;
@@ -110,12 +114,16 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 rolePermissionMapper.insert(rp);
             }
         }
-        // 清空该角色下所有管理员的权限缓存
+        // 清空该角色下所有管理员的权限缓存（Redis故障时降级跳过）
         List<SysUserRole> urs = userRoleMapper.selectList(Wrappers.<SysUserRole>lambdaQuery()
                 .eq(SysUserRole::getRoleId, role.getId()));
         Set<Long> userIds = urs.stream().map(SysUserRole::getUserId).collect(Collectors.toSet());
         for (Long userId : userIds) {
-            redisUtils.delete(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId);
+            try {
+                redisUtils.delete(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId);
+            } catch (Exception e) {
+                log.warn("Redis权限缓存清空失败: userId={}, error={}", userId, e.getMessage());
+            }
         }
         return role.getId();
     }

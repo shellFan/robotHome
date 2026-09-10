@@ -44,6 +44,8 @@ import com.robot.home.robot.mapper.RobotTagMapper;
 import com.robot.home.robot.mapper.RobotVideoMapper;
 import com.robot.home.robot.vo.ParamTemplateDetailVO;
 import com.robot.home.security.RequirePermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -61,6 +63,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/admin/robots")
 public class AdminRobotController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminRobotController.class);
 
     @Resource
     private RobotMapper robotMapper;
@@ -89,11 +93,15 @@ public class AdminRobotController {
 
     /** 清空机器人相关缓存（筛选器+分类树） */
     private void clearRobotCache() {
-        for (String key : redisUtils.keys(Constants.CACHE_FILTER_PREFIX + "*")) {
-            redisUtils.delete(key);
-        }
-        for (String key : redisUtils.keys(Constants.CACHE_CATEGORY_PREFIX + "*")) {
-            redisUtils.delete(key);
+        try {
+            for (String key : redisUtils.keys(Constants.CACHE_FILTER_PREFIX + "*")) {
+                redisUtils.delete(key);
+            }
+            for (String key : redisUtils.keys(Constants.CACHE_CATEGORY_PREFIX + "*")) {
+                redisUtils.delete(key);
+            }
+        } catch (Exception e) {
+            log.warn("Redis机器人缓存清空失败: error={}", e.getMessage());
         }
     }
 

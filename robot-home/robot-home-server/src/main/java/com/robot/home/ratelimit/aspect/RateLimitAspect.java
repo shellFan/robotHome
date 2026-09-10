@@ -83,17 +83,24 @@ public class RateLimitAspect {
             return joinPoint.proceed();
         }
 
-        // Redis计数器限流
+        // Redis计数器限流（Redis故障时降级放行，避免阻塞所有接口）
         String countKey = Constants.CACHE_LIMIT_PREFIX + limitKey;
-        Long current = redisUtils.increment(countKey);
-        if (current != null && current == 1) {
-            // 首次请求，设置过期时间
-            redisUtils.expire(countKey, windowSeconds, TimeUnit.SECONDS);
-        }
+        try {
+            Long current = redisUtils.increment(countKey);
+            if (current != null && current == 1) {
+                // 首次请求，设置过期时间
+                redisUtils.expire(countKey, windowSeconds, TimeUnit.SECONDS);
+            }
 
-        if (current != null && current > maxRequests) {
-            log.warn("限流触发: action={}, key={}, current={}, max={}", action, limitKey, current, maxRequests);
-            throw new BusinessException("请求过于频繁，请稍后再试");
+            if (current != null && current > maxRequests) {
+                log.warn("限流触发: action={}, key={}, current={}, max={}", action, limitKey, current, maxRequests);
+                throw new BusinessException("请求过于频繁，请稍后再试");
+            }
+        } catch (BusinessException e) {
+            throw e; // 限流触发，正常抛出
+        } catch (Exception e) {
+            // Redis故障降级：放行请求并记录告警
+            log.error("限流Redis异常，降级放行: action={}, key={}, error={}", action, limitKey, e.getMessage());
         }
 
         return joinPoint.proceed();
