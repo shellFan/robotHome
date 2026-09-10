@@ -113,6 +113,9 @@ public class CrawlerSource extends BaseEntity {
     /** Sitemap URL */
     private String sitemapUrl;
 
+    /** RSS/Atom Feed URL */
+    private String rssUrl;
+
     /** 抓取模式: http/browser */
     private String fetchMode;
 
@@ -124,4 +127,55 @@ public class CrawlerSource extends BaseEntity {
 
     /** 页面加载后等待时间(browser模式,毫秒) */
     private Integer waitAfterLoadMs;
+
+    // ===== 健康度监控字段 =====
+
+    /** 健康状态: HEALTHY/DEGRADED/FAILED/DISABLED/UNKNOWN */
+    private String healthStatus;
+
+    /** 连续失败次数 */
+    private Integer consecutiveFailures;
+
+    /** 平均延迟(毫秒) */
+    private Integer avgLatencyMs;
+
+    /** 最后成功时间 */
+    private LocalDateTime lastSuccessTime;
+
+    /** 最后失败时间 */
+    private LocalDateTime lastFailTime;
+
+    /** 最后失败原因 */
+    private String lastFailReason;
+
+    /** 累计采集次数 */
+    private Integer totalCrawls;
+
+    /** 累计成功采集次数 */
+    private Integer totalSuccessCrawls;
+
+    // ===== robots.txt 检查字段 =====
+
+    /** 是否已检查robots.txt */
+    private Integer robotsChecked;
+
+    /** robots.txt是否允许抓取 */
+    private Integer robotsAllowed;
+
+    /** robots.txt检查时间 */
+    private LocalDateTime robotsCheckedTime;
+
+    // ===== 采集源分类增强 =====
+
+    /** 站点语言: zh/en/ja/ko等 */
+    private String language;
+
+    /** 站点地区: CN/US/JP/KR/EU等 */
+    private String region;
+
+    /** 采集优先级(1-10, 10最高) */
+    private Integer priority;
+
+    /** 标签(逗号分隔) */
+    private String tags;
 }

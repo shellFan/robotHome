@@ -25,7 +25,7 @@ const ALLOWED_ATTR = [
   'start', 'type', 'reversed', 'loading', 'decoding'
 ]
 
-/** 禁止的标签 */
+/** 禁止的标签（即使 ALLOWED_TAGS 包含也会被 FORBID_TAGS 覆盖） */
 const FORBID_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button', 'meta', 'link', 'style', 'base', 'applet', 'frame', 'frameset']
 
 /** 禁止的属性 */
@@ -33,13 +33,16 @@ const FORBID_ATTR = ['onabort', 'onblur', 'onchange', 'onclick', 'ondblclick', '
 
 /** 初始化 DOMPurify 配置 */
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  // 为所有 a 标签添加 rel="noopener noreferrer"
   if (node.tagName === 'A') {
     node.setAttribute('rel', 'noopener noreferrer')
+    // 外部链接强制 target="_blank"
     const href = node.getAttribute('href') || ''
     if (href.startsWith('http://') || href.startsWith('https://')) {
       node.setAttribute('target', '_blank')
     }
   }
+  // img 标签添加 loading="lazy"
   if (node.tagName === 'IMG') {
     if (!node.getAttribute('loading')) {
       node.setAttribute('loading', 'lazy')
@@ -48,6 +51,11 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 })
 
 export class XssUtil {
+  /**
+   * 清洗 HTML 富文本，移除危险标签和属性
+   * @param {string} html 原始 HTML
+   * @returns {string} 安全的 HTML
+   */
   static clean (html) {
     if (!html) return html
     return DOMPurify.sanitize(String(html), {

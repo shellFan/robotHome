@@ -3,6 +3,7 @@ package com.robot.home.collector.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.robot.home.collector.common.constants.CrawlerConstants;
 import com.robot.home.collector.entity.CrawlerSource;
 import com.robot.home.collector.entity.CrawlerTask;
 import com.robot.home.collector.engine.CrawlerEngine;
@@ -79,29 +80,31 @@ public class CrawlerTaskController {
 
     /**
      * 创建任务
+     * Phase5.3: 任务创建时status=QUEUED，等待CAS抢占后变为RUNNING
      */
     @PostMapping
     public CrawlerTask create(@RequestBody CrawlerTask task) {
-        task.setStatus("PENDING");
+        task.setStatus(CrawlerConstants.TASK_STATUS_QUEUED);
         task.setCreateTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.insert(task);
-        log.info("Created crawler task: id={}, sourceId={}", task.getId(), task.getSourceId());
+        log.info("Created crawler task: id={}, sourceId={}, status=QUEUED", task.getId(), task.getSourceId());
         return task;
     }
 
     /**
      * 手动触发采集任务
-     * 使用CAS原子更新防止并发启动同一任务
+     * Phase5.3: CAS原子抢占 — 只有QUEUED或FAILED状态的任务才能启动
+     * 防止并发竞态：多个请求/实例同时尝试启动同一任务
      */
     @PostMapping("/{id}/start")
     public Map<String, Object> startTask(@PathVariable Long id) {
-        // CAS原子更新：只有PENDING或FAILED状态的任务才能启动，防止并发竞态
+        // CAS原子更新：只有QUEUED或FAILED状态的任务才能启动，防止并发竞态
         int affected = taskMapper.update(null,
                 new LambdaUpdateWrapper<CrawlerTask>()
                         .eq(CrawlerTask::getId, id)
-                        .in(CrawlerTask::getStatus, "PENDING", "FAILED")
-                        .set(CrawlerTask::getStatus, "RUNNING")
+                        .in(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_QUEUED, CrawlerConstants.TASK_STATUS_FAILED)
+                        .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_RUNNING)
                         .set(CrawlerTask::getStartTime, LocalDateTime.now())
                         .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
         );
@@ -121,7 +124,7 @@ public class CrawlerTaskController {
             taskMapper.update(null,
                     new LambdaUpdateWrapper<CrawlerTask>()
                             .eq(CrawlerTask::getId, id)
-                            .set(CrawlerTask::getStatus, "FAILED")
+                            .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_FAILED)
                             .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
             );
             return errorResult("Source not found: " + task.getSourceId());
@@ -135,7 +138,7 @@ public class CrawlerTaskController {
                 taskMapper.update(null,
                         new LambdaUpdateWrapper<CrawlerTask>()
                                 .eq(CrawlerTask::getId, task.getId())
-                                .set(CrawlerTask::getStatus, "COMPLETED")
+                                .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_COMPLETED)
                                 .set(CrawlerTask::getEndTime, LocalDateTime.now())
                                 .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
                 );
@@ -144,7 +147,7 @@ public class CrawlerTaskController {
                 taskMapper.update(null,
                         new LambdaUpdateWrapper<CrawlerTask>()
                                 .eq(CrawlerTask::getId, task.getId())
-                                .set(CrawlerTask::getStatus, "FAILED")
+                                .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_FAILED)
                                 .set(CrawlerTask::getErrorMessage, e.getMessage() != null ? e.getMessage().substring(0, Math.min(e.getMessage().length(), 500)) : "Unknown error")
                                 .set(CrawlerTask::getEndTime, LocalDateTime.now())
                                 .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
@@ -168,15 +171,16 @@ public class CrawlerTaskController {
             return errorResult("Task not found: " + id);
         }
 
-        if (!"RUNNING".equals(task.getStatus())) {
+        if (!CrawlerConstants.TASK_STATUS_RUNNING.equals(task.getStatus())) {
             return errorResult("Task is not running: " + task.getStatus());
         }
 
-        crawlerEngine.stop();
+        crawlerEngine.stopTask(id);
         taskMapper.update(null,
                 new LambdaUpdateWrapper<CrawlerTask>()
                         .eq(CrawlerTask::getId, id)
-                        .set(CrawlerTask::getStatus, "STOPPED")
+                        .eq(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_RUNNING)
+                        .set(CrawlerTask::getStatus, CrawlerConstants.TASK_STATUS_STOPPED)
                         .set(CrawlerTask::getEndTime, LocalDateTime.now())
                         .set(CrawlerTask::getUpdateTime, LocalDateTime.now())
         );

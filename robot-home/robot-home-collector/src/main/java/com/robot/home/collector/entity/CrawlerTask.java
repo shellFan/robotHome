@@ -23,7 +23,13 @@ public class CrawlerTask extends BaseEntity {
     /** 任务类型: FULL/INCREMENTAL/SINGLE_URL/RETRY */
     private String taskType;
 
-    /** 任务状态: PENDING/RUNNING/COMPLETED/FAILED/STOPPED */
+    /** 任务状态: QUEUED/RUNNING/COMPLETED/FAILED/STOPPED
+     *  QUEUED: 已入队，等待被调度器CAS原子抢占
+     *  RUNNING: 已被抢占并正在执行
+     *  COMPLETED: 执行完成
+     *  FAILED: 执行失败
+     *  STOPPED: 被手动停止
+     */
     private String status;
 
     /** 开始时间 */

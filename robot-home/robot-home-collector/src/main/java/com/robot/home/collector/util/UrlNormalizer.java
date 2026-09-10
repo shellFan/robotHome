@@ -16,10 +16,48 @@ public class UrlNormalizer {
 
     /** 需要移除的tracking参数 */
     private static final Set<String> TRACKING_PARAMS = new HashSet<>(Arrays.asList(
+            // UTM系列
             "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+            "utm_id", "utm_cid", "utm_reader", "utm_name", "utm_pubreferrer", "utm_swu", "utm_viz_id",
+            // Mailchimp
+            "mc_eid", "mc_cid",
+            // HubSpot
+            "hsa_cam", "hsa_grp", "hsa_src", "hsa_ad", "hsa_ver", "hsa_la", "hsa_ol", "hsa_acc",
+            "hubs_content", "hubs_content-type",
+            // Marketo
+            "mkt_tok", "mkt_n", "mkt_unsubscribe",
+            // Pardot
+            "pi_ad_id", "pi_ad_type", "pi_campaign_id", "pi_partner_id",
+            // Google Ads
+            "gclid", "gclsrc", "dclid", "gad_source",
+            // Facebook
+            "fbclid", "fb_action_ids", "fb_action_types", "fb_ref", "fb_source",
+            // Twitter/X
+            "twclid", "s_cid",
+            // LinkedIn
+            "li_fat_id", "trk", "trkContact", "li_share",
+            // Adobe
+            "ef_id", "s_kwcid",
+            // 其他营销参数
             "spm", "from", "source", "share_token", "isShare", "share_url",
-            "fbclid", "gclid", "ref", "referrer", "callback", "_", "timestamp",
-            "rand", "random", "t", "ts", "v", "version"
+            "ref", "referrer", "affiliate", "aff_id", "affiliate_id",
+            "campaign", "campaign_id", "campaign_name",
+            "partner", "partner_id", "partner_name",
+            "click_id", "clickid", "clickthrough",
+            // Newsletter/Email
+            "vero_id", "vero_conv", "oly_anon_id", "oly_enc_id",
+            "_bta_tid", "_bta_c", "edr", "amp",
+            // NS (NetSuite)
+            "ns_m_channel", "ns_campaign", "ns_source", "ns_m_source", "ns_linkname",
+            // Session/Cache
+            "callback", "_", "timestamp", "rand", "random", "t", "ts", "v", "version",
+            "session_id", "sid", "jsessionid",
+            // 其他
+            "wickedid", "icid", "ncid", "igshid", "wgu", "sl", "s_tft",
+            "si", "sm", "s", "st", "st-",
+            "sr", "sp", "sr_share", "share", "shared",
+            "preview", "draft", "test", "debug", "dev", "env",
+            "lang", "locale", "cc", "country"
     ));
 
     private static final Pattern DEFAULT_PORT_PATTERN = Pattern.compile(":(80|443)$");

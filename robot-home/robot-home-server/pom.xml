@@ -100,6 +100,13 @@
             <version>2.11.0</version>
         </dependency>
 
+        <!-- Jsoup HTML 白名单清洗 (XSS 防护) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
         <!-- MinIO 对象存储（文件存储可切换） -->
         <dependency>
             <groupId>io.minio</groupId>

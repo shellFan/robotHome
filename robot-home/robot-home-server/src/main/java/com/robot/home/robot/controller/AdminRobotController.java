@@ -10,6 +10,7 @@ import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.RedisUtils;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.robot.dto.ParamValueSaveDTO;
 import com.robot.home.robot.dto.RobotCategoryDTO;
 import com.robot.home.robot.dto.RobotDTO;
@@ -137,6 +138,10 @@ public class AdminRobotController {
         }
         Robot robot = new Robot();
         BeanUtils.copyProperties(dto, robot, "imagesList", "videos", "prices");
+        // HTML富文本白名单清洗
+        if (robot.getDetail() != null) {
+            robot.setDetail(XssUtils.clean(robot.getDetail()));
+        }
         if (robot.getId() == null) {
             robot.setViewCount(0);
             robot.setFavoriteCount(0);

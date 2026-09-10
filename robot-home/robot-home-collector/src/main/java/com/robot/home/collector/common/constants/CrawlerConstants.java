@@ -30,11 +30,14 @@ public class CrawlerConstants {
     public static final String TASK_TYPE_RETRY = "RETRY";
 
     // ==================== 任务状态 ====================
-    public static final String TASK_STATUS_PENDING = "PENDING";
+    public static final String TASK_STATUS_QUEUED = "QUEUED";      // 已入队，等待被调度器CAS抢占
+    public static final String TASK_STATUS_PENDING = "PENDING";    // (遗留兼容) 初始状态
     public static final String TASK_STATUS_RUNNING = "RUNNING";
     public static final String TASK_STATUS_SUCCESS = "SUCCESS";
+    public static final String TASK_STATUS_COMPLETED = "COMPLETED";
     public static final String TASK_STATUS_FAILED = "FAILED";
     public static final String TASK_STATUS_CANCELLED = "CANCELLED";
+    public static final String TASK_STATUS_STOPPED = "STOPPED";
 
     // ==================== URL状态 ====================
     public static final String URL_STATUS_DISCOVERED = "DISCOVERED";

@@ -107,7 +107,7 @@
 
           <section v-if="detail.robot.detail" class="rh-card rh-section">
             <h2 class="rh-section__title">图文详情</h2>
-            <div class="rich-text" v-html="detail.robot.detail" />
+            <div class="rich-text" v-html="XssUtil.clean(detail.robot.detail)" />
           </section>
 
           <section class="rh-card rh-section">

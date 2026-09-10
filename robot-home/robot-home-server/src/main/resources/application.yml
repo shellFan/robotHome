@@ -91,6 +91,13 @@ robot:
   # 排行榜缓存时间(秒)
   ranking-cache: 600
 
+# Collector 采集器网关配置
+collector:
+  # Collector 服务地址（Server 内部调用，不暴露给浏览器）
+  url: ${COLLECTOR_URL:http://localhost:8082}
+  # Collector API Key（生产环境必须通过环境变量 COLLECTOR_API_KEY 设置）
+  api-key: ${COLLECTOR_API_KEY:}
+
 # 管理后台
 admin:
   # 初始管理员账号

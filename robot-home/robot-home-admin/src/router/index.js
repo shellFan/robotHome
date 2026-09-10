@@ -275,6 +275,36 @@ export const defaultMenus = [
         component: () => import('@/views/system/config.vue')
       }
     ]
+  },
+  {
+    path: '/crawler',
+    name: 'Crawler',
+    menuName: '采集管理',
+    icon: 'Download',
+    redirect: '/crawler/source',
+    children: [
+      {
+        path: 'source',
+        name: 'CrawlerSource',
+        menuName: '数据源',
+        icon: 'Link',
+        component: () => import('@/views/crawler/source.vue')
+      },
+      {
+        path: 'task',
+        name: 'CrawlerTask',
+        menuName: '采集任务',
+        icon: 'List',
+        component: () => import('@/views/crawler/task.vue')
+      },
+      {
+        path: 'content',
+        name: 'CrawlerContent',
+        menuName: '内容审核',
+        icon: 'DocumentChecked',
+        component: () => import('@/views/crawler/content.vue')
+      }
+    ]
   }
 ]
 
