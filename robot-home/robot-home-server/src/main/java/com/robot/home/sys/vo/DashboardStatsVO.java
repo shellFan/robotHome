@@ -20,6 +20,8 @@ public class DashboardStatsVO {
     private Long inquiryCount;
     private Long pendingInquiryCount;
     private Long commentCount;
+    private Long feedbackCount;
+    private Long pendingFeedbackCount;
     /** 今日 PV / UV */
     private Long todayPv;
     private Long todayUv;

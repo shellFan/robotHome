@@ -7,6 +7,7 @@ import com.robot.home.banner.service.BannerService;
 import com.robot.home.brand.service.BrandService;
 import com.robot.home.brand.vo.BrandListVO;
 import com.robot.home.common.Constants;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.community.service.CommunityService;
 import com.robot.home.community.vo.PostVO;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 首页聚合服务实现
@@ -51,10 +53,22 @@ public class HomeServiceImpl implements HomeService {
     private CommunityService communityService;
     @Resource
     private RankingService rankingService;
+    @Resource
+    private RedisUtils redisUtils;
+
+    /** 首页缓存时间（秒） */
+    private static final long HOME_CACHE_SECONDS = 180L;
 
     @Override
     public HomeIndexVO index(String position) {
         String pos = "app".equals(position) ? "app" : "pc";
+        // 尝试从缓存获取
+        String cacheKey = "robot:home:" + pos;
+        HomeIndexVO cached = redisUtils.getObj(cacheKey, HomeIndexVO.class);
+        if (cached != null) {
+            return cached;
+        }
+
         Long userId = SecurityUtils.currentUserId();
 
         HomeIndexVO vo = new HomeIndexVO();
@@ -81,6 +95,8 @@ public class HomeServiceImpl implements HomeService {
         blocks.add(block(Constants.RANK_QUADRUPED, "机器狗榜", 10));
         blocks.add(block(Constants.RANK_INDUSTRIAL, "工业机器人榜", 10));
         vo.setRankings(blocks);
+        // 缓存3分钟
+        redisUtils.setObj(cacheKey, vo, HOME_CACHE_SECONDS, TimeUnit.SECONDS);
         return vo;
     }
 
@@ -88,7 +104,7 @@ public class HomeServiceImpl implements HomeService {
         RankingBlockVO block = new RankingBlockVO();
         block.setCode(code);
         block.setName(name);
-        List<RobotListVO> robots = rankingService.rank(code, limit, SecurityUtils.currentUserId());
+        List<RobotListVO> robots = rankingService.rank(code, limit, SecurityUtils.currentUserId(), "all");
         block.setRobots(robots == null ? new ArrayList<>() : robots);
         return block;
     }

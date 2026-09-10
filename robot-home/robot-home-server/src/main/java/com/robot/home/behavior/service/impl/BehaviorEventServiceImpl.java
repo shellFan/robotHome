@@ -7,11 +7,14 @@ import com.robot.home.behavior.mapper.BehaviorEventMapper;
 import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.RedisUtils;
+import com.robot.home.ranking.entity.RankingWeight;
+import com.robot.home.ranking.mapper.RankingWeightMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,19 +58,66 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     private BehaviorEventMapper behaviorEventMapper;
     @Resource
     private RedisUtils redisUtils;
+    @Resource
+    private RankingWeightMapper rankingWeightMapper;
+
+    /** 权重缓存时间戳 */
+    private volatile long weightCacheTime = 0;
+    /** 权重缓存有效期（5分钟） */
+    private static final long WEIGHT_CACHE_TTL_MS = 5 * 60 * 1000L;
 
     /**
-     * 初始化权重配置
-     * 从 ranking_weight 表加载到内存
+     * 启动时自动从DB加载权重配置
+     */
+    @PostConstruct
+    public void init() {
+        loadWeights();
+    }
+
+    /**
+     * 从 ranking_weight 表加载权重到内存
+     */
+    private void loadWeights() {
+        try {
+            List<RankingWeight> weights = rankingWeightMapper.selectList(null);
+            if (!weights.isEmpty()) {
+                Map<String, Integer> newMap = new HashMap<>();
+                for (RankingWeight w : weights) {
+                    newMap.put(w.getEventType(), w.getWeight());
+                }
+                this.weightMap = newMap;
+                log.info("行为事件权重配置已加载: {}", newMap);
+            }
+            weightCacheTime = System.currentTimeMillis();
+        } catch (Exception e) {
+            log.warn("加载行为事件权重失败，使用默认值: {}", e.getMessage());
+            weightCacheTime = System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * 确保权重已加载（带5分钟缓存刷新）
+     */
+    private void ensureWeightsLoaded() {
+        long now = System.currentTimeMillis();
+        if (now - weightCacheTime < WEIGHT_CACHE_TTL_MS) {
+            return;
+        }
+        loadWeights();
+    }
+
+    /**
+     * 初始化权重配置（管理接口可调用刷新）
      */
     public void initWeights(Map<String, Integer> weights) {
         Map<String, Integer> newMap = new HashMap<>(weights);
         this.weightMap = newMap;
-        log.info("行为事件权重配置已加载: {}", newMap);
+        weightCacheTime = System.currentTimeMillis();
+        log.info("行为事件权重配置已刷新: {}", newMap);
     }
 
     @Override
-    public void record(Long userId, BehaviorEventDTO dto, String ip, String ua) {
+    public void record(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId) {
         // 1. 参数校验
         validate(dto);
 
@@ -75,18 +125,18 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
         saveEvent(userId, dto, ip, ua);
 
         // 3. Redis热度更新
-        updateHotScore(userId, dto);
+        updateHotScore(userId, dto, sessionId);
     }
 
     @Override
-    @Async
-    public void batchRecord(Long userId, List<BehaviorEventDTO> events, String ip, String ua) {
+    @Async("asyncExecutor")
+    public void batchRecord(Long userId, List<BehaviorEventDTO> events, String ip, String ua, String sessionId) {
         if (events == null || events.isEmpty()) {
             return;
         }
         for (BehaviorEventDTO dto : events) {
             try {
-                record(userId, dto, ip, ua);
+                record(userId, dto, ip, ua, sessionId);
             } catch (Exception e) {
                 log.warn("批量记录行为事件失败: eventType={}, bizType={}, bizId={}, error={}",
                         dto.getEventType(), dto.getBizType(), dto.getBizId(), e.getMessage());
@@ -142,7 +192,7 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
     /**
      * 异步写入MySQL
      */
-    @Async
+    @Async("asyncExecutor")
     public void saveEvent(Long userId, BehaviorEventDTO dto, String ip, String ua) {
         try {
             BehaviorEvent event = new BehaviorEvent();
@@ -168,20 +218,22 @@ public class BehaviorEventServiceImpl implements BehaviorEventService {
      * 2. 权重查找：从内存 weightMap 获取事件权重
      * 3. ZINCRBY：增加热度分
      */
-    private void updateHotScore(Long userId, BehaviorEventDTO dto) {
+    private void updateHotScore(Long userId, BehaviorEventDTO dto, String sessionId) {
         if (dto.getBizType() == null || dto.getBizId() == null) {
             return; // 搜索等事件无业务对象，不更新热度
         }
 
-        // 去重检查
-        if (userId != null) {
-            String dedupKey = DEDUP_PREFIX + dto.getEventType() + ":" + dto.getBizType()
-                    + ":" + dto.getBizId() + ":" + userId;
-            if (redisUtils.hasKey(dedupKey)) {
-                return; // 60秒内已记录过，跳过
-            }
-            redisUtils.set(dedupKey, "1", DEDUP_WINDOW_SECONDS, TimeUnit.SECONDS);
+        // 去重检查：同一用户/会话+同一对象+同一事件，60秒内不重复计数
+        String dedupIdentity = userId != null ? String.valueOf(userId) : "session:" + sessionId;
+        String dedupKey = DEDUP_PREFIX + dto.getEventType() + ":" + dto.getBizType()
+                + ":" + dto.getBizId() + ":" + dedupIdentity;
+        if (redisUtils.hasKey(dedupKey)) {
+            return; // 60秒内已记录过，跳过
         }
+        redisUtils.set(dedupKey, "1", DEDUP_WINDOW_SECONDS, TimeUnit.SECONDS);
+
+        // 确保权重已加载
+        ensureWeightsLoaded();
 
         // 获取权重
         Integer weight = weightMap.get(dto.getEventType());

@@ -107,11 +107,12 @@ public class RankingServiceImpl implements RankingService {
     private static final long WEIGHT_CACHE_TTL_MS = 5 * 60 * 1000L;
 
     @Override
-    public List<RobotListVO> rank(String type, int limit, Long currentUserId) {
+    public List<RobotListVO> rank(String type, int limit, Long currentUserId, String timeRange) {
         String rankType = StrUtil.isBlank(type) ? Constants.RANK_HOT : type;
+        String range = StrUtil.isBlank(timeRange) ? "all" : timeRange.toLowerCase();
         int size = Math.max(1, Math.min(limit, 100));
 
-        String cacheKey = Constants.CACHE_RANKING_PREFIX + rankType + ":" + size;
+        String cacheKey = Constants.CACHE_RANKING_PREFIX + rankType + ":" + range + ":" + size;
         List<Long> ids = parseIds(redisUtils.get(cacheKey));
         if (ids == null || ids.isEmpty()) {
             Long categoryId = TYPE_CATEGORY.get(rankType);
@@ -126,8 +127,11 @@ public class RankingServiceImpl implements RankingService {
                     categoryIds.add(c.getId());
                 }
             }
+            // 时间范围过滤
+            LocalDate dateFrom = calcDateFrom(range);
             List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
-                    .in(categoryIds != null && !categoryIds.isEmpty(), Robot::getCategoryId, categoryIds));
+                    .in(categoryIds != null && !categoryIds.isEmpty(), Robot::getCategoryId, categoryIds)
+                    .ge(dateFrom != null, Robot::getReleaseDate, dateFrom));
             // 使用配置化权重 + 时间衰减计算热度
             robots.sort((a, b) -> Long.compare(hotScore(b, rankType), hotScore(a, rankType)));
             ids = new ArrayList<>();
@@ -361,5 +365,24 @@ public class RankingServiceImpl implements RankingService {
             }
         }
         return ids;
+    }
+
+    /**
+     * 根据时间范围计算起始日期
+     * @param range day/week/month/all
+     * @return 起始日期，all返回null
+     */
+    private LocalDate calcDateFrom(String range) {
+        LocalDate now = LocalDate.now();
+        switch (range) {
+            case "day":
+                return now.minusDays(1);
+            case "week":
+                return now.minusWeeks(1);
+            case "month":
+                return now.minusMonths(1);
+            default:
+                return null; // all: 不限制时间
+        }
     }
 }

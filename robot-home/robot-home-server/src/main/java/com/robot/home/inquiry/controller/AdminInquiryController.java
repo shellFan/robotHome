@@ -21,6 +21,7 @@ import com.robot.home.security.UserContext;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -154,7 +155,7 @@ public class AdminInquiryController {
     @PostMapping("/{id}/follow")
     @RequirePermission("inquiry:handle")
     public Result<InquiryFollow> addFollow(@PathVariable Long id,
-                                            @RequestBody InquiryFollowDTO dto) {
+                                            @RequestBody @Valid InquiryFollowDTO dto) {
         dto.setInquiryId(id);
         Long adminUserId = UserContext.getUserId();
         InquiryFollow follow = inquiryFollowService.addFollow(adminUserId, dto);

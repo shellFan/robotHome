@@ -29,17 +29,18 @@ public interface BehaviorEventService {
     /**
      * 记录行为事件（异步写入MySQL + Redis热度更新）
      *
-     * @param userId  用户ID（可为空，匿名浏览）
-     * @param dto     事件DTO
-     * @param ip      请求IP
-     * @param ua      User-Agent
+     * @param userId     用户ID（可为空，匿名浏览）
+     * @param dto        事件DTO
+     * @param ip         请求IP
+     * @param ua         User-Agent
+     * @param sessionId  会话ID（匿名用户去重用）
      */
-    void record(Long userId, BehaviorEventDTO dto, String ip, String ua);
+    void record(Long userId, BehaviorEventDTO dto, String ip, String ua, String sessionId);
 
     /**
      * 批量记录行为事件
      */
-    void batchRecord(Long userId, List<BehaviorEventDTO> events, String ip, String ua);
+    void batchRecord(Long userId, List<BehaviorEventDTO> events, String ip, String ua, String sessionId);
 
     /**
      * 获取业务对象的热度分（从Redis ZSET读取）
