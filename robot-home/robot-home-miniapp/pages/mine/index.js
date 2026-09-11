@@ -40,6 +40,7 @@ Page({
   goPosts() { this.needLogin('/pages/mine/posts') },
   goInquiries() { this.needLogin('/pages/mine/inquiries') },
   goSettings() { wx.navigateTo({ url: '/pages/mine/settings' }) },
+  goFeedback() { wx.navigateTo({ url: '/pages/feedback/feedback' }) },
   needLogin(url) {
     if (!getToken()) return this.goLogin()
     wx.navigateTo({ url: url })

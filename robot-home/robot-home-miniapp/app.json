@@ -31,7 +31,8 @@
     "pages/mine/history",
     "pages/mine/posts",
     "pages/mine/inquiries",
-    "pages/mine/settings"
+    "pages/mine/settings",
+    "pages/feedback/feedback"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

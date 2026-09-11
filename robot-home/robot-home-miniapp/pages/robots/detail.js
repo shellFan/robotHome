@@ -1,4 +1,4 @@
-const { robotApi, favoriteApi } = require('../../api/index')
+const { robotApi, favoriteApi, behaviorApi } = require('../../api/index')
 const { formatPrice, formatCount, imageOf, parseMainParams } = require('../../utils/format')
 const { toggleCompare, getCompareIds } = require('../../utils/compare')
 const { ensureLogin, getToken } = require('../../utils/request')
@@ -16,6 +16,7 @@ Page({
     try {
       const robot = await robotApi.detail(this.data.id)
       robotApi.view(this.data.id).catch(function () {})
+      behaviorApi.track('view', 'robot', Number(this.data.id))
       const ids = getCompareIds()
       let favorited = false
       if (getToken()) {
@@ -44,12 +45,14 @@ Page({
   goImages() { wx.navigateTo({ url: '/pages/robots/images?id=' + this.data.id }) },
   goVideos() { wx.navigateTo({ url: '/pages/robots/videos?id=' + this.data.id }) },
   goInquiry() {
+    behaviorApi.track('inquiry', 'robot', Number(this.data.id))
     wx.navigateTo({ url: '/pages/inquiry/inquiry?robotId=' + this.data.id + '&robotName=' + encodeURIComponent((this.data.robot && this.data.robot.name) || '') })
   },
   onCompare() {
     const r = toggleCompare(this.data.id)
     if (!r.full) {
       this.setData({ inCompare: r.added || r.ids.indexOf(Number(this.data.id)) >= 0 })
+      behaviorApi.track(r.added ? 'add_compare' : 'remove_compare', 'robot', Number(this.data.id))
       wx.showToast({ title: r.added ? '已加入对比' : '已移出对比', icon: 'none' })
     }
   },
@@ -60,6 +63,7 @@ Page({
       await favoriteApi.toggle('robot', this.data.id)
       const next = !this.data.favorited
       this.setData({ favorited: next })
+      behaviorApi.track(next ? 'favorite' : 'unfavorite', 'robot', Number(this.data.id))
       wx.showToast({ title: next ? '已收藏' : '已取消', icon: 'none' })
     } catch (e) {}
   },

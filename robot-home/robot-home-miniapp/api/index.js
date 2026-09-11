@@ -99,7 +99,11 @@ const searchApi = {
 }
 
 const rankingApi = {
-  rank: function (type, limit) { return get('/rankings', { type: type || 'hot', limit: limit || 20 }) },
+  rank: function (type, limit, timeRange) {
+    var params = { type: type || 'hot', limit: limit || 20 }
+    if (timeRange) params.timeRange = timeRange
+    return get('/rankings', params)
+  },
   types: function () { return get('/rankings/types') }
 }
 
@@ -107,6 +111,18 @@ const inquiryApi = {
   submit: function (data) { return post('/inquiries', data) },
   my: function (params) { return get('/inquiries/my', params) },
   detail: function (id) { return get('/inquiries/my/' + id) }
+}
+
+const feedbackApi = {
+  submit: function (data) { return post('/feedback', data) }
+}
+
+const behaviorApi = {
+  track: function (action, bizType, bizId, extra) {
+    return post('/behaviors', {
+      action: action, bizType: bizType, bizId: bizId, extra: extra || {}
+    }).catch(function () {})
+  }
 }
 
 const userApi = {
@@ -155,6 +171,8 @@ module.exports = {
   searchApi,
   rankingApi,
   inquiryApi,
+  feedbackApi,
+  behaviorApi,
   userApi,
   authApi
 }

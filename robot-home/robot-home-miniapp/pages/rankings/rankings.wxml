@@ -2,6 +2,9 @@
   <scroll-view scroll-x class="types">
     <text class="chip {{type===item.code?'chip--on':''}}" wx:for="{{types}}" wx:key="code" data-code="{{item.code}}" bindtap="switchType">{{item.name}}</text>
   </scroll-view>
+  <scroll-view scroll-x class="times">
+    <text class="chip {{timeRange===item.code?'chip--on':''}}" wx:for="{{timeOptions}}" wx:key="code" data-code="{{item.code}}" bindtap="switchTime">{{item.name}}</text>
+  </scroll-view>
   <view class="rh-container">
     <view class="robot-row" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
       <text class="rank {{item.rank<=3?'rank--top':''}}">{{item.rank}}</text>
@@ -10,6 +13,9 @@
         <view class="robot-row__name rh-ellipsis">{{item.name}}</view>
         <view class="robot-row__price">{{item.priceText}}</view>
       </view>
+      <view wx:if="{{item.rank===1}}" class="badge badge--gold">TOP1</view>
+      <view wx:elif="{{item.rank===2}}" class="badge badge--silver">TOP2</view>
+      <view wx:elif="{{item.rank===3}}" class="badge badge--bronze">TOP3</view>
     </view>
     <view wx:if="{{!list.length && !loading}}" class="rh-empty">暂无数据</view>
   </view>
