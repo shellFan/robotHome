@@ -42,7 +42,11 @@
       <el-table v-loading="loading" :data="list" border stripe>
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="联系人" width="100" />
-        <el-table-column prop="phone" label="手机号" width="130" />
+        <el-table-column prop="phone" label="手机号" width="130">
+          <template #default="{ row }">
+            <span>{{ maskPhone(row.phone) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="客户类型" width="100">
           <template #default="{ row }">{{ CUSTOMER_TYPE_MAP[row.customerType] || '-' }}</template>
         </el-table-column>
@@ -86,7 +90,7 @@
     <el-dialog v-model="dialogVisible" title="询价处理" width="680px" destroy-on-close>
       <el-descriptions v-if="detail" :column="2" border size="small">
         <el-descriptions-item label="联系人">{{ detail.name }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ detail.phone }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ maskPhone(detail.phone) }}</el-descriptions-item>
         <el-descriptions-item label="客户类型">
           {{ CUSTOMER_TYPE_MAP[detail.customerType] || '-' }}
         </el-descriptions-item>
@@ -152,6 +156,11 @@ import {
   CUSTOMER_TYPE_MAP
 } from '@/api/inquiry'
 import { cleanParams, formatTime, safeParse } from '@/utils'
+
+function maskPhone(phone) {
+  if (!phone || phone.length < 7) return phone || '-'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
 
 const loading = ref(false)
 const saving = ref(false)

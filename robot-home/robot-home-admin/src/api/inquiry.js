@@ -38,7 +38,8 @@ export const INQUIRY_STATUS_MAP = {
   2: { label: '处理中', type: 'primary' },
   3: { label: '已联系', type: 'info' },
   4: { label: '已成交', type: 'success' },
-  5: { label: '已关闭', type: 'info' }
+  5: { label: '已关闭', type: 'info' },
+  6: { label: '无效', type: 'danger' }
 }
 
 export const CUSTOMER_TYPE_MAP = {

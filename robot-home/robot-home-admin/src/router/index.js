@@ -196,6 +196,43 @@ export const defaultMenus = [
     component: () => import('@/views/inquiry/index.vue')
   },
   {
+    path: '/feedback',
+    name: 'Feedback',
+    menuName: '反馈管理',
+    icon: 'ChatDotSquare',
+    component: () => import('@/views/feedback/index.vue')
+  },
+  {
+    path: '/ranking-config',
+    name: 'RankingConfig',
+    menuName: '排名配置',
+    icon: 'TrendCharts',
+    redirect: '/ranking-config/weights',
+    children: [
+      {
+        path: 'weights',
+        name: 'RankingWeights',
+        menuName: '权重管理',
+        icon: 'ScaleToOriginal',
+        component: () => import('@/views/ranking-config/weights.vue')
+      },
+      {
+        path: 'snapshots',
+        name: 'RankingSnapshots',
+        menuName: '排名快照',
+        icon: 'Camera',
+        component: () => import('@/views/ranking-config/snapshots.vue')
+      }
+    ]
+  },
+  {
+    path: '/search-suggestion',
+    name: 'SearchSuggestion',
+    menuName: '搜索建议',
+    icon: 'Search',
+    component: () => import('@/views/search-suggestion/index.vue')
+  },
+  {
     path: '/operation',
     name: 'Operation',
     menuName: '运营配置',
