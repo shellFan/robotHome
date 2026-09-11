@@ -46,7 +46,7 @@ public class InquiryFollowServiceImpl implements InquiryFollowService {
     private InquiryMapper inquiryMapper;
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public InquiryFollow addFollow(Long adminUserId, InquiryFollowDTO dto) {
         // 1. 校验跟进类型
         if (!VALID_FOLLOW_TYPES.contains(dto.getFollowType())) {
