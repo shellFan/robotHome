@@ -26,6 +26,7 @@ const routes = [
   { path: '/community/create', name: 'post-create', component: () => import('@/views/PostCreate.vue'), meta: { title: '发帖 - 机器人之家', auth: true } },
   { path: '/community/:id', name: 'post-detail', component: () => import('@/views/PostDetail.vue'), meta: { title: '帖子详情 - 机器人之家' } },
   { path: '/inquiry/:robotId', name: 'inquiry', component: () => import('@/views/Inquiry.vue'), meta: { title: '获取报价 - 机器人之家' } },
+  { path: '/feedback', name: 'feedback', component: () => import('@/views/Feedback.vue'), meta: { title: '意见反馈 - 机器人之家' } },
   { path: '/login', name: 'login', component: () => import('@/views/Login.vue'), meta: { title: '登录 - 机器人之家' } },
   {
     path: '/user',

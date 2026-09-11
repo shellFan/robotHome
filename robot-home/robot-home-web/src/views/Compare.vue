@@ -76,9 +76,12 @@
                   <td
                     v-for="(value, vi) in row.values"
                     :key="vi"
-                    :class="{ 'is-diff': row.different }"
+                    :class="cellClass(row, vi)"
                   >
-                    {{ value }}<span v-if="row.unit && value !== '-'"> {{ row.unit }}</span>
+                    <span v-if="value && value !== ''">{{ value }}</span>
+                    <span v-else class="compare-table__na">-</span>
+                    <span v-if="row.unit && value && value !== ''"> {{ row.unit }}</span>
+                    <el-icon v-if="isBest(row, vi)" class="compare-table__best"><Trophy /></el-icon>
                   </td>
                 </tr>
               </tbody>
@@ -93,7 +96,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Trophy } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layout/MainLayout.vue'
 import { robotApi } from '@/api'
@@ -119,6 +122,21 @@ const visibleGroups = computed(() => {
     .map((g) => ({ ...g, rows: g.rows.filter((r) => r.different) }))
     .filter((g) => g.rows.length)
 })
+
+/** 判断某个单元格是否为最优值 */
+function isBest (row, valueIndex) {
+  if (!row.comparisonType) return false
+  if (row.comparisonType === 'NEUTRAL' || row.comparisonType === 'TEXT' || row.comparisonType === 'BOOLEAN') return false
+  return row.bestIndex === valueIndex
+}
+
+/** 计算单元格的CSS类 */
+function cellClass (row, valueIndex) {
+  const classes = []
+  if (row.different) classes.push('is-diff')
+  if (isBest(row, valueIndex)) classes.push('is-best')
+  return classes
+}
 
 async function remoteSearch (keyword) {
   if (!keyword) {
@@ -316,5 +334,41 @@ onMounted(async () => {
   background: #fff7e8;
   color: #b06c00;
   font-weight: 600;
+}
+
+.compare-table .is-best {
+  background: #e8f5e9;
+  color: #1b5e20;
+  font-weight: 700;
+}
+
+.compare-table__na {
+  color: var(--rh-text-light);
+  font-style: italic;
+}
+
+.compare-table__best {
+  margin-left: 4px;
+  color: #f5a623;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.compare-table-wrap {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .compare-slots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .compare-table th,
+  .compare-table td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .compare-table__label {
+    width: 100px;
+  }
 }
 </style>

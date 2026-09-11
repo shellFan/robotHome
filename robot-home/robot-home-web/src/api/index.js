@@ -131,7 +131,7 @@ export const searchApi = {
 }
 
 export const rankingApi = {
-  rank: (type = 'hot', limit = 20) => get('/rankings', { type, limit }),
+  rank: (type = 'hot', limit = 20, timeRange = 'all') => get('/rankings', { type, limit, timeRange }),
   types: () => get('/rankings/types')
 }
 
@@ -139,6 +139,22 @@ export const inquiryApi = {
   submit: (data) => post('/inquiries', data),
   my: (params) => get('/inquiries/my', params),
   detail: (id) => get(`/inquiries/my/${id}`)
+}
+
+export const behaviorApi = {
+  /** 单条行为事件上报 (VIEW/SEARCH/CLICK/COMPARE/SHARE 由前端提交; FAVORITE/INQUIRY 由服务端产生) */
+  track: (eventType, bizType, bizId, extra) => post('/behavior/event', { eventType, bizType, bizId, extra }),
+  /** 批量行为事件上报 */
+  batch: (events) => post('/behavior/batch', events),
+  /** 查询对象热度分 */
+  hotScore: (bizType, bizId) => get('/behavior/hot/score', { bizType, bizId }),
+  /** 查询热度排行榜 Top N */
+  hotTop: (bizType, limit = 20) => get('/behavior/hot/top', { bizType, limit })
+}
+
+export const feedbackApi = {
+  /** 提交用户反馈 (bug/feature/improvement/other) */
+  submit: (data) => post('/feedback/submit', data)
 }
 
 export const messageApi = {

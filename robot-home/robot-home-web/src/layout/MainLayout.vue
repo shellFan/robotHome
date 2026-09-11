@@ -8,13 +8,14 @@
             <span class="logo__text">机器人之家</span>
           </router-link>
 
-          <div class="search-box">
+          <div class="search-box" @keydown="onSuggestKeydown">
             <el-input
               v-model="keyword"
               placeholder="搜索机器人、品牌、企业、资讯…"
               clearable
               size="large"
               @keyup.enter="doSearch"
+              @keydown.esc="suggests = []"
             >
               <template #append>
                 <el-button :icon="Search" @click="doSearch" />
@@ -22,12 +23,14 @@
             </el-input>
             <div v-if="suggests.length" class="search-box__suggest">
               <div
-                v-for="item in suggests"
+                v-for="(item, idx) in suggests"
                 :key="item"
                 class="search-box__suggest-item"
+                :class="{ 'is-active': suggestIdx === idx }"
                 @click="goSuggest(item)"
               >
-                {{ item }}
+                <el-icon class="search-box__suggest-icon"><Search /></el-icon>
+                <span>{{ item }}</span>
               </div>
             </div>
           </div>
@@ -108,6 +111,7 @@
         </div>
         <div class="footer__col">
           <div class="footer__title">关于</div>
+          <router-link to="/feedback">意见反馈</router-link>
           <span class="footer__text">示例 ICP 备 00000000 号</span>
           <span class="footer__text">数据与参数为示例内容，仅供参考</span>
         </div>
@@ -119,16 +123,12 @@
     <div v-if="compareStore.count > 0" class="compare-bar">
       <div class="rh-container compare-bar__inner">
         <span class="compare-bar__label">对比栏（{{ compareStore.count }}/4）</span>
-        <div class="compare-bar__ids">
-          <el-tag
-            v-for="id in compareStore.ids"
-            :key="id"
-            closable
-            size="small"
-            @close="compareStore.remove(id)"
-          >
-            {{ id }}
-          </el-tag>
+        <div class="compare-bar__items">
+          <div v-for="id in compareStore.ids" :key="id" class="compare-bar__item">
+            <img v-if="compareRobotMap[id]" :src="imageOf(compareRobotMap[id].coverImage)" :alt="compareRobotMap[id].name" class="compare-bar__img" />
+            <span class="compare-bar__name">{{ (compareRobotMap[id] && compareRobotMap[id].name) || ('#' + id) }}</span>
+            <el-icon class="compare-bar__close" @click="compareStore.remove(id)"><Close /></el-icon>
+          </div>
         </div>
         <div class="compare-bar__actions">
           <el-button size="small" text @click="compareStore.clear()">清空</el-button>
@@ -142,10 +142,10 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Bell, ArrowDown } from '@element-plus/icons-vue'
+import { Search, Bell, ArrowDown, Close } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { useCompareStore } from '@/store/compare'
-import { searchApi, messageApi } from '@/api'
+import { searchApi, messageApi, robotApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -154,7 +154,9 @@ const compareStore = useCompareStore()
 
 const keyword = ref(route.query.keyword || '')
 const suggests = ref([])
+const suggestIdx = ref(-1)
 const unread = ref(0)
+const compareRobotMap = ref({})
 
 const navList = [
   { path: '/', name: '首页' },
@@ -179,7 +181,25 @@ async function doSearch () {
   const kw = keyword.value && keyword.value.trim()
   if (!kw) return
   suggests.value = []
+  suggestIdx.value = -1
   router.push({ name: 'search', query: { keyword: kw } })
+}
+
+function onSuggestKeydown (e) {
+  if (!suggests.value.length) return
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    suggestIdx.value = (suggestIdx.value + 1) % suggests.value.length
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    suggestIdx.value = suggestIdx.value <= 0 ? suggests.value.length - 1 : suggestIdx.value - 1
+  } else if (e.key === 'Enter' && suggestIdx.value >= 0) {
+    e.preventDefault()
+    goSuggest(suggests.value[suggestIdx.value])
+  } else if (e.key === 'Escape') {
+    suggests.value = []
+    suggestIdx.value = -1
+  }
 }
 
 function goSuggest (item) {
@@ -190,6 +210,29 @@ function goSuggest (item) {
 function goCompare () {
   router.push({ name: 'compare', query: { ids: compareStore.ids.join(',') } })
 }
+
+function imageOf (url) {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `/api/files/${url}`
+}
+
+async function loadCompareRobots () {
+  const ids = compareStore.ids
+  if (!ids.length) {
+    compareRobotMap.value = {}
+    return
+  }
+  const missing = ids.filter(id => !compareRobotMap.value[id])
+  if (!missing.length) return
+  try {
+    const results = await Promise.all(missing.map(id => robotApi.detail(id).catch(() => null)))
+    results.forEach((r, i) => {
+      if (r) compareRobotMap.value[missing[i]] = r
+    })
+  } catch (e) { /* ignore */ }
+}
+
+watch(() => compareStore.ids, loadCompareRobots, { immediate: true })
 
 async function onCommand (cmd) {
   if (cmd === 'logout') {
@@ -206,13 +249,16 @@ watch(keyword, (val) => {
   const kw = val && val.trim()
   if (!kw) {
     suggests.value = []
+    suggestIdx.value = -1
     return
   }
   timer = setTimeout(async () => {
     try {
       suggests.value = await searchApi.suggest(kw, 8)
+      suggestIdx.value = -1
     } catch (e) {
       suggests.value = []
+      suggestIdx.value = -1
     }
   }, 250)
 })
@@ -239,8 +285,6 @@ async function loadUnread () {
 onMounted(() => {
   loadUnread()
 })
-
-const showCompareBar = computed(() => compareStore.count > 0)
 </script>
 
 <style scoped lang="scss">
@@ -316,9 +360,16 @@ const showCompareBar = computed(() => compareStore.count > 0)
   font-size: 13px;
 }
 
-.search-box__suggest-item:hover {
+.search-box__suggest-item:hover,
+.search-box__suggest-item.is-active {
   background: var(--rh-primary-light);
   color: var(--rh-primary);
+}
+
+.search-box__suggest-icon {
+  margin-right: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
 }
 
 .header__user {
@@ -452,11 +503,39 @@ const showCompareBar = computed(() => compareStore.count > 0)
   flex-shrink: 0;
 }
 
-.compare-bar__ids {
-  display: flex;
-  gap: 8px;
+.compare-bar__items {
   flex: 1;
-  flex-wrap: wrap;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  overflow-x: auto;
+}
+.compare-bar__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--el-bg-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.compare-bar__img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--el-fill-color-lighter);
+}
+.compare-bar__name {
+  font-size: 13px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compare-bar__close {
+  cursor: pointer;
+  color: var(--el-text-color-secondary);
+  &:hover { color: var(--el-color-danger); }
 }
 
 .compare-bar__actions {

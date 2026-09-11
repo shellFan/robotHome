@@ -20,7 +20,15 @@
               <el-input v-model="form.phone" maxlength="11" placeholder="方便联系的手机号" />
             </el-form-item>
             <el-form-item label="所在地区">
-              <el-input v-model="form.region" maxlength="64" placeholder="如：广东深圳" />
+              <el-cascader
+                v-model="form.regionArr"
+                :options="regionOptions"
+                :props="{ expandTrigger: 'hover' }"
+                placeholder="选择省份/城市"
+                clearable
+                style="width: 100%"
+                @change="onRegionChange"
+              />
             </el-form-item>
             <el-form-item label="客户类型">
               <el-radio-group v-model="form.customerType">
@@ -74,6 +82,7 @@ import { inquiryApi, robotApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { formatPrice, imageOf } from '@/utils/format'
 import { setPageMeta } from '@/utils/seo'
+import { regionOptions } from '@/utils/region-data'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,12 +95,17 @@ const form = reactive({
   name: '',
   phone: '',
   region: '',
+  regionArr: [],
   customerType: 1,
   companyName: '',
   quantity: 1,
   budget: '',
   remark: ''
 })
+
+function onRegionChange (val) {
+  form.region = val && val.length ? val.join(' ') : ''
+}
 
 async function loadRobot () {
   try {
@@ -134,12 +148,18 @@ async function submit () {
       budget: form.budget || undefined,
       remark: form.remark || undefined
     })
-    ElMessage.success('询价已提交')
+    ElMessage.success('询价已提交，销售顾问将尽快与您联系')
     if (userStore.isLogin) {
       router.push('/user/inquiries')
     } else {
       router.push('/robot/' + robotId.value)
     }
+  } catch (e) {
+    const msg = e && e.message
+    if (msg && (msg.includes('频繁') || msg.includes('429'))) {
+      ElMessage.warning('询价过于频繁，请1分钟后再试')
+    }
+    // 其他错误已由全局拦截器处理
   } finally {
     submitting.value = false
   }
@@ -202,5 +222,23 @@ onMounted(async () => {
   margin-top: 14px;
   color: var(--rh-primary);
   font-size: 13px;
+}
+
+.inquiry-form__agreement {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--rh-text-light);
+}
+
+@media (max-width: 768px) {
+  .inquiry-layout {
+    grid-template-columns: 1fr;
+  }
+  .inquiry-robot {
+    order: -1;
+  }
+  .inquiry-robot img {
+    height: 140px;
+  }
 }
 </style>
