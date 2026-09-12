@@ -23,6 +23,7 @@ public final class TestSqlSupport {
     private static final Pattern ENGINE_CLAUSE = Pattern.compile("\\)\\s*ENGINE[^;]*;", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern UNIQUE_KEY = Pattern.compile("UNIQUE\\s+KEY\\s+`(\\w+)`\\s*\\(", Pattern.CASE_INSENSITIVE);
     private static final Pattern CREATE_TABLE = Pattern.compile("CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?`?(\\w+)`?", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ALTER_TABLE = Pattern.compile("ALTER\\s+TABLE\\s+`?(\\w+)`?", Pattern.CASE_INSENSITIVE);
 
     /**
      * 定位 sql 目录（模块上级目录 /sql）
@@ -54,6 +55,7 @@ public final class TestSqlSupport {
         List<String> out = new ArrayList<>();
         // H2 的约束名在库级别唯一（MySQL 为表级别），这里按表名加前缀避免重名
         String currentTable = "";
+        String alterTableName = null;
         for (String line : sql.split("\n")) {
             String trimmed = line.trim();
             if (trimmed.startsWith("--") || trimmed.isEmpty()) {
@@ -69,6 +71,51 @@ public final class TestSqlSupport {
             Matcher tableMatcher = CREATE_TABLE.matcher(trimmed);
             if (tableMatcher.find()) {
                 currentTable = tableMatcher.group(1);
+            }
+            // ── ALTER TABLE 多列 ADD/MODIFY COLUMN 拆分（H2 不支持单语句多列 ALTER） ──
+            Matcher alterMatcher = ALTER_TABLE.matcher(trimmed);
+            if (alterMatcher.find() && !trimmed.toUpperCase().matches("ALTER\\s+TABLE.*ADD\\s+(INDEX|KEY).*")) {
+                alterTableName = alterMatcher.group(1);
+                // 如果 ALTER TABLE 行本身也包含 ADD COLUMN（单行写法），直接拆出
+                if (trimmed.toUpperCase().contains("ADD COLUMN") || trimmed.toUpperCase().contains("MODIFY COLUMN")) {
+                    String colDef = extractAlterColumnClause(trimmed);
+                    if (colDef != null) {
+                        out.add("ALTER TABLE `" + alterTableName + "` " + colDef + ";");
+                    }
+                    alterTableName = null;
+                }
+                // 否则仅记录表名，等后续行
+                continue;
+            }
+            // ADD COLUMN / MODIFY COLUMN 续行
+            if (alterTableName != null) {
+                if (trimmed.toUpperCase().startsWith("ADD COLUMN") || trimmed.toUpperCase().startsWith("MODIFY COLUMN")) {
+                    String colDef = trimmed;
+                    // MODIFY COLUMN → ALTER COLUMN（H2 语法）
+                    colDef = colDef.replaceAll("(?i)MODIFY\\s+COLUMN", "ALTER COLUMN");
+                    // 移除 AFTER 子句
+                    colDef = colDef.replaceAll("(?i)\\s+AFTER\\s+`?\\w+`?", "");
+                    // 移除字段级 COMMENT
+                    colDef = INLINE_COMMENT.matcher(colDef).replaceAll("");
+                    // 类型映射
+                    colDef = colDef.replaceAll("(?i)\\bLONGTEXT\\b", "CLOB");
+                    colDef = colDef.replaceAll("(?i)\\bTEXT\\b", "CLOB");
+                    colDef = colDef.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
+                    // 判断是否为最后一个列（以分号结尾）
+                    boolean isLast = colDef.endsWith(";");
+                    // 移除尾部逗号/分号
+                    if (colDef.endsWith(",") || colDef.endsWith(";")) {
+                        colDef = colDef.substring(0, colDef.length() - 1).trim();
+                    }
+                    out.add("ALTER TABLE `" + alterTableName + "` " + colDef + ";");
+                    if (isLast) {
+                        alterTableName = null; // 最后一个列，结束 ALTER 块
+                    }
+                    continue;
+                } else {
+                    // 非列定义行，ALTER 块结束
+                    alterTableName = null;
+                }
             }
             // 普通索引定义：H2 内联语法不兼容，测试环境直接忽略（不影响功能正确性）
             if (trimmed.startsWith("KEY ")) {
@@ -102,5 +149,25 @@ public final class TestSqlSupport {
         // 去掉最后一个字段定义后的多余逗号
         result = result.replaceAll(",\\s*\\n\\s*\\);", "\n);");
         return result;
+    }
+
+    /** 从单行 ALTER TABLE 语句中提取 ADD/MODIFY COLUMN 子句并做 H2 兼容转换 */
+    private static String extractAlterColumnClause(String trimmed) {
+        String colDef = trimmed.replaceAll("(?i)^ALTER\\s+TABLE\\s+`?\\w+`?\\s+", "").trim();
+        // MODIFY COLUMN → ALTER COLUMN
+        colDef = colDef.replaceAll("(?i)MODIFY\\s+COLUMN", "ALTER COLUMN");
+        // 移除 AFTER 子句
+        colDef = colDef.replaceAll("(?i)\\s+AFTER\\s+`?\\w+`?", "");
+        // 移除字段级 COMMENT
+        colDef = INLINE_COMMENT.matcher(colDef).replaceAll("");
+        // 类型映射
+        colDef = colDef.replaceAll("(?i)\\bLONGTEXT\\b", "CLOB");
+        colDef = colDef.replaceAll("(?i)\\bTEXT\\b", "CLOB");
+        colDef = colDef.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
+        // 移除尾部分号
+        if (colDef.endsWith(";")) {
+            colDef = colDef.substring(0, colDef.length() - 1).trim();
+        }
+        return colDef;
     }
 }

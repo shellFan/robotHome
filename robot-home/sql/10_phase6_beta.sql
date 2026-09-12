@@ -35,9 +35,10 @@ DROP TABLE IF EXISTS `inquiry_follow`;
 CREATE TABLE `inquiry_follow` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `inquiry_id` BIGINT NOT NULL COMMENT '询价ID',
-  `user_id` BIGINT DEFAULT NULL COMMENT '操作人（后台管理员）',
-  `action` VARCHAR(32) NOT NULL COMMENT 'CONTACTED/FOLLOWING/CLOSED/INVALID/NOTE',
-  `note` VARCHAR(1024) DEFAULT NULL COMMENT '跟进备注',
+  `follow_user_id` BIGINT DEFAULT NULL COMMENT '跟进人（后台管理员）',
+  `follow_type` VARCHAR(32) NOT NULL COMMENT 'CONTACTED/FOLLOWING/CLOSED/INVALID/NOTE',
+  `content` VARCHAR(1024) DEFAULT NULL COMMENT '跟进内容',
+  `after_status` INT DEFAULT NULL COMMENT '跟进后询价状态',
   `create_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_inquiry` (`inquiry_id`)
@@ -67,19 +68,14 @@ DROP TABLE IF EXISTS `ranking_snapshot`;
 CREATE TABLE `ranking_snapshot` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `rank_type` VARCHAR(32) NOT NULL COMMENT 'hot/humanoid/quadruped/service/industrial/family/dev',
-  `rank_date` DATE NOT NULL COMMENT '快照日期',
+  `snapshot_date` DATE NOT NULL COMMENT '快照日期',
   `robot_id` BIGINT NOT NULL,
-  `rank_position` INT NOT NULL COMMENT '排名',
-  `score` BIGINT DEFAULT 0 COMMENT '热度分',
-  `view_count` INT DEFAULT 0,
-  `favorite_count` INT DEFAULT 0,
-  `compare_count` INT DEFAULT 0,
-  `inquiry_count` INT DEFAULT 0,
-  `comment_count` INT DEFAULT 0,
+  `hot_score` BIGINT DEFAULT 0 COMMENT '热度分',
+  `rank_no` INT NOT NULL COMMENT '排名',
   `create_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_type_date_robot` (`rank_type`, `rank_date`, `robot_id`),
-  KEY `idx_type_date` (`rank_type`, `rank_date`)
+  UNIQUE KEY `uk_type_date_robot` (`rank_type`, `snapshot_date`, `robot_id`),
+  KEY `idx_type_date` (`rank_type`, `snapshot_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='排行榜快照';
 
 -- ============================================================
@@ -115,21 +111,22 @@ CREATE TABLE `ranking_decay_config` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `rank_type` VARCHAR(32) NOT NULL,
   `half_life_days` INT NOT NULL DEFAULT 90 COMMENT '半衰期（天），热度减半所需天数',
-  `min_decay` DECIMAL(5,4) DEFAULT 0.1000 COMMENT '最低衰减系数（防止旧内容永久霸榜）',
+  `min_decay_factor` DECIMAL(5,4) DEFAULT 0.1000 COMMENT '最低衰减系数（防止旧内容永久霸榜）',
+  `description` VARCHAR(128) DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_type` (`rank_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='时间衰减配置';
 
 -- 初始衰减配置
-INSERT INTO `ranking_decay_config` (`rank_type`, `half_life_days`, `min_decay`, `update_time`) VALUES
-('hot', 90, 0.1000, NOW()),
-('humanoid', 120, 0.1000, NOW()),
-('quadruped', 120, 0.1000, NOW()),
-('service', 90, 0.1000, NOW()),
-('industrial', 180, 0.0500, NOW()),
-('family', 90, 0.1000, NOW()),
-('dev', 60, 0.1500, NOW());
+INSERT INTO `ranking_decay_config` (`rank_type`, `half_life_days`, `min_decay_factor`, `description`, `update_time`) VALUES
+('hot', 90, 0.1000, '综合热度', NOW()),
+('humanoid', 120, 0.1000, '人形机器人', NOW()),
+('quadruped', 120, 0.1000, '四足机器人', NOW()),
+('service', 90, 0.1000, '服务机器人', NOW()),
+('industrial', 180, 0.0500, '工业机器人', NOW()),
+('family', 90, 0.1000, '家庭机器人', NOW()),
+('dev', 60, 0.1500, '开发平台', NOW());
 
 -- ============================================================
 -- 8. 限流配置表
@@ -137,28 +134,30 @@ INSERT INTO `ranking_decay_config` (`rank_type`, `half_life_days`, `min_decay`, 
 DROP TABLE IF EXISTS `rate_limit_config`;
 CREATE TABLE `rate_limit_config` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `limit_key` VARCHAR(64) NOT NULL COMMENT '限流标识(login/sms/search/inquiry/comment/post/like/follow/feedback/upload)',
+  `action` VARCHAR(64) NOT NULL COMMENT '限流标识(login/sms/search/inquiry/comment/post/like/follow/feedback/upload)',
   `max_requests` INT NOT NULL DEFAULT 10 COMMENT '最大请求数',
   `window_seconds` INT NOT NULL DEFAULT 60 COMMENT '时间窗口（秒）',
   `description` VARCHAR(128) DEFAULT NULL,
+  `dimension` VARCHAR(16) DEFAULT 'IP' COMMENT '限流维度: IP/USER/IP_USER',
+  `enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1=启用, 0=禁用',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_key` (`limit_key`)
+  UNIQUE KEY `uk_action` (`action`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='限流配置';
 
 -- 初始限流配置
-INSERT INTO `rate_limit_config` (`limit_key`, `max_requests`, `window_seconds`, `description`, `create_time`) VALUES
-('login', 5, 300, '登录：5次/5分钟', NOW()),
-('sms', 1, 60, '短信验证码：1次/分钟', NOW()),
-('search', 30, 60, '搜索：30次/分钟', NOW()),
-('inquiry', 3, 3600, '询价：3次/小时', NOW()),
-('comment', 10, 60, '评论：10次/分钟', NOW()),
-('post', 5, 300, '发帖：5次/5分钟', NOW()),
-('like', 30, 60, '点赞：30次/分钟', NOW()),
-('follow', 20, 60, '关注：20次/分钟', NOW()),
-('feedback', 3, 3600, '反馈：3次/小时', NOW()),
-('upload', 10, 60, '上传：10次/分钟', NOW());
+INSERT INTO `rate_limit_config` (`action`, `max_requests`, `window_seconds`, `description`, `dimension`, `enabled`, `create_time`) VALUES
+('login', 5, 300, '登录：5次/5分钟', 'IP', 1, NOW()),
+('sms', 1, 60, '短信验证码：1次/分钟', 'IP', 1, NOW()),
+('search', 30, 60, '搜索：30次/分钟', 'IP', 1, NOW()),
+('inquiry', 3, 3600, '询价：3次/小时', 'USER', 1, NOW()),
+('comment', 10, 60, '评论：10次/分钟', 'USER', 1, NOW()),
+('post', 5, 300, '发帖：5次/5分钟', 'USER', 1, NOW()),
+('like', 30, 60, '点赞：30次/分钟', 'USER', 1, NOW()),
+('follow', 20, 60, '关注：20次/分钟', 'USER', 1, NOW()),
+('feedback', 3, 3600, '反馈：3次/小时', 'USER', 1, NOW()),
+('upload', 10, 60, '上传：10次/分钟', 'USER', 1, NOW());
 
 -- ============================================================
 -- 9. 搜索建议表
@@ -169,7 +168,7 @@ CREATE TABLE `search_suggestion` (
   `keyword` VARCHAR(128) NOT NULL,
   `type` VARCHAR(16) DEFAULT 'robot' COMMENT 'robot/brand/article等',
   `weight` INT DEFAULT 0 COMMENT '权重（搜索次数）',
-  `status` TINYINT DEFAULT 1,
+  `enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1=启用, 0=禁用',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -228,13 +227,12 @@ DROP TABLE IF EXISTS `user_feedback`;
 CREATE TABLE `user_feedback` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT DEFAULT NULL,
-  `type` VARCHAR(32) DEFAULT 'bug' COMMENT 'bug/feature/improvement/other',
-  `title` VARCHAR(255) NOT NULL,
+  `feedback_type` VARCHAR(32) DEFAULT 'bug' COMMENT 'bug/feature/improvement/other',
   `content` TEXT,
   `contact` VARCHAR(128) DEFAULT NULL COMMENT '联系方式',
-  `screenshot` VARCHAR(512) DEFAULT NULL COMMENT '截图URL',
-  `status` TINYINT DEFAULT 1 COMMENT '1待处理2处理中3已解决4已关闭',
-  `reply` VARCHAR(1024) DEFAULT NULL COMMENT '回复',
+  `page_url` VARCHAR(512) DEFAULT NULL COMMENT '页面URL',
+  `status` TINYINT DEFAULT 0 COMMENT '0=待处理, 1=已处理',
+  `handle_note` VARCHAR(1024) DEFAULT NULL COMMENT '处理备注',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
   PRIMARY KEY (`id`),
