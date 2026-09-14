@@ -35,7 +35,9 @@ public class TestDataSourceInitializer {
         run(TestSqlSupport.load("07_real_robot_products.sql"));
         // Phase6 Beta: 排行榜/行为事件/询价跟进/限流/搜索建议/用户反馈等新表
         run(TestSqlSupport.load("10_phase6_beta.sql"));
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta）");
+        // Phase7: 内容/社区/增长等新表与新列
+        run(TestSqlSupport.load("11_phase7_content_community_growth.sql"));
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7）");
     }
 
     private void run(String sql) throws Exception {

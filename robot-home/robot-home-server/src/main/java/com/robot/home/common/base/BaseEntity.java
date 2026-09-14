@@ -6,6 +6,9 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -13,6 +16,8 @@ import java.time.LocalDateTime;
  * 所有业务表的公共字段基类
  * 统一包含：id / create_time / update_time / deleted
  */
+@Getter
+@Setter
 public abstract class BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -29,18 +34,4 @@ public abstract class BaseEntity implements Serializable {
     @TableField(value = "deleted")
     @TableLogic
     private Integer deleted;
-
-    // --- getter/setter ---
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public LocalDateTime getCreateTime() { return createTime; }
-    public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
-
-    public LocalDateTime getUpdateTime() { return updateTime; }
-    public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
-
-    public Integer getDeleted() { return deleted; }
-    public void setDeleted(Integer deleted) { this.deleted = deleted; }
 }

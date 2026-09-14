@@ -23,7 +23,7 @@ public class RobotSimilarController {
      * 获取相似机器人列表
      */
     @GetMapping
-    @RateLimit(count = 20, time = 60)
+    @RateLimit(action = "similar", maxRequests = 20, windowSeconds = 60)
     public Result<List<SimilarRobotVO>> listSimilar(@PathVariable Long robotId,
                                                      @RequestParam(required = false, defaultValue = "10") Integer limit) {
         return Result.success(similarService.listSimilar(robotId, limit));

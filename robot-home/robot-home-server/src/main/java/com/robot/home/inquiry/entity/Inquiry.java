@@ -3,11 +3,16 @@ package com.robot.home.inquiry.entity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.robot.home.common.base.BaseEntity;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Objects;
 
 /**
  * 询价 / 采购线索
  */
+@Getter
+@Setter
 @TableName("inquiry")
 public class Inquiry extends BaseEntity {
 
@@ -46,76 +51,6 @@ public class Inquiry extends BaseEntity {
     private Integer leadPriority;
     /** 优先级理由 */
     private String leadReason;
-
-    // --- getter/setter ---
-    public Long getRobotId() { return robotId; }
-    public void setRobotId(Long robotId) { this.robotId = robotId; }
-
-    public String getRobotName() { return robotName; }
-    public void setRobotName(String robotName) { this.robotName = robotName; }
-
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
-
-    public String getContactName() { return contactName; }
-    public void setContactName(String contactName) { this.contactName = contactName; }
-
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-
-    public String getSource() { return source; }
-    public void setSource(String source) { this.source = source; }
-
-    public Long getAssignedTo() { return assignedTo; }
-    public void setAssignedTo(Long assignedTo) { this.assignedTo = assignedTo; }
-
-    public String getRegion() { return region; }
-    public void setRegion(String region) { this.region = region; }
-
-    public Integer getCustomerType() { return customerType; }
-    public void setCustomerType(Integer customerType) { this.customerType = customerType; }
-
-    public String getCompanyName() { return companyName; }
-    public void setCompanyName(String companyName) { this.companyName = companyName; }
-
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
-
-    public String getBudget() { return budget; }
-    public void setBudget(String budget) { this.budget = budget; }
-
-    public String getRemark() { return remark; }
-    public void setRemark(String remark) { this.remark = remark; }
-
-    public Integer getStatus() { return status; }
-    public void setStatus(Integer status) { this.status = status; }
-
-    public String getHandleNote() { return handleNote; }
-    public void setHandleNote(String handleNote) { this.handleNote = handleNote; }
-
-    public String getHandleRecords() { return handleRecords; }
-    public void setHandleRecords(String handleRecords) { this.handleRecords = handleRecords; }
-
-    public String getInquiryType() { return inquiryType; }
-    public void setInquiryType(String inquiryType) { this.inquiryType = inquiryType; }
-
-    public String getProcurementScene() { return procurementScene; }
-    public void setProcurementScene(String procurementScene) { this.procurementScene = procurementScene; }
-
-    public String getPurchaseTime() { return purchaseTime; }
-    public void setPurchaseTime(String purchaseTime) { this.purchaseTime = purchaseTime; }
-
-    public Integer getLeadPriority() { return leadPriority; }
-    public void setLeadPriority(Integer leadPriority) { this.leadPriority = leadPriority; }
-
-    public String getLeadReason() { return leadReason; }
-    public void setLeadReason(String leadReason) { this.leadReason = leadReason; }
 
     @Override
     public String toString() {

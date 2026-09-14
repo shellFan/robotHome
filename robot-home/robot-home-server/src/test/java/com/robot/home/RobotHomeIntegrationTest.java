@@ -356,7 +356,7 @@ class RobotHomeIntegrationTest {
         String auth = "Bearer " + userToken;
         String body = "{\"robotId\":" + robotId + ",\"name\":\"张三\",\"phone\":\"13900001111\","
                 + "\"region\":\"北京\",\"customerType\":2,\"companyName\":\"某某科技\",\"quantity\":5,"
-                + "\"budget\":\"50万\",\"remark\":\"希望尽快联系\"}";
+                + "\"budget\":500000.00,\"remark\":\"希望尽快联系\"}";
         String r = exec(post("/api/inquiries").header("Authorization", auth)
                 .contentType(MediaType.APPLICATION_JSON).content(body));
         assertEquals(200, objectMapper.readTree(r).path("code").asInt(),

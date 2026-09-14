@@ -1,5 +1,8 @@
 package com.robot.home.inquiry.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
@@ -7,6 +10,8 @@ import java.util.Objects;
 /**
  * 询价跟进 DTO
  */
+@Getter
+@Setter
 public class InquiryFollowDTO {
 
     /** 询价ID */
@@ -20,15 +25,6 @@ public class InquiryFollowDTO {
     /** 跟进内容 */
     @NotBlank(message = "跟进内容不能为空")
     private String content;
-
-    public Long getInquiryId() { return inquiryId; }
-    public void setInquiryId(Long inquiryId) { this.inquiryId = inquiryId; }
-
-    public String getFollowType() { return followType; }
-    public void setFollowType(String followType) { this.followType = followType; }
-
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
 
     @Override
     public String toString() {

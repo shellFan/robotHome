@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Objects;
 
 /**
@@ -12,6 +15,8 @@ import java.util.Objects;
  * <p>
  * 管理员预设的搜索建议词，按权重排序展示
  */
+@Getter
+@Setter
 @TableName("search_suggestion")
 public class SearchSuggestion {
 
@@ -29,21 +34,6 @@ public class SearchSuggestion {
 
     /** 是否启用: 1=启用, 0=禁用 */
     private Integer enabled;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getKeyword() { return keyword; }
-    public void setKeyword(String keyword) { this.keyword = keyword; }
-
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-
-    public Integer getWeight() { return weight; }
-    public void setWeight(Integer weight) { this.weight = weight; }
-
-    public Integer getEnabled() { return enabled; }
-    public void setEnabled(Integer enabled) { this.enabled = enabled; }
 
     @Override
     public String toString() {
