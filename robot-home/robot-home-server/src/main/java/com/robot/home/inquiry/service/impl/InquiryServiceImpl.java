@@ -59,6 +59,12 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         inquiry.setBudget(dto.getBudget());
         inquiry.setRemark(XssUtils.escapeText(dto.getRemark()));
         inquiry.setStatus(Constants.INQUIRY_PENDING);
+        inquiry.setInquiryType(dto.getInquiryType() == null ? "GENERAL" : dto.getInquiryType());
+        inquiry.setProcurementScene(dto.getProcurementScene());
+        inquiry.setPurchaseTime(dto.getPurchaseTime());
+
+        // Lead Priority 自动规则
+        applyLeadPriority(inquiry, dto);
 
         if (dto.getRobotId() != null) {
             Robot robot = robotMapper.selectById(dto.getRobotId());
@@ -132,6 +138,11 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         vo.setStatusName(statusName(i.getStatus()));
         vo.setHandleNote(i.getHandleNote());
         vo.setCreateTime(i.getCreateTime());
+        vo.setInquiryType(i.getInquiryType());
+        vo.setProcurementScene(i.getProcurementScene());
+        vo.setPurchaseTime(i.getPurchaseTime());
+        vo.setLeadPriority(i.getLeadPriority());
+        vo.setLeadReason(i.getLeadReason());
         return vo;
     }
 
@@ -153,5 +164,38 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
             default:
                 return "未知";
         }
+    }
+
+    /**
+     * Lead Priority 自动规则:
+     * - 紧急(2): 企业客户 + 采购数量>=10 + 有预算
+     * - 高(1): 企业客户 或 采购数量>=5 或 采购类型(PURCHASE/LEASE)
+     * - 普通(0): 其他
+     */
+    private void applyLeadPriority(Inquiry inquiry, InquiryDTO dto) {
+        int priority = 0;
+        String reason = "";
+
+        boolean isEnterprise = Integer.valueOf(2).equals(inquiry.getCustomerType());
+        int qty = inquiry.getQuantity() != null ? inquiry.getQuantity() : 0;
+        boolean hasBudget = inquiry.getBudget() != null;
+        String type = inquiry.getInquiryType();
+
+        if (isEnterprise && qty >= 10 && hasBudget) {
+            priority = 2;
+            reason = "企业客户+大批量+有预算";
+        } else if (isEnterprise || qty >= 5 || "PURCHASE".equals(type) || "LEASE".equals(type)) {
+            priority = 1;
+            reason = "高意向客户";
+            if (isEnterprise) {
+                reason = "企业客户";
+            }
+            if (qty >= 5) {
+                reason = isEnterprise ? "企业客户+批量采购" : "批量采购";
+            }
+        }
+
+        inquiry.setLeadPriority(priority);
+        inquiry.setLeadReason(reason.isEmpty() ? null : reason);
     }
 }

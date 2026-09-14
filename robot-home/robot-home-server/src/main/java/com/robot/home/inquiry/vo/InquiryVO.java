@@ -28,4 +28,14 @@ public class InquiryVO {
     private String statusName;
     private String handleNote;
     private LocalDateTime createTime;
+    /** 询价类型: GENERAL/PURCHASE/LEASE/COOPERATE */
+    private String inquiryType;
+    /** 采购场景 */
+    private String procurementScene;
+    /** 期望采购时间 */
+    private String purchaseTime;
+    /** 线索优先级: 0普通 1高 2紧急 */
+    private Integer leadPriority;
+    /** 优先级理由 */
+    private String leadReason;
 }

@@ -40,4 +40,11 @@ public class InquiryDTO {
 
     @Size(max = 500, message = "备注不能超过 500 字")
     private String remark;
+
+    /** 询价类型: GENERAL/PURCHASE/LEASE/COOPERATE */
+    private String inquiryType;
+    /** 采购场景: INDUSTRIAL/LOGISTICS/MEDICAL/EDUCATION/SERVICE/OTHER */
+    private String procurementScene;
+    /** 期望采购时间 */
+    private String purchaseTime;
 }
