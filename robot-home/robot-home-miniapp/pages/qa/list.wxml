@@ -1,0 +1,48 @@
+<view>
+  <view class="tab-filter">
+    <view class="tab-filter__item {{sort==='latest'?'tab-filter__item--on':''}}" data-sort="latest" bindtap="switchSort">最新</view>
+    <view class="tab-filter__item {{sort==='hot'?'tab-filter__item--on':''}}" data-sort="hot" bindtap="switchSort">最热</view>
+    <view class="tab-filter__item {{sort==='unanswered'?'tab-filter__item--on':''}}" data-sort="unanswered" bindtap="switchSort">待回答</view>
+  </view>
+
+  <view class="rh-container">
+    <view class="question rh-card" wx:for="{{questions}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="question__header">
+        <image class="question__avatar" src="{{item.avatar}}" />
+        <view class="question__user">
+          <view class="name">{{item.authorNickname || '用户'}}</view>
+          <view class="rh-text-light">{{item.timeText}}</view>
+        </view>
+        <view class="question__status {{item.hasAccepted?'status--accepted':item.answerCount>0?'status--answered':'status--pending'}}">
+          {{item.statusText}}
+        </view>
+      </view>
+      <view class="question__title">{{item.title}}</view>
+      <view class="question__content rh-clamp-2" wx:if="{{item.content}}">{{item.content}}</view>
+      <view class="question__robot" wx:if="{{item.robotName}}">
+        <text class="rh-tag">{{item.robotName}}</text>
+      </view>
+      <view class="question__meta rh-text-light">
+        💬 {{item.answerText}} · 👁 {{item.viewText}} · ⭐ {{item.followText}}
+      </view>
+    </view>
+
+    <view wx:if="{{!questions.length && !loading}}" class="rh-empty">暂无问答</view>
+    <view class="load-more">{{finished ? '没有更多了' : (loading ? '加载中...' : '')}}</view>
+  </view>
+
+  <!-- 提问弹窗 -->
+  <view class="ask-overlay" wx:if="{{showAsk}}" bindtap="closeAsk">
+    <view class="ask-dialog" catchtap>
+      <view class="ask-dialog__title">提个问题</view>
+      <input class="ask-dialog__input" placeholder="问题标题" value="{{askTitle}}" bindinput="onAskTitle" />
+      <textarea class="ask-dialog__textarea" placeholder="详细描述（选填）" value="{{askContent}}" bindinput="onAskContent" />
+      <view class="ask-dialog__actions">
+        <button class="rh-btn rh-btn--ghost" size="mini" bindtap="closeAsk">取消</button>
+        <button class="rh-btn" size="mini" bindtap="submitAsk">提交</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="fab" bindtap="openAsk">提问</view>
+</view>

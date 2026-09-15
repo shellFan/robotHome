@@ -1,0 +1,50 @@
+<view class="rh-container" wx:if="{{question}}">
+  <!-- 问题 -->
+  <view class="rh-card">
+    <view class="q-header">
+      <image class="q-avatar" src="{{question.avatar}}" />
+      <view class="q-user">
+        <view class="name">{{question.authorNickname || '用户'}}</view>
+        <view class="rh-text-light">{{question.timeText}}</view>
+      </view>
+      <view class="q-status {{question.hasAccepted?'status--accepted':question.answerCount>0?'status--answered':'status--pending'}}">
+        {{question.hasAccepted?'已采纳':question.answerCount>0?'已回答':'待回答'}}
+      </view>
+    </view>
+    <view class="q-title">{{question.title}}</view>
+    <view class="q-content" wx:if="{{question.content}}">{{question.content}}</view>
+    <view class="q-robot" wx:if="{{question.robotName}}">
+      <text class="rh-tag">{{question.robotName}}</text>
+    </view>
+    <view class="q-meta rh-text-light">
+      💬 {{question.answerText}} · 👁 {{question.viewText}} · ⭐ {{question.followText}}
+    </view>
+    <view class="q-actions">
+      <button class="rh-btn rh-btn--plain" size="mini" bindtap="toggleFollow">{{followed?'已关注':'关注'}}</button>
+    </view>
+  </view>
+
+  <!-- 回答列表 -->
+  <view class="rh-section-title" style="margin:24rpx 0 12rpx">回答 ({{question.answerText}})</view>
+  <view class="answer rh-card" wx:for="{{answers}}" wx:key="id">
+    <view class="answer__header">
+      <image class="answer__avatar" src="{{item.avatar}}" />
+      <view>
+        <view class="name">{{item.authorNickname || '用户'}}</view>
+        <view class="rh-text-light">{{item.timeText}}</view>
+      </view>
+      <view wx:if="{{item.accepted}}" class="rh-tag" style="background:#e8f8e8;color:#00b42a;">已采纳</view>
+    </view>
+    <view class="answer__content">{{item.content}}</view>
+    <view class="answer__actions">
+      <view class="rh-text-light" data-id="{{item.id}}" bindtap="helpful">👍 有帮助 ({{item.helpfulText}})</view>
+    </view>
+  </view>
+  <view wx:if="{{!answers.length && !answerLoading}}" class="rh-empty">暂无回答</view>
+
+  <!-- 写回答 -->
+  <view class="answer-box rh-card">
+    <textarea placeholder="写下你的回答..." value="{{answerText}}" bindinput="onAnswerInput" />
+    <button class="rh-btn" size="mini" bindtap="submitAnswer">提交回答</button>
+  </view>
+</view>

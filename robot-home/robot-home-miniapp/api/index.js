@@ -147,6 +147,30 @@ const similarApi = {
   list: function (robotId, limit) { return get('/robots/' + robotId + '/similar', { limit: limit || 6 }) }
 }
 
+// Phase8: Q&A API
+const qaApi = {
+  questions: function (params) { return get('/qa/questions', params) },
+  questionDetail: function (id) { return get('/qa/questions/' + id) },
+  ask: function (data) { return post('/qa/questions', data) },
+  answers: function (questionId, params) { return get('/qa/questions/' + questionId + '/answers', params) },
+  answer: function (questionId, data) { return post('/qa/questions/' + questionId + '/answers', data) },
+  follow: function (id) { return post('/qa/questions/' + id + '/follow') },
+  unfollow: function (id) { return del('/qa/questions/' + id + '/follow') },
+  helpful: function (id) { return post('/qa/answers/' + id + '/helpful') }
+}
+
+// Phase8: Selection API
+const selectionApi = {
+  search: function (data) { return post('/robot-selection/search', data) },
+  filters: function (category) { return get('/robot-selection/filters', { category: category || '' }) }
+}
+
+// Phase8: Procurement API
+const procurementApi = {
+  hallList: function (params) { return get('/procurement/hall', params) },
+  hallDetail: function (id) { return get('/procurement/hall/' + id) }
+}
+
 const userApi = {
   me: function () { return get('/users/me') },
   update: function (data) { return put('/users/me', data) },
@@ -199,5 +223,8 @@ module.exports = {
   authApi,
   reviewApi,
   correctionApi,
-  similarApi
+  similarApi,
+  qaApi,
+  selectionApi,
+  procurementApi
 }

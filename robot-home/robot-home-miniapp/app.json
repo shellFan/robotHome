@@ -33,7 +33,11 @@
     "pages/mine/posts",
     "pages/mine/inquiries",
     "pages/mine/settings",
-    "pages/feedback/feedback"
+    "pages/feedback/feedback",
+    "pages/qa/list",
+    "pages/qa/detail",
+    "pages/selection/index",
+    "pages/procurement/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",
