@@ -38,4 +38,20 @@ public class InquiryVO {
     private Integer leadPriority;
     /** 优先级理由 */
     private String leadReason;
+    /** 需求类型: SPECIFIC/OPEN */
+    private String requirementType;
+    /** 机器人分类 */
+    private String category;
+    /** 使用场景 */
+    private String usageScene;
+    /** 技术要求 */
+    private String technicalRequirements;
+    /** 需要演示 */
+    private Integer needDemo;
+    /** 需要方案 */
+    private Integer needSolution;
+    /** 线索评分 */
+    private Integer leadScore;
+    /** 分配给 */
+    private Long assignedTo;
 }

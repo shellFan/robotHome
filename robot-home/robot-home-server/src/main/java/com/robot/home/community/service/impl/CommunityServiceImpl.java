@@ -40,9 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -172,6 +174,7 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
         post.setVideoUrl(dto.getVideoUrl());
         post.setRobotId(dto.getRobotId());
         post.setBrandId(dto.getBrandId());
+        post.setCompanyId(dto.getCompanyId());
         post.setTopic(StrUtil.isBlank(dto.getTopic()) ? null : StrUtil.trim(dto.getTopic()));
         post.setLikeCount(0);
         post.setCommentCount(0);
@@ -264,18 +267,52 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
                 .eq(CommunityPost::getStatus, 1)
                 .eq("robot".equals(targetType), CommunityPost::getRobotId, targetId)
                 .eq("brand".equals(targetType), CommunityPost::getBrandId, targetId)
+                .eq("company".equals(targetType), CommunityPost::getCompanyId, targetId)
+                .orderByDesc(CommunityPost::getHotScore)
                 .orderByDesc(CommunityPost::getCreateTime));
         return toPageResult(result, null, pn, ps);
     }
 
     private PageResult<PostVO> toPageResult(IPage<CommunityPost> result, Long currentUserId, int pn, int ps) {
-        List<PostVO> vos = result.getRecords().stream()
-                .map(p -> toVO(p, currentUserId))
+        List<CommunityPost> records = result.getRecords();
+        if (records.isEmpty()) {
+            return PageResult.of(pn, ps, result.getTotal(), Collections.emptyList());
+        }
+
+        // 批量查询关联数据，避免N+1
+        Set<Long> userIds = new LinkedHashSet<>();
+        Set<Long> robotIds = new LinkedHashSet<>();
+        Set<Long> brandIds = new LinkedHashSet<>();
+        Set<Long> circleIds = new LinkedHashSet<>();
+        for (CommunityPost p : records) {
+            if (p.getUserId() != null) userIds.add(p.getUserId());
+            if (p.getRobotId() != null) robotIds.add(p.getRobotId());
+            if (p.getBrandId() != null) brandIds.add(p.getBrandId());
+            if (p.getCircleId() != null) circleIds.add(p.getCircleId());
+        }
+
+        Map<Long, User> userMap = userIds.isEmpty() ? Collections.emptyMap() :
+                userMapper.selectBatchIds(userIds).stream().collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, Robot> robotMap = robotIds.isEmpty() ? Collections.emptyMap() :
+                robotMapper.selectBatchIds(robotIds).stream().collect(Collectors.toMap(Robot::getId, r -> r, (a, b) -> a));
+        Map<Long, Brand> brandMap = brandIds.isEmpty() ? Collections.emptyMap() :
+                brandMapper.selectBatchIds(brandIds).stream().collect(Collectors.toMap(Brand::getId, b -> b, (a, b) -> a));
+        Map<Long, CommunityCircle> circleMap = circleIds.isEmpty() ? Collections.emptyMap() :
+                circleMapper.selectBatchIds(circleIds).stream().collect(Collectors.toMap(CommunityCircle::getId, c -> c, (a, b) -> a));
+
+        List<PostVO> vos = records.stream()
+                .map(p -> toVO(p, currentUserId, userMap, robotMap, brandMap, circleMap))
                 .collect(Collectors.toList());
         return PageResult.of(pn, ps, result.getTotal(), vos);
     }
 
     private PostVO toVO(CommunityPost p, Long currentUserId) {
+        return toVO(p, currentUserId, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    private PostVO toVO(CommunityPost p, Long currentUserId,
+                        Map<Long, User> userMap, Map<Long, Robot> robotMap,
+                        Map<Long, Brand> brandMap, Map<Long, CommunityCircle> circleMap) {
         PostVO vo = new PostVO();
         vo.setId(p.getId());
         vo.setCircleId(p.getCircleId());
@@ -285,23 +322,33 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
         vo.setVideoUrl(p.getVideoUrl());
         vo.setRobotId(p.getRobotId());
         vo.setBrandId(p.getBrandId());
+        vo.setCompanyId(p.getCompanyId());
         vo.setTopic(p.getTopic());
         vo.setLikeCount(p.getLikeCount());
         vo.setCommentCount(p.getCommentCount());
         vo.setFavoriteCount(p.getFavoriteCount());
         vo.setViewCount(p.getViewCount());
+        vo.setHotScore(p.getHotScore());
         vo.setIsTop(p.getIsTop());
         vo.setStatus(p.getStatus());
         vo.setCreateTime(p.getCreateTime());
 
+        // Circle - 优先使用批量查询Map，fallback到单条查询
         if (p.getCircleId() != null) {
-            CommunityCircle circle = circleMapper.selectById(p.getCircleId());
+            CommunityCircle circle = circleMap.getOrDefault(p.getCircleId(), null);
+            if (circle == null) {
+                circle = circleMapper.selectById(p.getCircleId());
+            }
             if (circle != null) {
                 vo.setCircleName(circle.getName());
             }
         }
+        // User/Author - 优先使用批量查询Map
         if (p.getUserId() != null) {
-            User u = userMapper.selectById(p.getUserId());
+            User u = userMap.getOrDefault(p.getUserId(), null);
+            if (u == null) {
+                u = userMapper.selectById(p.getUserId());
+            }
             if (u != null) {
                 PostAuthorVO author = new PostAuthorVO();
                 author.setId(u.getId());
@@ -310,15 +357,23 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
                 vo.setAuthor(author);
             }
         }
+        // Robot - 优先使用批量查询Map
         if (p.getRobotId() != null) {
-            Robot r = robotMapper.selectById(p.getRobotId());
+            Robot r = robotMap.getOrDefault(p.getRobotId(), null);
+            if (r == null) {
+                r = robotMapper.selectById(p.getRobotId());
+            }
             if (r != null) {
                 vo.setRobotName(r.getName());
                 vo.setRobotCover(r.getCoverImage());
             }
         }
+        // Brand - 优先使用批量查询Map
         if (p.getBrandId() != null) {
-            Brand b = brandMapper.selectById(p.getBrandId());
+            Brand b = brandMap.getOrDefault(p.getBrandId(), null);
+            if (b == null) {
+                b = brandMapper.selectById(p.getBrandId());
+            }
             if (b != null) {
                 vo.setBrandName(b.getName());
             }

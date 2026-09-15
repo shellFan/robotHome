@@ -43,6 +43,20 @@ public class Inquiry extends BaseEntity {
     private String handleRecords;
     /** 询价类型: GENERAL/PURCHASE/LEASE/COOPERATE */
     private String inquiryType;
+    /** 需求类型: SPECIFIC具体型号/OPEN开放式 */
+    private String requirementType;
+    /** 机器人分类(开放式需求) */
+    private String category;
+    /** 使用场景 */
+    private String usageScene;
+    /** 技术要求 */
+    private String technicalRequirements;
+    /** 需要演示 */
+    private Integer needDemo;
+    /** 需要方案 */
+    private Integer needSolution;
+    /** 线索评分 */
+    private Integer leadScore;
     /** 采购场景: INDUSTRIAL/LOGISTICS/MEDICAL/EDUCATION/SERVICE/OTHER */
     private String procurementScene;
     /** 期望采购时间 */

@@ -27,6 +27,8 @@ public class PostDTO {
 
     private Long brandId;
 
+    private Long companyId;
+
     @Size(max = 32, message = "话题不能超过 32 字")
     private String topic;
 }
