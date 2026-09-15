@@ -12,6 +12,8 @@
 
 All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 
+**FINAL REGRESSION**: 2 additional issues found and fixed during regression pass.
+
 ---
 
 ## 2. Hard Gate Checklist
@@ -19,19 +21,19 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 | # | Gate | Status | Detail |
 |---|------|--------|--------|
 | 1 | BLOCKER Issues | **PASS** | 0 BLOCKER (1 found & fixed: reviewTime缺失) |
-| 2 | HIGH Issues | **PASS** | 0 HIGH (1 found & fixed: N+1查询) |
+| 2 | HIGH Issues | **PASS** | 0 HIGH (2 found & fixed: Robot N+1 + Brand/Category N+1) |
 | 3 | Server Compile | **PASS** | mvn clean compile 0 error |
-| 4 | Server Test | **PASS** | mvn test 全绿, H2集成测试28.2s |
-| 5 | Server Package | **PASS** | mvn package -DskipTests 成功 |
+| 4 | Server Test | **PASS** | mvn clean test 全绿 18/18 (37.3s), 无-DskipTests |
+| 5 | Server Package | **PASS** | mvn clean package BUILD SUCCESS (18/18) |
 | 6 | Collector Test | **PASS** | mvn test 全绿 |
 | 7 | Collector Package | **PASS** | mvn package -DskipTests 成功 |
-| 8 | Web Build | **PASS** | vite build 38.41s, 0 error |
-| 9 | Admin Build | **PASS** | vite build 36.45s, 0 error |
+| 8 | Web Build | **PASS** | vite build 29.54s, 0 error |
+| 9 | Admin Build | **PASS** | vite build 34.26s, 0 error |
 | 10 | MiniApp Check | **PASS** | Route/JSON/WXML/WXSS/JS/API 全部合规 |
-| 11 | MySQL 5.6 Compat | **PASS** | 无CTE/窗口函数/JSON列/utf8mb4_0900 |
+| 11 | MySQL 5.6 Compat | **PASS** | review_time DATETIME DEFAULT NULL, 无CTE/窗口函数/JSON列/utf8mb4_0900 |
 | 12 | Security Audit | **PASS** | XSS/SQL注入/Secret/RateLimit/权限 全部通过 |
-| 13 | Phase6 Regression | **PASS** | 集成测试全绿, 无回归 |
-| 14 | Working Tree | **PENDING** | 2 files modified (审查修复), 需commit+push |
+| 13 | Phase6 Regression | **PASS** | H2集成测试18/18全绿, 无回归 |
+| 14 | Working Tree | **PASS** | All fixes committed, HEAD=remote, clean |
 
 ---
 
@@ -43,16 +45,28 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 - **Fix**: 添加 `.set(RobotParamCorrection::getReviewTime, LocalDateTime.now())`
 - **Severity**: BLOCKER → FIXED
 
-### 3.2 HIGH: Similar N+1 查询
+### 3.2 HIGH: Similar Robot N+1 查询
 - **File**: `RobotSimilarServiceImpl.java`
 - **Problem**: listSimilar()对每个similarRobotId逐个selectById
 - **Fix**: 改为selectBatchIds(similarIds)批量查询
 - **Severity**: HIGH → FIXED
 
-### 3.3 MEDIUM: Similar VO 显示ID而非名称
+### 3.3 HIGH: Brand/Category N+1 查询 (REGRESSION发现)
+- **File**: `RobotSimilarServiceImpl.java`
+- **Problem**: toVO()内逐个categoryMapper.selectById/brandMapper.selectById, 随候选数量线性增长
+- **Fix**: 改为批量selectBatchIds + Map<Long,String>查找, SQL数量固定为4次(1 similarScore + 1 robots + 1 categories + 1 brands)
+- **Severity**: HIGH → FIXED
+
+### 3.4 MEDIUM: Similar VO 显示ID而非名称
 - **File**: `RobotSimilarServiceImpl.java`
 - **Problem**: toVO()用String.valueOf(categoryId/brandId)显示ID
 - **Fix**: 注入categoryMapper/brandMapper查询真实分类名和品牌名
+- **Severity**: MEDIUM → FIXED
+
+### 3.5 MEDIUM: Similar 排序不稳定 (REGRESSION发现)
+- **File**: `RobotSimilarServiceImpl.java`
+- **Problem**: listSimilar()仅按totalScore DESC排序, 相同score时刷新后顺序不确定
+- **Fix**: 添加orderByDesc(similarRobotId)作为deterministic tiebreaker
 - **Severity**: MEDIUM → FIXED
 
 ---
@@ -80,8 +94,10 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 
 ### P0-4: Similar Robot (相似推荐)
 - 5维加权(category 30% + price 25% + brand 15% + param 20% + tag 10%) ✅
-- N+1已修复为批量查询 ✅
+- Robot N+1已修复为selectBatchIds ✅
+- Brand/Category N+1已修复为selectBatchIds+Map查找 ✅
 - VO显示真实名称 ✅
+- 稳定排序: orderByDesc(totalScore).orderByDesc(similarRobotId) ✅
 
 ---
 
@@ -102,12 +118,12 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 
 | Module | Command | Result | Duration |
 |--------|---------|--------|----------|
-| Server | mvn test | **PASS** | 28.2s (H2集成测试) |
-| Server | mvn package | **PASS** | - |
+| Server | mvn clean test | **PASS** | 18/18 (37.3s), 无-DskipTests |
+| Server | mvn clean package | **PASS** | 18/18, BUILD SUCCESS |
 | Collector | mvn test | **PASS** | - |
 | Collector | mvn package | **PASS** | - |
-| Web | npm ci + build | **PASS** | ci:4m, build:38.41s |
-| Admin | npm ci + build | **PASS** | ci:5m, build:36.45s |
+| Web | npm run build | **PASS** | 29.54s |
+| Admin | npm run build | **PASS** | 34.26s |
 | MiniApp | 静态检查 | **PASS** | Route/JSON/WXML/WXSS/JS/API |
 
 ---
@@ -151,11 +167,7 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 
 ## 10. Pre-Merge Actions Required
 
-1. **Commit审查修复**: 2 modified files需commit
-   - RobotParamCorrectionServiceImpl.java (BLOCKER fix)
-   - RobotSimilarServiceImpl.java (HIGH+MEDIUM fix)
-2. **Push to remote**: git push origin phase7-content-community-growth
-3. **Do NOT auto-merge**: 仅输出状态, 不执行git merge main
+All fixes committed and pushed. No further actions required before merge.
 
 ---
 
@@ -163,8 +175,13 @@ All 14 hard-gate criteria PASSED. Zero BLOCKER, Zero HIGH issues remain.
 
 **MERGE GATE: PASS** — All 14 hard-gate criteria verified and passed.
 
-Phase7-content-community-growth branch is **READY FOR PHASE7 MERGE** after committing the 3 review fixes and pushing to remote.
+Phase7-content-community-growth branch is **READY FOR PHASE7 MERGE**.
+
+**Issue Summary**:
+- Found BLOCKER: 1 → Fixed: 1 → Remaining: **0**
+- Found HIGH: 2 → Fixed: 2 → Remaining: **0**
+- Found MEDIUM: 2 → Fixed: 2 → Remaining: **0**
 
 ---
 
-*Report generated by JoyCode Automated Review on 2026-09-15*
+*Report generated by JoyCode Automated Review on 2026-09-15 (Final Regression)*

@@ -78,6 +78,7 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
                 Wrappers.<RobotSimilarScore>lambdaQuery()
                         .eq(RobotSimilarScore::getRobotId, robotId)
                         .orderByDesc(RobotSimilarScore::getTotalScore)
+                        .orderByDesc(RobotSimilarScore::getSimilarRobotId)
                         .last("LIMIT " + limit));
 
         if (scores.isEmpty()) {
@@ -96,9 +97,25 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
             }
         }
 
+        // 批量获取分类名和品牌名（避免Brand/Category N+1）
+        Set<Long> categoryIds = new HashSet<>();
+        Set<Long> brandIds = new HashSet<>();
+        for (Robot r : robotMap.values()) {
+            if (r.getCategoryId() != null) categoryIds.add(r.getCategoryId());
+            if (r.getBrandId() != null) brandIds.add(r.getBrandId());
+        }
+        Map<Long, String> categoryNameMap = new HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            categoryMapper.selectBatchIds(categoryIds).forEach(c -> categoryNameMap.put(c.getId(), c.getName()));
+        }
+        Map<Long, String> brandNameMap = new HashMap<>();
+        if (!brandIds.isEmpty()) {
+            brandMapper.selectBatchIds(brandIds).forEach(b -> brandNameMap.put(b.getId(), b.getName()));
+        }
+
         return scores.stream()
                 .filter(s -> robotMap.containsKey(s.getSimilarRobotId()))
-                .map(s -> toVO(s, robotMap.get(s.getSimilarRobotId())))
+                .map(s -> toVO(s, robotMap.get(s.getSimilarRobotId()), categoryNameMap, brandNameMap))
                 .collect(Collectors.toList());
     }
 
@@ -318,7 +335,8 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
         return reasons.isEmpty() ? "综合推荐" : String.join("、", reasons);
     }
 
-    private SimilarRobotVO toVO(RobotSimilarScore score, Robot robot) {
+    private SimilarRobotVO toVO(RobotSimilarScore score, Robot robot,
+                                   Map<Long, String> categoryNameMap, Map<Long, String> brandNameMap) {
         SimilarRobotVO vo = new SimilarRobotVO();
         vo.setRobotId(robot.getId());
         vo.setRobotName(robot.getName());
@@ -327,14 +345,12 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
         vo.setTotalScore(score.getTotalScore());
         vo.setReason(score.getReason());
 
-        // 分类名和品牌名
+        // 分类名和品牌名（批量查询结果，无NPE风险）
         if (robot.getCategoryId() != null) {
-            RobotCategory category = categoryMapper.selectById(robot.getCategoryId());
-            vo.setCategoryName(category != null ? category.getName() : null);
+            vo.setCategoryName(categoryNameMap.get(robot.getCategoryId()));
         }
         if (robot.getBrandId() != null) {
-            Brand brand = brandMapper.selectById(robot.getBrandId());
-            vo.setBrandName(brand != null ? brand.getName() : null);
+            vo.setBrandName(brandNameMap.get(robot.getBrandId()));
         }
 
         // 评分明细
