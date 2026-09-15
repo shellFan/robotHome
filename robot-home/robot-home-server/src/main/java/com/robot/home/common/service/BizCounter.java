@@ -84,6 +84,8 @@ public class BizCounter {
                 break;
             case "post":
                 postMapper.update(null, new LambdaUpdateWrapper<CommunityPost>().eq(CommunityPost::getId, bizId).setSql(sql));
+                // 帖子计数变化时自动重算热度分
+                recomputePostHotScore(bizId);
                 break;
             case "comment":
                 commentMapper.update(null, new LambdaUpdateWrapper<Comment>().eq(Comment::getId, bizId).setSql(sql));
@@ -99,5 +101,32 @@ public class BizCounter {
 
     public void decr(String bizType, Long bizId, Field field) {
         incr(bizType, bizId, field, -1);
+    }
+
+    /**
+     * 重算帖子热度分: hotScore = viewCount * 1 + likeCount * 5 + commentCount * 10 + favoriteCount * 8
+     */
+    private void recomputePostHotScore(Long postId) {
+        if (postId == null) {
+            return;
+        }
+        try {
+            CommunityPost post = postMapper.selectById(postId);
+            if (post == null) {
+                return;
+            }
+            int viewCount = post.getViewCount() != null ? post.getViewCount() : 0;
+            int likeCount = post.getLikeCount() != null ? post.getLikeCount() : 0;
+            int commentCount = post.getCommentCount() != null ? post.getCommentCount() : 0;
+            int favoriteCount = post.getFavoriteCount() != null ? post.getFavoriteCount() : 0;
+            int hotScore = viewCount + likeCount * 5 + commentCount * 10 + favoriteCount * 8;
+            postMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                    .eq(CommunityPost::getId, postId)
+                    .set(CommunityPost::getHotScore, hotScore));
+        } catch (Exception e) {
+            // 热度分计算失败不影响主流程
+            org.slf4j.LoggerFactory.getLogger(BizCounter.class)
+                    .warn("Failed to recompute hotScore for post: {}", postId, e);
+        }
     }
 }

@@ -21,4 +21,6 @@ public class SearchResultVO {
     private List<SearchItemVO> posts;
     /** 各类型命中数量 */
     private Map<String, Long> counts;
+    /** 别名扩展关键词（搜索词通过别名映射到的目标词） */
+    private List<String> aliasKeywords;
 }

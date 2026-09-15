@@ -17,10 +17,13 @@ import com.robot.home.community.mapper.CommunityPostMapper;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.search.entity.HotSearch;
+import com.robot.home.search.entity.SearchAlias;
 import com.robot.home.search.entity.SearchHistory;
 import com.robot.home.search.mapper.HotSearchMapper;
 import com.robot.home.search.mapper.SearchHistoryMapper;
 import com.robot.home.search.service.SearchService;
+import com.robot.home.search.service.SearchAliasService;
+import com.robot.home.search.service.SearchZeroResultService;
 import com.robot.home.search.vo.HotSearchVO;
 import com.robot.home.search.vo.SearchItemVO;
 import com.robot.home.search.vo.SearchResultVO;
@@ -29,10 +32,12 @@ import com.robot.home.tutorial.mapper.TutorialMapper;
 import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +48,7 @@ import java.util.stream.Collectors;
  * 后续切换 Elasticsearch 时，只需新增实现类并替换 @Service 注解
  */
 @Service
+@Slf4j
 public class DatabaseSearchServiceImpl implements SearchService {
 
     private static final int MAX_LIMIT_PER_TYPE = 20;
@@ -65,6 +71,10 @@ public class DatabaseSearchServiceImpl implements SearchService {
     private HotSearchMapper hotSearchMapper;
     @Resource
     private SearchHistoryMapper searchHistoryMapper;
+    @Resource
+    private SearchAliasService searchAliasService;
+    @Resource
+    private SearchZeroResultService searchZeroResultService;
 
     @Override
     public SearchResultVO search(String keyword, Integer limitPerType) {
@@ -74,8 +84,23 @@ public class DatabaseSearchServiceImpl implements SearchService {
         String kw = StrUtil.trim(keyword);
         int limit = limitPerType == null ? 5 : Math.max(1, Math.min(limitPerType, MAX_LIMIT_PER_TYPE));
 
+        // 别名扩展: 查找别名映射，获取目标关键词
+        List<SearchAlias> aliases = Collections.emptyList();
+        List<String> aliasKeywords = Collections.emptyList();
+        try {
+            aliases = searchAliasService.findByAlias(kw);
+            aliasKeywords = aliases.stream()
+                    .map(SearchAlias::getTargetName)
+                    .filter(StrUtil::isNotBlank)
+                    .distinct()
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("Alias lookup failed for keyword: {}, error: {}", kw, e.getMessage());
+        }
+
         SearchResultVO vo = new SearchResultVO();
         vo.setKeyword(kw);
+        vo.setAliasKeywords(aliasKeywords);
         vo.setRobots(searchRobots(kw, limit));
         vo.setBrands(searchBrands(kw, limit));
         vo.setCompanies(searchCompanies(kw, limit));
@@ -83,6 +108,17 @@ public class DatabaseSearchServiceImpl implements SearchService {
         vo.setVideos(searchVideos(kw, limit));
         vo.setTutorials(searchTutorials(kw, limit));
         vo.setPosts(searchPosts(kw, limit));
+
+        // 别名扩展搜索: 对每个别名目标词也搜索并合并结果（去重）
+        for (String aliasKw : aliasKeywords) {
+            mergeResults(vo.getRobots(), searchRobots(aliasKw, limit), limit);
+            mergeResults(vo.getBrands(), searchBrands(aliasKw, limit), limit);
+            mergeResults(vo.getCompanies(), searchCompanies(aliasKw, limit), limit);
+            mergeResults(vo.getArticles(), searchArticles(aliasKw, limit), limit);
+            mergeResults(vo.getVideos(), searchVideos(aliasKw, limit), limit);
+            mergeResults(vo.getTutorials(), searchTutorials(aliasKw, limit), limit);
+            mergeResults(vo.getPosts(), searchPosts(aliasKw, limit), limit);
+        }
 
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("robot", countRobots(kw));
@@ -92,7 +128,28 @@ public class DatabaseSearchServiceImpl implements SearchService {
         counts.put("video", countVideos(kw));
         counts.put("tutorial", countTutorials(kw));
         counts.put("post", countPosts(kw));
+        // 别名扩展的计数也加入
+        for (String aliasKw : aliasKeywords) {
+            counts.put("robot", counts.get("robot") + countRobots(aliasKw));
+            counts.put("brand", counts.get("brand") + countBrands(aliasKw));
+            counts.put("company", counts.get("company") + countCompanies(aliasKw));
+            counts.put("article", counts.get("article") + countArticles(aliasKw));
+            counts.put("video", counts.get("video") + countVideos(aliasKw));
+            counts.put("tutorial", counts.get("tutorial") + countTutorials(aliasKw));
+            counts.put("post", counts.get("post") + countPosts(aliasKw));
+        }
         vo.setCounts(counts);
+
+        // 零结果记录: 如果所有类型都没有结果，记录零结果搜索
+        boolean hasAnyResult = counts.values().stream().anyMatch(c -> c > 0);
+        if (!hasAnyResult) {
+            try {
+                searchZeroResultService.record(kw);
+            } catch (Exception e) {
+                // 零结果记录失败不影响搜索
+                log.warn("Failed to record zero result for keyword: {}", kw, e);
+            }
+        }
         return vo;
     }
 
@@ -172,6 +229,14 @@ public class DatabaseSearchServiceImpl implements SearchService {
             default:
                 throw new com.robot.home.common.exception.BusinessException("不支持的搜索类型: " + type);
         }
+        // 零结果记录: 如果该类型没有结果，记录零结果搜索
+        if (result.getTotal() == 0) {
+            try {
+                searchZeroResultService.record(kw);
+            } catch (Exception e) {
+                log.warn("Failed to record zero result for keyword: {}", kw, e);
+            }
+        }
         return PageResult.of(pn, ps, result.getTotal(), items);
     }
 
@@ -188,6 +253,18 @@ public class DatabaseSearchServiceImpl implements SearchService {
                 .orderByDesc(Robot::getHotScore)
                 .last("LIMIT " + size));
         List<String> result = robots.stream().map(Robot::getName).collect(Collectors.toList());
+        // 别名扩展: 查找别名映射的目标名
+        try {
+            List<SearchAlias> aliases = searchAliasService.findByAlias(kw);
+            for (SearchAlias alias : aliases) {
+                if (StrUtil.isNotBlank(alias.getTargetName()) && !result.contains(alias.getTargetName())) {
+                    result.add(alias.getTargetName());
+                    if (result.size() >= size) break;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Alias lookup failed in suggest for keyword: {}, error: {}", kw, e.getMessage());
+        }
         if (result.size() < size) {
             List<HotSearch> hots = hotSearchMapper.selectList(Wrappers.<HotSearch>lambdaQuery()
                     .likeRight(HotSearch::getKeyword, kw)
@@ -469,5 +546,21 @@ public class DatabaseSearchServiceImpl implements SearchService {
             return "暂无报价";
         }
         return "¥" + price.stripTrailingZeros().toPlainString();
+    }
+
+    /**
+     * 合并搜索结果（按ID去重，保留limit条）
+     */
+    private void mergeResults(List<SearchItemVO> existing, List<SearchItemVO> incoming, int limit) {
+        java.util.Set<Long> existingIds = existing.stream()
+                .map(SearchItemVO::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        for (SearchItemVO item : incoming) {
+            if (!existingIds.contains(item.getId())) {
+                existing.add(item);
+                existingIds.add(item.getId());
+                if (existing.size() >= limit) break;
+            }
+        }
     }
 }

@@ -177,6 +177,34 @@ public class AdminCommunityController {
         return Result.success();
     }
 
+    // ---------------- 热度分 ----------------
+
+    /**
+     * 批量重算所有帖子热度分
+     * hotScore = viewCount * 1 + likeCount * 5 + commentCount * 10 + favoriteCount * 8
+     */
+    @PostMapping("/posts/recompute-hot-score")
+    @RequirePermission("community:post")
+    public Result<Integer> recomputeHotScore() {
+        List<CommunityPost> posts = postMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
+                .eq(CommunityPost::getStatus, 1));
+        int count = 0;
+        for (CommunityPost post : posts) {
+            int viewCount = post.getViewCount() != null ? post.getViewCount() : 0;
+            int likeCount = post.getLikeCount() != null ? post.getLikeCount() : 0;
+            int commentCount = post.getCommentCount() != null ? post.getCommentCount() : 0;
+            int favoriteCount = post.getFavoriteCount() != null ? post.getFavoriteCount() : 0;
+            int hotScore = viewCount + likeCount * 5 + commentCount * 10 + favoriteCount * 8;
+            postMapper.update(null, Wrappers.<CommunityPost>lambdaUpdate()
+                    .eq(CommunityPost::getId, post.getId())
+                    .set(CommunityPost::getHotScore, hotScore));
+            count++;
+        }
+        clearCache();
+        log.info("Recomputed hotScore for {} posts", count);
+        return Result.success(count);
+    }
+
     /**
      * 清理社区缓存，保证后台修改即时生效
      */

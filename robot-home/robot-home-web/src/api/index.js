@@ -225,3 +225,36 @@ export const fileApi = {
 export const systemApi = {
   siteConfig: () => get('/admin/system/site-config')
 }
+
+export const qaApi = {
+  /** 问答列表 */
+  questions: (params) => get('/qa/questions', params),
+  /** 问题详情 */
+  questionDetail: (id) => get(`/qa/questions/${id}`),
+  /** 提问 */
+  createQuestion: (data) => post('/qa/questions', data),
+  /** 回答 */
+  createAnswer: (questionId, data) => post(`/qa/questions/${questionId}/answers`, data),
+  /** 关注问题 */
+  followQuestion: (id) => post(`/qa/questions/${id}/follow`),
+  /** 取消关注 */
+  unfollowQuestion: (id) => del(`/qa/questions/${id}/follow`),
+  /** 标记有用 */
+  helpfulAnswer: (id) => post(`/qa/answers/${id}/helpful`),
+  /** 取消有用 */
+  unhelpfulAnswer: (id) => del(`/qa/answers/${id}/helpful`)
+}
+
+export const selectionApi = {
+  /** 选型搜索 */
+  search: (data) => post('/selection/search', data),
+  /** 选型筛选条件 */
+  filters: () => get('/selection/filters')
+}
+
+export const procurementApi = {
+  /** 采购大厅列表 */
+  hallList: (params) => get('/procurement/hall', params),
+  /** 采购需求详情 */
+  hallDetail: (id) => get(`/procurement/hall/${id}`)
+}

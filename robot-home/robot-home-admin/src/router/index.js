@@ -247,6 +247,50 @@ export const defaultMenus = [
     component: () => import('@/views/search-suggestion/index.vue')
   },
   {
+    path: '/search-manage',
+    name: 'SearchManage',
+    menuName: '搜索管理',
+    icon: 'Search',
+    redirect: '/search-manage/alias',
+    children: [
+      {
+        path: 'alias',
+        name: 'SearchAlias',
+        menuName: '搜索别名',
+        icon: 'Link',
+        component: () => import('@/views/search-manage/alias.vue')
+      },
+      {
+        path: 'zero-result',
+        name: 'SearchZeroResult',
+        menuName: '零结果搜索',
+        icon: 'Warning',
+        component: () => import('@/views/search-manage/zero-result.vue')
+      }
+    ]
+  },
+  {
+    path: '/qa',
+    name: 'Qa',
+    menuName: '问答管理',
+    icon: 'ChatLineSquare',
+    component: () => import('@/views/qa/index.vue')
+  },
+  {
+    path: '/quality',
+    name: 'Quality',
+    menuName: '质量评分',
+    icon: 'Medal',
+    component: () => import('@/views/quality/index.vue')
+  },
+  {
+    path: '/procurement',
+    name: 'Procurement',
+    menuName: '采购管理',
+    icon: 'ShoppingCart',
+    component: () => import('@/views/procurement/index.vue')
+  },
+  {
     path: '/operation',
     name: 'Operation',
     menuName: '运营配置',
