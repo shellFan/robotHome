@@ -155,7 +155,8 @@ public class RobotParamCorrectionServiceImpl extends ServiceImpl<RobotParamCorre
                 .eq(RobotParamCorrection::getId, correctionId)
                 .set(RobotParamCorrection::getStatus, status)
                 .set(RobotParamCorrection::getReviewerId, reviewerId)
-                .set(RobotParamCorrection::getReviewNote, StrUtil.isNotBlank(reviewNote) ? XssUtils.escapeText(reviewNote) : null));
+                .set(RobotParamCorrection::getReviewNote, StrUtil.isNotBlank(reviewNote) ? XssUtils.escapeText(reviewNote) : null)
+                .set(RobotParamCorrection::getReviewTime, java.time.LocalDateTime.now()));
 
         // 采纳时自动更新RobotParamValue
         if (status == STATUS_ACCEPTED) {

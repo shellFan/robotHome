@@ -3,6 +3,10 @@ package com.robot.home.similar.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.robot.home.common.Constants;
 import com.robot.home.common.exception.BusinessException;
+import com.robot.home.brand.entity.Brand;
+import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.robot.entity.RobotCategory;
+import com.robot.home.robot.mapper.RobotCategoryMapper;
 import com.robot.home.similar.entity.RobotSimilarScore;
 import com.robot.home.similar.mapper.RobotSimilarScoreMapper;
 import com.robot.home.similar.service.RobotSimilarService;
@@ -56,6 +60,10 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
     private RobotParamValueMapper paramValueMapper;
     @Resource
     private RobotTagMapper robotTagMapper;
+    @Resource
+    private RobotCategoryMapper categoryMapper;
+    @Resource
+    private BrandMapper brandMapper;
 
     @Override
     public List<SimilarRobotVO> listSimilar(Long robotId, Integer limit) {
@@ -81,10 +89,10 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
                 .map(RobotSimilarScore::getSimilarRobotId)
                 .collect(Collectors.toList());
         Map<Long, Robot> robotMap = new HashMap<>();
-        for (Long sid : similarIds) {
-            Robot robot = robotMapper.selectById(sid);
-            if (robot != null) {
-                robotMap.put(sid, robot);
+        if (!similarIds.isEmpty()) {
+            List<Robot> robots = robotMapper.selectBatchIds(similarIds);
+            for (Robot robot : robots) {
+                robotMap.put(robot.getId(), robot);
             }
         }
 
@@ -319,9 +327,15 @@ public class RobotSimilarServiceImpl implements RobotSimilarService {
         vo.setTotalScore(score.getTotalScore());
         vo.setReason(score.getReason());
 
-        // 分类名和品牌名（简化：用ID占位，前端可按需展示）
-        vo.setCategoryName(robot.getCategoryId() != null ? String.valueOf(robot.getCategoryId()) : null);
-        vo.setBrandName(robot.getBrandId() != null ? String.valueOf(robot.getBrandId()) : null);
+        // 分类名和品牌名
+        if (robot.getCategoryId() != null) {
+            RobotCategory category = categoryMapper.selectById(robot.getCategoryId());
+            vo.setCategoryName(category != null ? category.getName() : null);
+        }
+        if (robot.getBrandId() != null) {
+            Brand brand = brandMapper.selectById(robot.getBrandId());
+            vo.setBrandName(brand != null ? brand.getName() : null);
+        }
 
         // 评分明细
         List<SimilarRobotVO.ScoreDetail> details = new ArrayList<>();
