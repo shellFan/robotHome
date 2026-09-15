@@ -141,6 +141,35 @@ export const inquiryApi = {
   detail: (id) => get(`/inquiries/my/${id}`)
 }
 
+export const reviewApi = {
+  /** 提交评价 */
+  submit: (data) => post('/reviews', data),
+  /** 修改评价 */
+  update: (id, data) => put(`/reviews/${id}`, data),
+  /** 删除评价 */
+  remove: (id) => del(`/reviews/${id}`),
+  /** 某机器人的评价列表 */
+  list: (robotId, pageNum = 1, pageSize = 20) => get(`/reviews/robot/${robotId}`, { pageNum, pageSize }),
+  /** 某机器人的评价汇总 */
+  summary: (robotId) => get(`/reviews/robot/${robotId}/summary`),
+  /** 标记有用 */
+  helpful: (id) => post(`/reviews/${id}/helpful`),
+  /** 取消有用 */
+  unhelpful: (id) => del(`/reviews/${id}/helpful`)
+}
+
+export const correctionApi = {
+  /** 提交参数纠错 */
+  submit: (data) => post('/corrections', data),
+  /** 我的纠错列表 */
+  my: (params) => get('/corrections/my', params)
+}
+
+export const similarApi = {
+  /** 获取相似机器人列表 */
+  list: (robotId, limit = 10) => get(`/robots/${robotId}/similar`, { limit })
+}
+
 export const behaviorApi = {
   /** 单条行为事件上报 (VIEW/SEARCH/CLICK/COMPARE/SHARE 由前端提交; FAVORITE/INQUIRY 由服务端产生) */
   track: (eventType, bizType, bizId, extra) => post('/behavior/event', { eventType, bizType, bizId, extra }),

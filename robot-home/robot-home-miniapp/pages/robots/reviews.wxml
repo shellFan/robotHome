@@ -1,0 +1,95 @@
+<view class="page">
+  <!-- 评价汇总 -->
+  <view class="rh-card summary" wx:if="{{summary && summary.reviewCount > 0}}">
+    <view class="summary-row">
+      <view class="summary-score">{{summary.overallAvg}}</view>
+      <view class="summary-meta">
+        <text>{{summary.reviewCount}} 条评价</text>
+        <text class="dims" wx:if="{{summary.qualityAvg}}">质量 {{summary.qualityAvg}} · 服务 {{summary.serviceAvg}} · 性价比 {{summary.costAvg}}</text>
+      </view>
+    </view>
+    <view class="dist-row"><text>5星</text><progress percent="{{scorePercent(summary.score5Count)}}" stroke-width="6" activeColor="#ff9900" /></view>
+    <view class="dist-row"><text>4星</text><progress percent="{{scorePercent(summary.score4Count)}}" stroke-width="6" activeColor="#67c23a" /></view>
+    <view class="dist-row"><text>3星</text><progress percent="{{scorePercent(summary.score3Count)}}" stroke-width="6" activeColor="#e6a23c" /></view>
+    <view class="dist-row"><text>2星</text><progress percent="{{scorePercent(summary.score2Count)}}" stroke-width="6" activeColor="#f56c6c" /></view>
+    <view class="dist-row"><text>1星</text><progress percent="{{scorePercent(summary.score1Count)}}" stroke-width="6" activeColor="#909399" /></view>
+  </view>
+
+  <!-- 发表评价按钮 -->
+  <view class="rh-card">
+    <button class="rh-btn review-btn" bindtap="openForm">发表评价</button>
+  </view>
+
+  <!-- 评价列表 -->
+  <view class="rh-card">
+    <view class="rh-section-title">全部评价</view>
+    <view wx:if="{{reviews.length === 0 && !loading}}" class="rh-text-light" style="text-align:center;padding:40rpx 0">暂无评价</view>
+    <view class="review-item" wx:for="{{reviews}}" wx:key="id">
+      <view class="review-header">
+        <text class="review-user">{{item.userName || '匿名用户'}}</text>
+        <text class="review-date rh-text-light">{{item.createTime}}</text>
+      </view>
+      <view class="review-stars">
+        <text>综合 {{item.overallScore}}</text>
+        <text wx:if="{{item.qualityScore}}">质量 {{item.qualityScore}}</text>
+        <text wx:if="{{item.serviceScore}}">服务 {{item.serviceScore}}</text>
+        <text wx:if="{{item.costScore}}">性价比 {{item.costScore}}</text>
+      </view>
+      <view class="review-content">{{item.content}}</view>
+      <view class="review-reply" wx:if="{{item.reply}}">
+        <text class="reply-label">官方回复：</text>{{item.reply}}
+      </view>
+      <view class="review-actions">
+        <text data-id="{{item.id}}" bindtap="markHelpful">有用 ({{item.helpfulCount || 0}})</text>
+      </view>
+    </view>
+    <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+      <text>{{loading ? '加载中...' : '加载更多'}}</text>
+    </view>
+  </view>
+
+  <!-- 发表评价弹窗 -->
+  <view class="modal-mask" wx:if="{{showForm}}" bindtap="closeForm"></view>
+  <view class="modal-dialog" wx:if="{{showForm}}">
+    <view class="modal-title">发表评价</view>
+    <view class="modal-body">
+      <view class="rate-row">
+        <text class="rate-label">综合评分</text>
+        <view class="star-group">
+          <text wx:for="{{5}}" wx:key="index" wx:for-item="star" wx:for-index="si"
+                class="star {{form.overallScore >= star ? 'star-active' : 'star-inactive'}}"
+                data-field="overallScore" data-value="{{star}}" bindtap="onStarTap">★</text>
+        </view>
+      </view>
+      <view class="rate-row">
+        <text class="rate-label">质量评分</text>
+        <view class="star-group">
+          <text wx:for="{{5}}" wx:key="index" wx:for-item="star" wx:for-index="si"
+                class="star {{form.qualityScore >= star ? 'star-active' : 'star-inactive'}}"
+                data-field="qualityScore" data-value="{{star}}" bindtap="onStarTap">★</text>
+        </view>
+      </view>
+      <view class="rate-row">
+        <text class="rate-label">服务评分</text>
+        <view class="star-group">
+          <text wx:for="{{5}}" wx:key="index" wx:for-item="star" wx:for-index="si"
+                class="star {{form.serviceScore >= star ? 'star-active' : 'star-inactive'}}"
+                data-field="serviceScore" data-value="{{star}}" bindtap="onStarTap">★</text>
+        </view>
+      </view>
+      <view class="rate-row">
+        <text class="rate-label">性价比</text>
+        <view class="star-group">
+          <text wx:for="{{5}}" wx:key="index" wx:for-item="star" wx:for-index="si"
+                class="star {{form.costScore >= star ? 'star-active' : 'star-inactive'}}"
+                data-field="costScore" data-value="{{star}}" bindtap="onStarTap">★</text>
+        </view>
+      </view>
+      <textarea class="review-textarea" placeholder="请分享您的使用体验（10-2000字）" bindinput="onContent" />
+    </view>
+    <view class="modal-footer">
+      <view class="modal-btn cancel" bindtap="closeForm">取消</view>
+      <view class="modal-btn confirm" bindtap="submitReview">提交</view>
+    </view>
+  </view>
+</view>

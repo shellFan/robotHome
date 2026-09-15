@@ -79,7 +79,17 @@
           </div>
 
           <div class="detail-head__actions">
-            <el-button type="primary" size="large" @click="goInquiry">获取底价</el-button>
+            <el-dropdown split-button type="primary" size="large" @click="openProcure('PRICE')">
+              获取底价
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="openProcure('PRICE')">获取底价</el-dropdown-item>
+                  <el-dropdown-item @click="openProcure('PURCHASE')">我要采购</el-dropdown-item>
+                  <el-dropdown-item @click="openProcure('LEASE')">租赁咨询</el-dropdown-item>
+                  <el-dropdown-item @click="openProcure('COOPERATE')">合作洽谈</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button size="large" :type="detail.favorited ? 'primary' : 'default'" plain @click="toggleFavorite">
               {{ detail.favorited ? '已收藏' : '收藏' }}
             </el-button>
@@ -139,6 +149,9 @@
             <router-link :to="'/robot/' + id + '/params'" class="detail-more">
               查看完整参数配置 ›
             </router-link>
+            <div v-if="detail.paramGroups && detail.paramGroups.length" class="detail-correction-entry">
+              <el-button type="info" text size="small" @click="openCorrection(null, '', '')">参数有误？提交纠错 ›</el-button>
+            </div>
           </section>
           <!-- 兼容旧版 mainParams -->
           <section v-else-if="paramPreview.length" class="rh-card rh-section">
@@ -152,6 +165,9 @@
             <router-link :to="'/robot/' + id + '/params'" class="detail-more">
               查看完整参数配置 ›
             </router-link>
+            <div v-if="detail.paramGroups && detail.paramGroups.length" class="detail-correction-entry">
+              <el-button type="info" text size="small" @click="openCorrection(null, '', '')">参数有误？提交纠错 ›</el-button>
+            </div>
           </section>
           <section v-else class="rh-card rh-section">
             <h2 class="rh-section__title">核心参数</h2>
@@ -165,6 +181,50 @@
 
           <section class="rh-card rh-section">
             <CommentPanel biz-type="robot" :biz-id="id" />
+          </section>
+
+          <!-- Phase7: 用户口碑 -->
+          <section class="rh-card rh-section">
+            <h2 class="rh-section__title">用户口碑</h2>
+            <div v-if="reviewLoading" class="rh-empty">加载中…</div>
+            <div v-else-if="reviewSummary && reviewSummary.reviewCount > 0" class="review-summary">
+              <div class="review-summary__overall">
+                <div class="review-summary__score">{{ formatScore(reviewSummary.overallAvg) }}</div>
+                <div class="review-summary__meta">
+                  <el-rate :model-value="Number(reviewSummary.overallAvg)" disabled show-score text-color="#ff9900" score-template="{value}" />
+                  <span class="rh-text-light">{{ reviewSummary.reviewCount }} 条评价</span>
+                </div>
+              </div>
+              <div class="review-summary__dims">
+                <div v-if="reviewSummary.qualityAvg" class="review-dim">
+                  <span class="review-dim__label">质量</span>
+                  <el-rate :model-value="Number(reviewSummary.qualityAvg)" disabled size="small" />
+                  <span class="review-dim__val">{{ formatScore(reviewSummary.qualityAvg) }}</span>
+                </div>
+                <div v-if="reviewSummary.serviceAvg" class="review-dim">
+                  <span class="review-dim__label">服务</span>
+                  <el-rate :model-value="Number(reviewSummary.serviceAvg)" disabled size="small" />
+                  <span class="review-dim__val">{{ formatScore(reviewSummary.serviceAvg) }}</span>
+                </div>
+                <div v-if="reviewSummary.costAvg" class="review-dim">
+                  <span class="review-dim__label">性价比</span>
+                  <el-rate :model-value="Number(reviewSummary.costAvg)" disabled size="small" />
+                  <span class="review-dim__val">{{ formatScore(reviewSummary.costAvg) }}</span>
+                </div>
+              </div>
+              <div class="review-summary__dist">
+                <div class="review-dist__row"><span>5星</span><el-progress :percentage="scorePercent(reviewSummary.score5Count)" :stroke-width="8" /></div>
+                <div class="review-dist__row"><span>4星</span><el-progress :percentage="scorePercent(reviewSummary.score4Count)" :stroke-width="8" color="#67c23a" /></div>
+                <div class="review-dist__row"><span>3星</span><el-progress :percentage="scorePercent(reviewSummary.score3Count)" :stroke-width="8" color="#e6a23c" /></div>
+                <div class="review-dist__row"><span>2星</span><el-progress :percentage="scorePercent(reviewSummary.score2Count)" :stroke-width="8" color="#f56c6c" /></div>
+                <div class="review-dist__row"><span>1星</span><el-progress :percentage="scorePercent(reviewSummary.score1Count)" :stroke-width="8" color="#909399" /></div>
+              </div>
+              <router-link :to="'/robot/' + id + '/reviews'" class="detail-more">查看全部评价 ›</router-link>
+            </div>
+            <div v-else class="review-empty">
+              <p>暂无用户口碑</p>
+              <el-button type="primary" text @click="$router.push('/robot/' + id + '/reviews')">成为第一个评价的人</el-button>
+            </div>
           </section>
         </div>
 
@@ -182,6 +242,33 @@
                 <img :src="imageOf(sr.coverImage)" :alt="sr.name" loading="lazy" />
                 <div class="same-brand-item__name">{{ sr.name }}</div>
                 <div class="same-brand-item__price">{{ formatPrice(sr.guidePrice) }}</div>
+              </router-link>
+            </div>
+          </section>
+
+          <!-- Phase7: 相似机器人 -->
+          <section v-if="similarRobots.length" class="rh-card rh-section">
+            <h2 class="rh-section__title">相似机器人</h2>
+            <div class="similar-grid">
+              <router-link
+                v-for="sr in similarRobots"
+                :key="sr.robotId"
+                :to="'/robot/' + sr.robotId"
+                class="similar-item"
+              >
+                <img :src="sr.imageUrl" :alt="sr.robotName" loading="lazy" />
+                <div class="similar-item__info">
+                  <div class="similar-item__name">{{ sr.robotName }}</div>
+                  <div class="similar-item__meta">
+                    <span v-if="sr.categoryName" class="rh-text-light">{{ sr.categoryName }}</span>
+                    <span v-if="sr.brandName" class="rh-text-light">· {{ sr.brandName }}</span>
+                  </div>
+                  <div class="similar-item__bottom">
+                    <span class="similar-item__price">{{ formatPrice(sr.price) }}</span>
+                    <span v-if="sr.totalScore" class="similar-item__score">{{ formatScore(sr.totalScore) }}分</span>
+                  </div>
+                  <div v-if="sr.reason" class="similar-item__reason">{{ sr.reason }}</div>
+                </div>
               </router-link>
             </div>
           </section>
@@ -243,6 +330,78 @@
     <div v-else class="rh-container">
       <div class="rh-empty">加载中…</div>
     </div>
+
+    <!-- Phase7: 参数纠错 Dialog -->
+    <el-dialog v-model="correctionVisible" title="提交参数纠错" width="520px" destroy-on-close>
+      <el-form :model="correctionForm" label-width="80px" ref="correctionFormRef" @submit.prevent="submitCorrection">
+        <el-form-item label="参数项">
+          <el-input v-model="correctionForm.defName" disabled />
+        </el-form-item>
+        <el-form-item label="当前值">
+          <el-input v-model="correctionForm.oldValue" disabled />
+        </el-form-item>
+        <el-form-item label="正确值" required>
+          <el-input v-model="correctionForm.newValue" placeholder="请输入正确的参数值" maxlength="500" show-word-limit />
+        </el-form-item>
+        <el-form-item label="纠错理由" required>
+          <el-input v-model="correctionForm.reason" type="textarea" :rows="3" placeholder="请说明纠错理由（5-500字）" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="correctionVisible = false">取消</el-button>
+        <el-button type="primary" :loading="correctionSubmitting" @click="submitCorrection">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Phase7: 询价/采购 Dialog V2 -->
+    <el-dialog v-model="procureVisible" :title="procureTitle" width="560px" destroy-on-close>
+      <el-form :model="procureForm" label-width="90px" :rules="procureRules" ref="procureFormRef" @submit.prevent="submitProcure">
+        <el-form-item label="姓名" prop="name">
+          <el-input v-model="procureForm.name" placeholder="您的姓名" maxlength="32" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="procureForm.phone" placeholder="手机号码" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="地区">
+          <el-input v-model="procureForm.region" placeholder="省/市" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="客户类型">
+          <el-radio-group v-model="procureForm.customerType">
+            <el-radio :value="1">个人</el-radio>
+            <el-radio :value="2">企业</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="procureForm.customerType === 2" label="公司名称">
+          <el-input v-model="procureForm.companyName" placeholder="公司全称" maxlength="128" />
+        </el-form-item>
+        <el-form-item label="数量" prop="quantity">
+          <el-input-number v-model="procureForm.quantity" :min="1" :max="9999" />
+        </el-form-item>
+        <el-form-item label="预算">
+          <el-input v-model="procureForm.budget" placeholder="预算范围" maxlength="64" />
+        </el-form-item>
+        <el-form-item v-if="procureForm.inquiryType === 'PURCHASE' || procureForm.inquiryType === 'LEASE'" label="使用场景">
+          <el-select v-model="procureForm.procurementScene" placeholder="请选择使用场景" clearable>
+            <el-option label="工业制造" value="INDUSTRIAL" />
+            <el-option label="物流仓储" value="LOGISTICS" />
+            <el-option label="医疗健康" value="MEDICAL" />
+            <el-option label="教育培训" value="EDUCATION" />
+            <el-option label="服务行业" value="SERVICE" />
+            <el-option label="其他" value="OTHER" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="procureForm.inquiryType === 'PURCHASE'" label="采购时间">
+          <el-input v-model="procureForm.purchaseTime" placeholder="预计采购时间" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="procureForm.remark" type="textarea" :rows="3" placeholder="其他需求说明" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="procureVisible = false">取消</el-button>
+        <el-button type="primary" :loading="procureSubmitting" @click="submitProcure">提交</el-button>
+      </template>
+    </el-dialog>
   </MainLayout>
 </template>
 
@@ -253,7 +412,7 @@ import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layout/MainLayout.vue'
 import CommentPanel from '@/components/CommentPanel.vue'
-import { robotApi, favoriteApi, likeApi, behaviorApi } from '@/api'
+import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, similarApi, correctionApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { useCompareStore } from '@/store/compare'
 import { formatPrice, formatCount, imageOf, parseMainParams, formatDate } from '@/utils/format'
@@ -271,6 +430,54 @@ const liked = ref(false)
 const likeCount = ref(0)
 
 const activeIdx = ref(0)
+
+// Phase7: Review Summary
+const reviewSummary = ref(null)
+const reviewLoading = ref(false)
+
+// Phase7: Similar Robots
+const similarRobots = ref([])
+const similarLoading = ref(false)
+
+// Phase7: Correction Dialog
+const correctionVisible = ref(false)
+const correctionSubmitting = ref(false)
+const correctionForm = ref({ defId: null, defName: '', oldValue: '', newValue: '', reason: '' })
+const correctionRules = {
+  defId: [{ required: true, message: '请选择参数项', trigger: 'change' }],
+  newValue: [{ required: true, message: '请输入正确值', trigger: 'blur' }, { max: 500, message: '长度不超过500', trigger: 'blur' }],
+  reason: [{ required: true, message: '请输入纠错理由', trigger: 'blur' }, { min: 5, max: 500, message: '理由长度5-500字', trigger: 'blur' }]
+}
+const correctionFormRef = ref(null)
+
+// Phase7: Procurement V2 Dialog
+const procureVisible = ref(false)
+const procureType = ref('PRICE')
+const procureSubmitting = ref(false)
+const procureForm = ref({ name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', inquiryType: 'PRICE', procurementScene: '', purchaseTime: '' })
+const procureRules = {
+  name: [{ required: true, message: '请填写姓名', trigger: 'blur' }, { max: 32, message: '姓名过长', trigger: 'blur' }],
+  phone: [{ required: true, message: '请填写手机号', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }],
+  quantity: [{ required: true, message: '请填写采购数量', trigger: 'blur' }],
+  budget: [{ max: 64, message: '预算描述过长', trigger: 'blur' }],
+  remark: [{ max: 500, message: '备注不能超过500字', trigger: 'blur' }]
+}
+const procureFormRef = ref(null)
+
+const procureTypeOptions = [
+  { value: 'PRICE', label: '获取底价' },
+  { value: 'PURCHASE', label: '我要采购' },
+  { value: 'LEASE', label: '租赁咨询' },
+  { value: 'COOPERATE', label: '合作洽谈' }
+]
+const procureSceneOptions = [
+  { value: 'INDUSTRIAL', label: '工业制造' },
+  { value: 'LOGISTICS', label: '物流仓储' },
+  { value: 'MEDICAL', label: '医疗健康' },
+  { value: 'EDUCATION', label: '教育科研' },
+  { value: 'SERVICE', label: '商业服务' },
+  { value: 'OTHER', label: '其他' }
+]
 
 const gallery = computed(() => {
   if (!detail.value) return []
@@ -342,6 +549,9 @@ async function load () {
   })
   // 行为上报: VIEW
   behaviorApi.track('VIEW', 'robot', id.value).catch(() => {})
+  // Phase7: 加载Review Summary和Similar Robots
+  loadReviewSummary()
+  loadSimilarRobots()
 }
 
 async function loadLikeState () {
@@ -396,6 +606,127 @@ function onTab (tab) {
   const name = tab.props.name
   if (name === 'home') return
   router.push('/robot/' + id.value + '/' + name)
+}
+
+// ========== Phase7: Review Summary ==========
+async function loadReviewSummary () {
+  reviewLoading.value = true
+  try {
+    reviewSummary.value = await reviewApi.summary(id.value)
+  } catch (e) {
+    reviewSummary.value = null
+  } finally {
+    reviewLoading.value = false
+  }
+}
+
+/** 评分分布百分比 */
+function scorePercent (count) {
+  if (!reviewSummary.value || !reviewSummary.value.reviewCount) return 0
+  return Math.round((count / reviewSummary.value.reviewCount) * 100)
+}
+
+/** 格式化评分 */
+function formatScore (val) {
+  if (val == null) return '-'
+  return Number(val).toFixed(1)
+}
+
+// ========== Phase7: Similar Robots ==========
+async function loadSimilarRobots () {
+  similarLoading.value = true
+  try {
+    const data = await similarApi.list(id.value, 6)
+    similarRobots.value = data || []
+  } catch (e) {
+    similarRobots.value = []
+  } finally {
+    similarLoading.value = false
+  }
+}
+
+// ========== Phase7: Correction ==========
+function openCorrection (defId, paramName, currentValue) {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  correctionForm.value = { defId, defName: paramName || '', oldValue: currentValue || '', newValue: currentValue || '', reason: '' }
+  correctionVisible.value = true
+}
+
+async function submitCorrection () {
+  if (!correctionFormRef.value) return
+  if (!correctionForm.value.newValue || !correctionForm.value.reason) {
+    ElMessage.warning('请填写正确值和纠错理由')
+    return
+  }
+  if (correctionForm.value.reason.length < 5) {
+    ElMessage.warning('纠错理由至少5个字')
+    return
+  }
+  correctionSubmitting.value = true
+  try {
+    await correctionApi.submit({
+      robotId: id.value,
+      defId: correctionForm.value.defId,
+      newValue: correctionForm.value.newValue,
+      reason: correctionForm.value.reason
+    })
+    ElMessage.success('纠错已提交，等待审核')
+    correctionVisible.value = false
+  } catch (e) {
+    ElMessage.error(e.message || '提交失败')
+  } finally {
+    correctionSubmitting.value = false
+  }
+}
+
+// ========== Phase7: Procurement V2 ==========
+function openProcure (type) {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  procureType.value = type || 'PRICE'
+  procureForm.value = { name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', inquiryType: type || 'PRICE', procurementScene: '', purchaseTime: '' }
+  procureVisible.value = true
+}
+
+const procureTypeLabel = computed(() => {
+  const opt = procureTypeOptions.find(o => o.value === procureType.value)
+  return opt ? opt.label : '获取报价'
+})
+const procureTitle = procureTypeLabel
+
+async function submitProcure () {
+  if (!procureFormRef.value) return
+  await procureFormRef.value.validate()
+  procureSubmitting.value = true
+  try {
+    await inquiryApi.submit({
+      robotId: id.value,
+      name: procureForm.value.name,
+      phone: procureForm.value.phone,
+      region: procureForm.value.region,
+      customerType: procureForm.value.customerType,
+      companyName: procureForm.value.companyName,
+      quantity: procureForm.value.quantity,
+      budget: procureForm.value.budget,
+      remark: procureForm.value.remark,
+      inquiryType: procureType.value,
+      procurementScene: procureForm.value.procurementScene,
+      purchaseTime: procureForm.value.purchaseTime
+    })
+    ElMessage.success('提交成功，我们会尽快联系您')
+    procureVisible.value = false
+  } catch (e) {
+    ElMessage.error(e.message || '提交失败')
+  } finally {
+    procureSubmitting.value = false
+  }
 }
 
 onMounted(load)
@@ -746,6 +1077,166 @@ onMounted(load)
   font-weight: 600;
 }
 
+/* Phase7: Review Summary */
+.review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-summary__overall {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.review-summary__score {
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--rh-primary);
+  line-height: 1;
+}
+
+.review-summary__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-summary__dims {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.review-dim {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.review-dim__label {
+  color: var(--rh-text-sub);
+  min-width: 40px;
+}
+
+.review-dim__val {
+  font-weight: 500;
+  color: var(--rh-primary);
+}
+
+.review-summary__dist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-dist__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--rh-text-sub);
+}
+
+.review-dist__row span {
+  min-width: 28px;
+  text-align: right;
+}
+
+.review-dist__row .el-progress {
+  flex: 1;
+}
+
+.review-empty {
+  text-align: center;
+  padding: 24px 0;
+  color: var(--rh-text-sub);
+}
+
+.review-empty p {
+  margin-bottom: 8px;
+}
+
+/* Phase7: Similar Robots */
+.similar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.similar-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--rh-radius);
+  transition: background 0.2s;
+}
+
+.similar-item:hover {
+  background: var(--rh-surface-sub);
+}
+
+.similar-item img {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.similar-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.similar-item__name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.similar-item__meta {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.similar-item__bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.similar-item__price {
+  font-size: 13px;
+  color: var(--rh-danger);
+  font-weight: 500;
+}
+
+.similar-item__score {
+  font-size: 12px;
+  color: var(--rh-primary);
+}
+
+.similar-item__reason {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Phase7: Correction Entry */
+.detail-correction-entry {
+  margin-top: 8px;
+  text-align: right;
+}
+
 @media (max-width: 768px) {
   .detail-head {
     grid-template-columns: 1fr;
@@ -761,6 +1252,9 @@ onMounted(load)
   }
   .param-preview {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .review-summary__dims {
+    flex-direction: column;
   }
 }
 </style>

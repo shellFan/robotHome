@@ -12,20 +12,105 @@
       </view>
     </view>
   </view>
+
+  <!-- Phase7: 用户口碑摘要 -->
+  <view class="rh-card" wx:if="{{reviewSummary && reviewSummary.reviewCount > 0}}">
+    <view class="rh-section-title">用户口碑</view>
+    <view class="review-summary">
+      <view class="review-score">{{reviewSummary.overallAvg}}</view>
+      <view class="review-meta">
+        <text>{{reviewSummary.reviewCount}} 条评价</text>
+      </view>
+    </view>
+    <view class="review-dims" wx:if="{{reviewSummary.qualityAvg}}">
+      <text>质量 {{reviewSummary.qualityAvg}}</text>
+      <text>服务 {{reviewSummary.serviceAvg}}</text>
+      <text>性价比 {{reviewSummary.costAvg}}</text>
+    </view>
+    <view class="review-link" bindtap="goReviews">查看全部评价 ›</view>
+  </view>
+  <view class="rh-card" wx:elif="{{!reviewSummary}}">
+    <view class="rh-section-title">用户口碑</view>
+    <view class="rh-text-light" style="text-align:center;padding:20rpx 0">暂无评价</view>
+    <view class="review-link" bindtap="goReviews">成为第一个评价的人 ›</view>
+  </view>
+
   <view class="rh-card links">
     <view class="link" bindtap="goParams">参数配置 ›</view>
     <view class="link" bindtap="goImages">高清图集 ›</view>
     <view class="link" bindtap="goVideos">相关视频 ›</view>
+    <view class="link" bindtap="goReviews">用户口碑 ›</view>
   </view>
+
+  <!-- Phase7: 参数纠错入口 -->
+  <view class="rh-card" wx:if="{{params.length}}">
+    <view class="correction-entry" bindtap="openCorrection">参数有误？提交纠错 ›</view>
+  </view>
+
   <view class="rh-card" wx:if="{{robot.summary || robot.description}}">
     <view class="rh-section-title" style="margin-bottom:12rpx">简介</view>
     <text class="desc">{{robot.summary || robot.description}}</text>
   </view>
+
+  <!-- Phase7: 相似机器人 -->
+  <view class="rh-card" wx:if="{{similarRobots.length}}">
+    <view class="rh-section-title">相似机器人</view>
+    <view class="similar-list">
+      <view class="similar-item" wx:for="{{similarRobots}}" wx:key="robotId" data-id="{{item.robotId}}" bindtap="goSimilarRobot">
+        <image class="similar-img" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view class="similar-info">
+          <text class="similar-name">{{item.robotName}}</text>
+          <text class="similar-price">{{item.price ? '¥' + item.price : ''}}</text>
+          <text class="similar-reason rh-text-light" wx:if="{{item.reason}}">{{item.reason}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 V2 -->
   <view class="bottom-bar">
     <view class="ba" bindtap="onFavorite">{{favorited ? '已收藏' : '收藏'}}</view>
     <view class="ba" bindtap="onCompare">{{inCompare ? '已对比' : '对比'}}</view>
     <view class="ba" bindtap="goComparePage">去对比</view>
-    <button class="rh-btn inquire" bindtap="goInquiry">询价</button>
+    <button class="rh-btn inquire" data-type="PRICE" bindtap="openProcure">获取底价</button>
+  </view>
+
+  <!-- Phase7: 采购V2弹窗 -->
+  <view class="modal-mask" wx:if="{{showProcure}}" bindtap="closeProcure"></view>
+  <view class="modal-dialog" wx:if="{{showProcure}}">
+    <view class="modal-title">{{procureTypeLabels[procureType] || '获取报价'}}</view>
+    <view class="modal-body">
+      <view class="form-item"><text class="form-label">姓名</text><input class="form-input" placeholder="您的姓名" data-field="name" bindinput="onProcureInput" /></view>
+      <view class="form-item"><text class="form-label">手机号</text><input class="form-input" placeholder="手机号码" type="number" maxlength="11" data-field="phone" bindinput="onProcureInput" /></view>
+      <view class="form-item"><text class="form-label">数量</text><input class="form-input" placeholder="采购数量" type="number" data-field="quantity" bindinput="onProcureInput" /></view>
+      <view class="form-item" wx:if="{{procureType === 'PURCHASE' || procureType === 'LEASE'}}">
+        <text class="form-label">使用场景</text>
+        <picker mode="selector" range="{{sceneOptions}}" bindchange="onSceneChange">
+          <view class="form-input picker">{{procureForm.procurementScene ? sceneOptions[sceneValues.indexOf(procureForm.procurementScene)] : '请选择'}}</view>
+        </picker>
+      </view>
+      <view class="form-item" wx:if="{{procureType === 'PURCHASE'}}">
+        <text class="form-label">采购时间</text><input class="form-input" placeholder="预计采购时间" data-field="purchaseTime" bindinput="onProcureInput" /></view>
+      <view class="form-item"><text class="form-label">备注</text><textarea class="form-textarea" placeholder="其他需求" data-field="remark" bindinput="onProcureInput" /></view>
+    </view>
+    <view class="modal-footer">
+      <view class="modal-btn cancel" bindtap="closeProcure">取消</view>
+      <view class="modal-btn confirm" bindtap="submitProcure">提交</view>
+    </view>
+  </view>
+
+  <!-- Phase7: 纠错弹窗 -->
+  <view class="modal-mask" wx:if="{{showCorrection}}" bindtap="closeCorrection"></view>
+  <view class="modal-dialog" wx:if="{{showCorrection}}">
+    <view class="modal-title">提交参数纠错</view>
+    <view class="modal-body">
+      <view class="form-item"><text class="form-label">正确值</text><input class="form-input" placeholder="请输入正确的参数值" data-field="newValue" bindinput="onCorrectionInput" /></view>
+      <view class="form-item"><text class="form-label">理由</text><textarea class="form-textarea" placeholder="请说明纠错理由（5-500字）" data-field="reason" bindinput="onCorrectionInput" /></view>
+    </view>
+    <view class="modal-footer">
+      <view class="modal-btn cancel" bindtap="closeCorrection">取消</view>
+      <view class="modal-btn confirm" bindtap="submitCorrection">提交</view>
+    </view>
   </view>
 </view>
 <view wx:elif="{{loading}}" class="rh-empty">加载中...</view>

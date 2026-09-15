@@ -125,6 +125,28 @@ const behaviorApi = {
   }
 }
 
+// Phase7: Review API
+const reviewApi = {
+  submit: function (data) { return post('/reviews', data) },
+  update: function (id, data) { return put('/reviews/' + id, data) },
+  remove: function (id) { return del('/reviews/' + id) },
+  list: function (robotId, pageNum, pageSize) { return get('/reviews/robot/' + robotId, { pageNum: pageNum || 1, pageSize: pageSize || 20 }) },
+  summary: function (robotId) { return get('/reviews/robot/' + robotId + '/summary') },
+  helpful: function (id) { return post('/reviews/' + id + '/helpful') },
+  unhelpful: function (id) { return del('/reviews/' + id + '/helpful') }
+}
+
+// Phase7: Correction API
+const correctionApi = {
+  submit: function (data) { return post('/corrections', data) },
+  my: function (params) { return get('/corrections/my', params) }
+}
+
+// Phase7: Similar API
+const similarApi = {
+  list: function (robotId, limit) { return get('/robots/' + robotId + '/similar', { limit: limit || 6 }) }
+}
+
 const userApi = {
   me: function () { return get('/users/me') },
   update: function (data) { return put('/users/me', data) },
@@ -174,5 +196,8 @@ module.exports = {
   feedbackApi,
   behaviorApi,
   userApi,
-  authApi
+  authApi,
+  reviewApi,
+  correctionApi,
+  similarApi
 }

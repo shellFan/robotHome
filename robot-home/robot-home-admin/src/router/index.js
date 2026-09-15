@@ -196,6 +196,20 @@ export const defaultMenus = [
     component: () => import('@/views/inquiry/index.vue')
   },
   {
+    path: '/review',
+    name: 'Review',
+    menuName: '口碑管理',
+    icon: 'ChatDotRound',
+    component: () => import('@/views/review/index.vue')
+  },
+  {
+    path: '/correction',
+    name: 'Correction',
+    menuName: '参数纠错',
+    icon: 'Edit',
+    component: () => import('@/views/correction/index.vue')
+  },
+  {
     path: '/feedback',
     name: 'Feedback',
     menuName: '反馈管理',

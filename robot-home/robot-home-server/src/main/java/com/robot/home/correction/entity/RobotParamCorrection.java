@@ -31,4 +31,6 @@ public class RobotParamCorrection extends BaseEntity {
     private Long reviewerId;
     /** 审核备注 */
     private String reviewNote;
+    /** 审核时间 */
+    private java.time.LocalDateTime reviewTime;
 }

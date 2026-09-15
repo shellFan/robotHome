@@ -4,13 +4,26 @@
       <el-breadcrumb separator="/" class="page-crumb">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item v-if="robot" :to="'/robot/' + robotId">{{ robot.name }}</el-breadcrumb-item>
-        <el-breadcrumb-item>获取报价</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ inquiryTypeLabel }}</el-breadcrumb-item>
       </el-breadcrumb>
 
       <div class="inquiry-layout">
         <div class="rh-card inquiry-form">
-          <h1 class="inquiry-form__title">获取底价 / 询价</h1>
+          <h1 class="inquiry-form__title">{{ inquiryTypeLabel }}</h1>
           <p class="rh-text-sub">提交后销售顾问将尽快与您联系，信息仅用于询价跟进</p>
+
+          <!-- 询价类型选择 -->
+          <div class="inquiry-type-tabs">
+            <div
+              v-for="t in inquiryTypes"
+              :key="t.value"
+              :class="['inquiry-type-tab', { 'is-active': form.inquiryType === t.value }]"
+              @click="form.inquiryType = t.value"
+            >
+              <span class="inquiry-type-tab__icon">{{ t.icon }}</span>
+              <span class="inquiry-type-tab__label">{{ t.label }}</span>
+            </div>
+          </div>
 
           <el-form label-position="top" class="inquiry-form__body" @submit.prevent>
             <el-form-item label="联系人" required>
@@ -45,6 +58,21 @@
             <el-form-item label="预算">
               <el-input v-model="form.budget" maxlength="64" placeholder="如：10-20万 / 面议" />
             </el-form-item>
+            <!-- Phase7 V2: 使用场景 -->
+            <el-form-item v-if="form.inquiryType === 'PURCHASE' || form.inquiryType === 'LEASE'" label="使用场景">
+              <el-select v-model="form.procurementScene" placeholder="请选择使用场景" clearable style="width: 100%">
+                <el-option label="工业制造" value="INDUSTRIAL" />
+                <el-option label="物流仓储" value="LOGISTICS" />
+                <el-option label="医疗健康" value="MEDICAL" />
+                <el-option label="教育培训" value="EDUCATION" />
+                <el-option label="服务行业" value="SERVICE" />
+                <el-option label="其他" value="OTHER" />
+              </el-select>
+            </el-form-item>
+            <!-- Phase7 V2: 采购时间 -->
+            <el-form-item v-if="form.inquiryType === 'PURCHASE'" label="采购时间">
+              <el-input v-model="form.purchaseTime" maxlength="64" placeholder="预计采购时间，如：1个月内" />
+            </el-form-item>
             <el-form-item label="备注">
               <el-input
                 v-model="form.remark"
@@ -56,7 +84,7 @@
               />
             </el-form-item>
             <el-button type="primary" size="large" :loading="submitting" @click="submit">
-              提交询价
+              提交{{ inquiryTypeLabel }}
             </el-button>
           </el-form>
         </div>
@@ -91,6 +119,20 @@ const userStore = useUserStore()
 const robotId = computed(() => Number(route.params.robotId))
 const robot = ref(null)
 const submitting = ref(false)
+
+// Phase7 V2: 询价类型
+const inquiryTypes = [
+  { value: 'PRICE', label: '获取底价', icon: '💰' },
+  { value: 'PURCHASE', label: '我要采购', icon: '🛒' },
+  { value: 'LEASE', label: '租赁咨询', icon: '📋' },
+  { value: 'COOPERATE', label: '合作洽谈', icon: '🤝' }
+]
+
+const inquiryTypeLabel = computed(() => {
+  const t = inquiryTypes.find(i => i.value === form.inquiryType)
+  return t ? t.label : '获取报价'
+})
+
 const form = reactive({
   name: '',
   phone: '',
@@ -100,7 +142,10 @@ const form = reactive({
   companyName: '',
   quantity: 1,
   budget: '',
-  remark: ''
+  remark: '',
+  inquiryType: route.query.type || 'PRICE',
+  procurementScene: '',
+  purchaseTime: ''
 })
 
 function onRegionChange (val) {
@@ -146,7 +191,10 @@ async function submit () {
       companyName: form.customerType === 2 ? form.companyName : undefined,
       quantity: form.quantity,
       budget: form.budget || undefined,
-      remark: form.remark || undefined
+      remark: form.remark || undefined,
+      inquiryType: form.inquiryType,
+      procurementScene: form.procurementScene || undefined,
+      purchaseTime: form.purchaseTime || undefined
     })
     ElMessage.success('询价已提交，销售顾问将尽快与您联系')
     if (userStore.isLogin) {
@@ -228,6 +276,41 @@ onMounted(async () => {
   margin-top: 8px;
   font-size: 12px;
   color: var(--rh-text-light);
+}
+
+/* Phase7 V2: 询价类型选择 */
+.inquiry-type-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.inquiry-type-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 2px solid var(--rh-border-light);
+  border-radius: var(--rh-radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.inquiry-type-tab:hover {
+  border-color: var(--rh-primary);
+}
+
+.inquiry-type-tab.is-active {
+  border-color: var(--rh-primary);
+  background: rgba(var(--rh-primary-rgb, 64, 158, 255), 0.05);
+  color: var(--rh-primary);
+  font-weight: 500;
+}
+
+.inquiry-type-tab__icon {
+  font-size: 18px;
 }
 
 @media (max-width: 768px) {
