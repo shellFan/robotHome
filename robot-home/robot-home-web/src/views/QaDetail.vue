@@ -66,11 +66,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/store/user'
 import MainLayout from '@/layout/MainLayout.vue'
 import { qaApi } from '@/api'
 import { fromNow } from '@/utils/format'
 
 const route = useRoute()
+const userStore = useUserStore()
 const loading = ref(true)
 const question = ref(null)
 const answers = ref([])
@@ -94,6 +97,7 @@ async function loadDetail() {
 }
 
 async function toggleFollow() {
+  if (!userStore.isLogin) return ElMessage.warning('请先登录')
   if (!question.value) return
   try {
     if (followed.value) {
@@ -106,6 +110,7 @@ async function toggleFollow() {
 }
 
 async function toggleHelpful(answer) {
+  if (!userStore.isLogin) return ElMessage.warning('请先登录')
   try {
     if (answer.helpful) {
       await qaApi.unhelpfulAnswer(answer.id)
@@ -118,6 +123,7 @@ async function toggleHelpful(answer) {
 }
 
 async function submitAnswer() {
+  if (!userStore.isLogin) return ElMessage.warning('请先登录')
   if (!answerContent.value.trim()) return
   submitting.value = true
   try {

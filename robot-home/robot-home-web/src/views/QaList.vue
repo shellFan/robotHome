@@ -73,7 +73,7 @@
           <el-input v-model="form.content" type="textarea" :rows="5" placeholder="请详细描述您的问题" maxlength="2000" />
         </el-form-item>
         <el-form-item label="关联机器人">
-          <el-input v-model="form.robotId" placeholder="机器人ID（可选）" />
+          <el-input v-model="form.robotId" placeholder="机器人ID（可选，纯数字）" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -129,12 +129,17 @@ function changePage(p) {
 }
 
 async function submitQuestion() {
+  if (!userStore.isLogin) return ElMessage.warning('请先登录')
   if (!form.value.title.trim()) return ElMessage.warning('请输入标题')
   if (!form.value.content.trim()) return ElMessage.warning('请输入内容')
   submitting.value = true
   try {
     const data = { title: form.value.title, content: form.value.content }
-    if (form.value.robotId) data.robotId = Number(form.value.robotId)
+    if (form.value.robotId) {
+      const robotId = Number(form.value.robotId)
+      if (isNaN(robotId) || robotId <= 0) return ElMessage.warning('机器人ID格式不正确')
+      data.robotId = robotId
+    }
     await qaApi.createQuestion(data)
     ElMessage.success('提问成功')
     showAsk.value = false

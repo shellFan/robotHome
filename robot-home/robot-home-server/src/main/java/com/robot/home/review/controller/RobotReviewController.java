@@ -51,6 +51,7 @@ public class RobotReviewController {
      * 删除评价
      */
     @DeleteMapping("/{id}")
+    @RateLimit(action = "review_delete", windowSeconds = 60, maxRequests = 10, dimension = "IP_USER")
     public Result<Void> delete(@PathVariable Long id) {
         Long userId = SecurityUtils.requireUserId();
         reviewService.delete(userId, id);
@@ -91,6 +92,7 @@ public class RobotReviewController {
      * 取消有用
      */
     @DeleteMapping("/{id}/helpful")
+    @RateLimit(action = "review_helpful", windowSeconds = 10, maxRequests = 5, dimension = "IP_USER")
     public Result<Void> unhelpful(@PathVariable Long id) {
         Long userId = SecurityUtils.requireUserId();
         reviewService.unhelpful(userId, id);

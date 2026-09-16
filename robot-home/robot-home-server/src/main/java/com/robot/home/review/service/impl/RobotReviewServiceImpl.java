@@ -34,9 +34,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -111,8 +109,35 @@ public class RobotReviewServiceImpl extends ServiceImpl<RobotReviewMapper, Robot
                 .orderByDesc(RobotReview::getHelpfulCount)
                 .orderByDesc(RobotReview::getCreateTime));
 
-        List<ReviewVO> voList = result.getRecords().stream()
-                .map(r -> toVO(r, currentUserId))
+        List<RobotReview> records = result.getRecords();
+        if (records.isEmpty()) {
+            return PageResult.of(pn, ps, result.getTotal(), new ArrayList<>());
+        }
+
+        // Batch load users
+        Set<Long> userIds = new HashSet<>();
+        for (RobotReview r : records) {
+            if (r.getUserId() != null) userIds.add(r.getUserId());
+        }
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMapper.selectBatchIds(userIds).forEach(u -> userMap.put(u.getId(), u));
+        }
+
+        // Batch check helpful
+        Set<Long> helpfuledIds = new HashSet<>();
+        if (currentUserId != null) {
+            List<Long> reviewIds = records.stream().map(RobotReview::getId).collect(Collectors.toList());
+            List<RobotReviewHelpful> helpfuls = helpfulMapper.selectList(Wrappers.<RobotReviewHelpful>lambdaQuery()
+                    .eq(RobotReviewHelpful::getUserId, currentUserId)
+                    .in(RobotReviewHelpful::getReviewId, reviewIds));
+            for (RobotReviewHelpful h : helpfuls) {
+                helpfuledIds.add(h.getReviewId());
+            }
+        }
+
+        List<ReviewVO> voList = records.stream()
+                .map(r -> toVO(r, currentUserId, userMap, helpfuledIds))
                 .collect(Collectors.toList());
         return PageResult.of(pn, ps, result.getTotal(), voList);
     }
@@ -341,7 +366,56 @@ public class RobotReviewServiceImpl extends ServiceImpl<RobotReviewMapper, Robot
     }
 
     /**
-     * Entity -> VO
+     * Entity -> VO (批量版本，用于列表)
+     */
+    private ReviewVO toVO(RobotReview review, Long currentUserId, Map<Long, User> userMap, Set<Long> helpfuledIds) {
+        ReviewVO vo = new ReviewVO();
+        vo.setId(review.getId());
+        vo.setRobotId(review.getRobotId());
+        vo.setOverallScore(review.getOverallScore());
+        vo.setQualityScore(review.getQualityScore());
+        vo.setServiceScore(review.getServiceScore());
+        vo.setCostScore(review.getCostScore());
+        vo.setContent(review.getContent());
+        vo.setHelpfulCount(review.getHelpfulCount());
+        vo.setReplyContent(review.getReplyContent());
+        vo.setReplyTime(review.getReplyTime());
+        vo.setCreateTime(review.getCreateTime());
+        vo.setStatus(review.getStatus());
+
+        // 图片列表
+        if (StrUtil.isNotBlank(review.getImages())) {
+            vo.setImageList(Arrays.stream(review.getImages().split(","))
+                    .map(String::trim)
+                    .filter(StrUtil::isNotBlank)
+                    .collect(Collectors.toList()));
+        } else {
+            vo.setImageList(Collections.emptyList());
+        }
+
+        // 用户信息 (从批量缓存取)
+        if (review.getUserId() != null) {
+            User user = userMap.get(review.getUserId());
+            if (user != null) {
+                ReviewUserVO uvo = new ReviewUserVO();
+                uvo.setId(user.getId());
+                uvo.setNickname(user.getNickname());
+                uvo.setAvatar(user.getAvatar());
+                vo.setUser(uvo);
+            }
+        }
+
+        // 是否已标记有用 (从批量缓存取)
+        vo.setHelpfuled(currentUserId != null && helpfuledIds.contains(review.getId()));
+
+        // 是否可编辑
+        vo.setCanEdit(currentUserId != null && currentUserId.equals(review.getUserId()));
+
+        return vo;
+    }
+
+    /**
+     * Entity -> VO (单条版本，用于admin/detail)
      */
     private ReviewVO toVO(RobotReview review, Long currentUserId) {
         ReviewVO vo = new ReviewVO();

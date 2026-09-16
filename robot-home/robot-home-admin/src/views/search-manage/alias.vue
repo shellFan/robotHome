@@ -32,12 +32,12 @@
 
     <el-dialog v-model="showAdd" title="新增别名" width="500px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="别名" required><el-input v-model="form.alias" /></el-form-item>
+        <el-form-item label="别名" required><el-input v-model="form.alias" maxlength="100" show-word-limit /></el-form-item>
         <el-form-item label="目标类型" required>
           <el-select v-model="form.targetType"><el-option label="机器人" value="robot" /><el-option label="品牌" value="brand" /><el-option label="企业" value="company" /></el-select>
         </el-form-item>
         <el-form-item label="目标ID" required><el-input v-model="form.targetId" type="number" /></el-form-item>
-        <el-form-item label="目标名称"><el-input v-model="form.targetName" /></el-form-item>
+        <el-form-item label="目标名称"><el-input v-model="form.targetName" maxlength="200" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAdd = false">取消</el-button>
@@ -83,9 +83,13 @@ async function handleDelete(row) {
 }
 
 async function handleAdd() {
+  if (!form.value.alias.trim()) return ElMessage.warning('请输入别名')
+  if (!form.value.targetId) return ElMessage.warning('请输入目标ID')
+  const targetId = Number(form.value.targetId)
+  if (isNaN(targetId) || targetId <= 0) return ElMessage.warning('目标ID格式不正确')
   submitting.value = true
   try {
-    await createAlias({ alias: form.value.alias, targetType: form.value.targetType, targetId: Number(form.value.targetId), targetName: form.value.targetName })
+    await createAlias({ alias: form.value.alias.trim(), targetType: form.value.targetType, targetId: targetId, targetName: form.value.targetName.trim() })
     ElMessage.success('添加成功')
     showAdd.value = false
     form.value = { alias: '', targetType: 'robot', targetId: '', targetName: '' }

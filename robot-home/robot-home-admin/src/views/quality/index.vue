@@ -32,17 +32,17 @@
           <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
           <el-table-column prop="severity" label="严重度" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.severity === 'HIGH' ? 'danger' : row.severity === 'MEDIUM' ? 'warning' : 'info'">{{ row.severity }}</el-tag>
+              <el-tag :type="row.severity === 1 ? 'danger' : row.severity === 2 ? 'warning' : 'info'">{{ row.severity === 1 ? '高' : row.severity === 2 ? '中' : '低' }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'RESOLVED' ? 'success' : 'warning'">{{ row.status }}</el-tag>
+              <el-tag :type="row.status === 1 ? 'success' : row.status === 2 ? 'info' : 'warning'">{{ row.status === 1 ? '已处理' : row.status === 2 ? '忽略' : '未处理' }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="row.status !== 'RESOLVED'" text size="small" type="primary" @click="handleResolve(row)">标记解决</el-button>
+              <el-button v-if="row.status !== 1" text size="small" type="primary" @click="handleResolve(row)">标记解决</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -96,7 +96,7 @@ async function handleCompute() {
 }
 
 async function handleResolve(row) {
-  await updateIssueStatus(row.id, 'RESOLVED')
+  await updateIssueStatus(row.id, 1)
   ElMessage.success('已标记为解决')
   loadIssues()
 }

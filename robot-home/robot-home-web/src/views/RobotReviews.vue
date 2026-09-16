@@ -244,6 +244,10 @@ function formatScore (val) {
 }
 
 async function submitReview () {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录')
+    return
+  }
   const f = reviewForm.value
   if (!f.overallScore || !f.qualityScore || !f.serviceScore || !f.costScore) {
     ElMessage.warning('请完成所有评分项')
@@ -290,6 +294,10 @@ async function editReview () {
 }
 
 async function deleteReview () {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录')
+    return
+  }
   if (!myReview.value) return
   try {
     await ElMessageBox.confirm('确定删除您的评价？', '提示', { type: 'warning' })

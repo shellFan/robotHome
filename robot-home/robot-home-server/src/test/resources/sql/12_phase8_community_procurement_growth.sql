@@ -3,6 +3,8 @@
 -- 1. Community Post 增强
 ALTER TABLE community_post ADD COLUMN company_id BIGINT DEFAULT NULL;
 ALTER TABLE community_post ADD COLUMN hot_score INT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_cp_company_id ON community_post(company_id);
+CREATE INDEX IF NOT EXISTS idx_cp_hot_score ON community_post(hot_score);
 
 -- 2. Robot Question
 CREATE TABLE IF NOT EXISTS robot_question (
@@ -23,6 +25,7 @@ CREATE TABLE IF NOT EXISTS robot_question (
 CREATE INDEX IF NOT EXISTS idx_rq_robot_id ON robot_question(robot_id);
 CREATE INDEX IF NOT EXISTS idx_rq_user_id ON robot_question(user_id);
 CREATE INDEX IF NOT EXISTS idx_rq_status ON robot_question(status);
+CREATE INDEX IF NOT EXISTS idx_rq_create_time ON robot_question(create_time);
 
 -- 3. Robot Answer
 CREATE TABLE IF NOT EXISTS robot_answer (
@@ -40,6 +43,7 @@ CREATE TABLE IF NOT EXISTS robot_answer (
 CREATE INDEX IF NOT EXISTS idx_ra_question_id ON robot_answer(question_id);
 CREATE INDEX IF NOT EXISTS idx_ra_user_id ON robot_answer(user_id);
 CREATE INDEX IF NOT EXISTS idx_ra_status ON robot_answer(status);
+CREATE INDEX IF NOT EXISTS idx_ra_accepted ON robot_answer(accepted);
 
 -- 4. Question Follow
 CREATE TABLE IF NOT EXISTS question_follow (
@@ -49,6 +53,7 @@ CREATE TABLE IF NOT EXISTS question_follow (
     create_time TIMESTAMP DEFAULT NULL,
     CONSTRAINT uk_qf_user_question UNIQUE (user_id, question_id)
 );
+CREATE INDEX IF NOT EXISTS idx_qf_question_id ON question_follow(question_id);
 
 -- 5. Answer Helpful
 CREATE TABLE IF NOT EXISTS answer_helpful (
@@ -58,6 +63,7 @@ CREATE TABLE IF NOT EXISTS answer_helpful (
     create_time TIMESTAMP DEFAULT NULL,
     CONSTRAINT uk_ah_user_answer UNIQUE (user_id, answer_id)
 );
+CREATE INDEX IF NOT EXISTS idx_ah_answer_id ON answer_helpful(answer_id);
 
 -- 6. Inquiry 扩展
 ALTER TABLE inquiry ADD COLUMN requirement_type VARCHAR(32) DEFAULT 'SPECIFIC';
@@ -68,6 +74,7 @@ ALTER TABLE inquiry ADD COLUMN need_demo TINYINT DEFAULT 0;
 ALTER TABLE inquiry ADD COLUMN need_solution TINYINT DEFAULT 0;
 ALTER TABLE inquiry ADD COLUMN lead_score INT DEFAULT 0;
 ALTER TABLE inquiry ADD COLUMN assigned_to BIGINT DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_inq_requirement_type ON inquiry(requirement_type);
 
 -- 7. Search Alias
 CREATE TABLE IF NOT EXISTS search_alias (
@@ -82,11 +89,13 @@ CREATE TABLE IF NOT EXISTS search_alias (
     deleted TINYINT NOT NULL DEFAULT 0,
     CONSTRAINT uk_sa_alias_type UNIQUE (alias, target_type)
 );
+CREATE INDEX IF NOT EXISTS idx_sa_target ON search_alias(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_sa_status ON search_alias(status);
 
 -- 8. Search Zero Result
 CREATE TABLE IF NOT EXISTS search_zero_result (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    normalized_keyword VARCHAR(200) NOT NULL,
+    normalized_keyword VARCHAR(190) NOT NULL,
     search_count INT NOT NULL DEFAULT 1,
     last_search_time TIMESTAMP NOT NULL,
     suggested_action VARCHAR(32) DEFAULT NULL,
@@ -94,6 +103,7 @@ CREATE TABLE IF NOT EXISTS search_zero_result (
     update_time TIMESTAMP DEFAULT NULL,
     CONSTRAINT uk_szr_keyword UNIQUE (normalized_keyword)
 );
+CREATE INDEX IF NOT EXISTS idx_szr_search_count ON search_zero_result(search_count);
 
 -- 9. Robot Quality Score
 CREATE TABLE IF NOT EXISTS robot_quality_score (
@@ -117,6 +127,7 @@ CREATE TABLE IF NOT EXISTS robot_quality_score (
     update_time TIMESTAMP DEFAULT NULL,
     CONSTRAINT uk_rqs_robot_id UNIQUE (robot_id)
 );
+CREATE INDEX IF NOT EXISTS idx_rqs_total_score ON robot_quality_score(total_score);
 
 -- 10. Robot Quality Issue
 CREATE TABLE IF NOT EXISTS robot_quality_issue (
@@ -130,6 +141,8 @@ CREATE TABLE IF NOT EXISTS robot_quality_issue (
     update_time TIMESTAMP DEFAULT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_rqi_robot_id ON robot_quality_issue(robot_id);
+CREATE INDEX IF NOT EXISTS idx_rqi_issue_type ON robot_quality_issue(issue_type);
+CREATE INDEX IF NOT EXISTS idx_rqi_status ON robot_quality_issue(status);
 
 -- 11. Robot Selection Log
 CREATE TABLE IF NOT EXISTS robot_selection_log (
@@ -142,6 +155,8 @@ CREATE TABLE IF NOT EXISTS robot_selection_log (
     result_count INT DEFAULT 0,
     create_time TIMESTAMP DEFAULT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_rsl_category ON robot_selection_log(category);
+CREATE INDEX IF NOT EXISTS idx_rsl_create_time ON robot_selection_log(create_time);
 
 -- Test data for Phase8
 INSERT INTO search_alias (alias, target_type, target_id, target_name, status, create_time, update_time) VALUES

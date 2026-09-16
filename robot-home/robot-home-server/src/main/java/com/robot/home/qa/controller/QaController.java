@@ -88,6 +88,7 @@ public class QaController {
 
     /** 关注问题 */
     @PostMapping("/questions/{id}/follow")
+    @RateLimit(action = "question_follow", windowSeconds = 60, maxRequests = 20, dimension = "IP_USER")
     public Result<Void> follow(@PathVariable Long id) {
         Long userId = SecurityUtils.requireUserId();
         qaService.follow(userId, id);

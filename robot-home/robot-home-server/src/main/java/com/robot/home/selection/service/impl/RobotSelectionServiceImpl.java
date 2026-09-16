@@ -54,14 +54,32 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             ps = 50;
         }
 
-        // Step 1: DB-level filtering by category, brand, price
-        // Note: Robot uses categoryId (Long), not category (String)
+        // Step 1: Resolve category name to ID for DB-level filtering
+        Long categoryId = null;
+        if (StrUtil.isNotBlank(dto.getCategory())) {
+            RobotCategory cat = categoryMapper.selectOne(Wrappers.<RobotCategory>lambdaQuery()
+                    .eq(RobotCategory::getName, dto.getCategory().trim())
+                    .eq(RobotCategory::getStatus, 1)
+                    .last("LIMIT 1"));
+            if (cat != null) {
+                categoryId = cat.getId();
+            } else {
+                // Category not found, no results
+                logSelection(dto, 0);
+                return PageResult.of(pn, ps, 0, new ArrayList<SelectionResultVO>());
+            }
+        }
+
+        // Step 2: DB-level filtering by category, brand, price (push as much as possible to SQL)
+        // Limit candidates to prevent unbounded memory growth (max 500)
         List<Robot> candidates = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
                 .eq(Robot::getStatus, 1)
+                .eq(categoryId != null, Robot::getCategoryId, categoryId)
                 .in(dto.getBrandIds() != null && !dto.getBrandIds().isEmpty(), Robot::getBrandId, dto.getBrandIds())
                 .ge(dto.getBudgetMin() != null, Robot::getGuidePrice, dto.getBudgetMin())
                 .le(dto.getBudgetMax() != null, Robot::getGuidePrice, dto.getBudgetMax())
-                .orderByDesc(Robot::getGuidePrice));
+                .orderByDesc(Robot::getGuidePrice)
+                .last("LIMIT 500"));
 
         if (candidates.isEmpty()) {
             logSelection(dto, 0);
@@ -84,32 +102,17 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             categoryMapper.selectBatchIds(categoryIds).forEach(c -> categoryMap.put(c.getId(), c));
         }
 
-        // Step 3: Category filter (if specified)
-        // dto.getCategory() matches category name
-        if (StrUtil.isNotBlank(dto.getCategory())) {
-            String catInput = dto.getCategory().trim();
-            candidates = candidates.stream().filter(r -> {
-                if (r.getCategoryId() == null) return false;
-                RobotCategory c = categoryMap.get(r.getCategoryId());
-                if (c == null) return false;
-                return catInput.equals(c.getName());
-            }).collect(Collectors.toList());
-        }
-
-        // Step 4: Calculate match scores
+        // Step 3: Calculate match scores (category already filtered at SQL level)
         List<SelectionResultVO> results = new ArrayList<>();
         for (Robot r : candidates) {
             int score = 0;
             List<String> reasons = new ArrayList<>();
             List<SelectionResultVO.ParamItem> keyParams = new ArrayList<>();
 
-            // Category match (30 points)
-            if (StrUtil.isNotBlank(dto.getCategory()) && r.getCategoryId() != null) {
-                RobotCategory c = categoryMap.get(r.getCategoryId());
-                if (c != null && dto.getCategory().equals(c.getName())) {
-                    score += 30;
-                    reasons.add("分类匹配");
-                }
+            // Category match (30 points) — already filtered at SQL level, all candidates match
+            if (categoryId != null && r.getCategoryId() != null) {
+                score += 30;
+                reasons.add("分类匹配");
             }
 
             // Budget match (25 points)
@@ -202,9 +205,24 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             results.add(vo);
         }
 
-        // Step 5: Sort by match score, filter out 0-score results
+        // Step 5: Filter out 0-score results, then sort (stable: secondary sort by price DESC, then id DESC)
         results = results.stream().filter(r -> r.getMatchScore() > 0).collect(Collectors.toList());
-        results.sort((a, b) -> b.getMatchScore() - a.getMatchScore());
+        results.sort((a, b) -> {
+            int scoreDiff = b.getMatchScore() - a.getMatchScore();
+            if (scoreDiff != 0) return scoreDiff;
+            // Secondary: higher price first (premium robots)
+            int priceDiff = 0;
+            if (a.getGuidePrice() != null && b.getGuidePrice() != null) {
+                priceDiff = b.getGuidePrice().compareTo(a.getGuidePrice());
+            } else if (a.getGuidePrice() != null) {
+                priceDiff = -1;
+            } else if (b.getGuidePrice() != null) {
+                priceDiff = 1;
+            }
+            if (priceDiff != 0) return priceDiff;
+            // Tertiary: higher ID first (newer robots)
+            return Long.compare(b.getRobotId() != null ? b.getRobotId() : 0, a.getRobotId() != null ? a.getRobotId() : 0);
+        });
 
         // Step 6: Paginate
         int total = results.size();

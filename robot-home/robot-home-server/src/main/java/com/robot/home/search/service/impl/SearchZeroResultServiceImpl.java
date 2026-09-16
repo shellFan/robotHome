@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class SearchZeroResultServiceImpl implements SearchZeroResultService {
 
-    private static final int KEYWORD_MAX_LENGTH = 200;
+    private static final int KEYWORD_MAX_LENGTH = 190;
 
     private final SearchZeroResultMapper mapper;
 

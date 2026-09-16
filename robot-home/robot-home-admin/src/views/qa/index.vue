@@ -12,7 +12,7 @@
           <el-table-column prop="viewCount" label="浏览数" width="80" />
           <el-table-column prop="status" label="状态" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '正常' : '隐藏' }}</el-tag>
+              <el-tag :type="row.status === 1 ? 'success' : row.status === 2 ? 'warning' : row.status === 3 ? 'danger' : 'info'">{{ row.status === 1 ? '正常' : row.status === 2 ? '隐藏' : row.status === 3 ? '已删除' : '待审核' }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="createTime" label="创建时间" width="160" />

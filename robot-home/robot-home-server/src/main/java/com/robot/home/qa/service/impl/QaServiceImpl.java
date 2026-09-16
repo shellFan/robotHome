@@ -95,8 +95,8 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
     @Transactional(rollbackFor = Exception.class)
     public Long answer(Long userId, Long questionId, AnswerDTO dto) {
         RobotQuestion q = getById(questionId);
-        if (q == null || q.getStatus() == STATUS_DELETED) {
-            throw new BusinessException("问题不存在");
+        if (q == null || q.getStatus() != STATUS_PUBLISHED) {
+            throw new BusinessException("问题不存在或不可回答");
         }
         RobotAnswer a = new RobotAnswer();
         a.setQuestionId(questionId);

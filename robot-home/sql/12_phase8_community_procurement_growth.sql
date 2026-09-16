@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS search_alias (
 -- 8. Search Zero Result 零结果搜索
 CREATE TABLE IF NOT EXISTS search_zero_result (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    normalized_keyword VARCHAR(200) NOT NULL COMMENT '标准化关键词',
+    normalized_keyword VARCHAR(190) NOT NULL COMMENT '标准化关键词',
     search_count INT NOT NULL DEFAULT 1 COMMENT '搜索次数',
     last_search_time DATETIME NOT NULL COMMENT '最后搜索时间',
     suggested_action VARCHAR(32) DEFAULT NULL COMMENT '建议操作: ADD_ALIAS/ADD_ROBOT/ADD_BRAND/IGNORE',

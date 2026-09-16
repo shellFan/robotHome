@@ -3,6 +3,7 @@ package com.robot.home.inquiry.controller;
 import com.robot.home.common.PageResult;
 import com.robot.home.inquiry.service.ProcurementHallService;
 import com.robot.home.inquiry.vo.InquiryVO;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ public class ProcurementHallController {
 
     /** 开放需求列表(脱敏) */
     @GetMapping("/api/procurement/hall")
+    @RateLimit(action = "procurement_hall", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     public PageResult<InquiryVO> hallList(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String usageScene,

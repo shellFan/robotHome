@@ -36,8 +36,10 @@ public class SearchAliasServiceImpl extends ServiceImpl<SearchAliasMapper, Searc
         if (StrUtil.isBlank(alias)) {
             return java.util.Collections.emptyList();
         }
+        // Normalize: trim + lowercase for consistent matching
+        String normalized = alias.trim().toLowerCase();
         return list(Wrappers.<SearchAlias>lambdaQuery()
-                .eq(SearchAlias::getAlias, alias.trim())
+                .eq(SearchAlias::getAlias, normalized)
                 .eq(SearchAlias::getStatus, 1));
     }
 
@@ -68,7 +70,14 @@ public class SearchAliasServiceImpl extends ServiceImpl<SearchAliasMapper, Searc
         }
         // 验证targetId存在性
         validateTargetExists(alias.getTargetType(), alias.getTargetId());
-        alias.setAlias(XssUtils.clean(StrUtil.trim(alias.getAlias())));
+        // Normalize alias: trim + lowercase for consistent matching
+        String normalizedAlias = StrUtil.trim(alias.getAlias()).toLowerCase();
+        alias.setAlias(XssUtils.clean(normalizedAlias));
+        // Self-reference prevention: alias must not equal targetName
+        if (StrUtil.isNotBlank(alias.getTargetName())
+                && alias.getAlias().equalsIgnoreCase(StrUtil.trim(alias.getTargetName()))) {
+            throw new BusinessException("别名不能与目标名称相同");
+        }
         alias.setStatus(1);
         save(alias);
         return alias.getId();
