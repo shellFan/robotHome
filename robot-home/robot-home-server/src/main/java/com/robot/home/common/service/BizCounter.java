@@ -7,6 +7,8 @@ import com.robot.home.comment.entity.Comment;
 import com.robot.home.comment.mapper.CommentMapper;
 import com.robot.home.community.entity.CommunityPost;
 import com.robot.home.community.mapper.CommunityPostMapper;
+import com.robot.home.qa.entity.RobotQuestion;
+import com.robot.home.qa.mapper.RobotQuestionMapper;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.tutorial.entity.Tutorial;
@@ -55,6 +57,8 @@ public class BizCounter {
     private CommunityPostMapper postMapper;
     @Resource
     private CommentMapper commentMapper;
+    @Resource
+    private RobotQuestionMapper questionMapper;
 
     /**
      * 增减业务计数
@@ -89,6 +93,9 @@ public class BizCounter {
                 break;
             case "comment":
                 commentMapper.update(null, new LambdaUpdateWrapper<Comment>().eq(Comment::getId, bizId).setSql(sql));
+                break;
+            case "question":
+                questionMapper.update(null, new LambdaUpdateWrapper<RobotQuestion>().eq(RobotQuestion::getId, bizId).setSql(sql));
                 break;
             default:
                 throw new IllegalArgumentException("不支持的业务类型: " + bizType);

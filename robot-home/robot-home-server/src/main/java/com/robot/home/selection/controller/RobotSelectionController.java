@@ -2,6 +2,7 @@ package com.robot.home.selection.controller;
 
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
+import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.selection.dto.SelectionSearchDTO;
 import com.robot.home.selection.service.RobotSelectionService;
 import com.robot.home.selection.vo.SelectionResultVO;
@@ -22,6 +23,7 @@ public class RobotSelectionController {
 
     @PostMapping("/search")
     public Result<PageResult<SelectionResultVO>> search(@RequestBody SelectionSearchDTO dto) {
+        dto.setUserId(SecurityUtils.currentUserId());
         return Result.success(selectionService.search(dto));
     }
 

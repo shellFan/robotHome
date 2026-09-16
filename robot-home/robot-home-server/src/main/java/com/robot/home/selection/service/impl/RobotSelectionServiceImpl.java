@@ -202,7 +202,8 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             results.add(vo);
         }
 
-        // Step 5: Sort by match score
+        // Step 5: Sort by match score, filter out 0-score results
+        results = results.stream().filter(r -> r.getMatchScore() > 0).collect(Collectors.toList());
         results.sort((a, b) -> b.getMatchScore() - a.getMatchScore());
 
         // Step 6: Paginate
@@ -288,6 +289,7 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
     public void logSelection(SelectionSearchDTO dto, Integer resultCount) {
         try {
             RobotSelectionLog logEntity = new RobotSelectionLog();
+            logEntity.setUserId(dto.getUserId());
             logEntity.setCategory(dto.getCategory());
             logEntity.setBudgetMin(dto.getBudgetMin());
             logEntity.setBudgetMax(dto.getBudgetMax());

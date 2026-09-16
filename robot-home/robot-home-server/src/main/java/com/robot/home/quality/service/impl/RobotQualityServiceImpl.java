@@ -13,6 +13,7 @@ import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,7 +98,33 @@ public class RobotQualityServiceImpl implements RobotQualityService {
             score.setTotalScore(totalScore);
             score.setCreateTime(LocalDateTime.now());
             score.setUpdateTime(LocalDateTime.now());
-            scoreMapper.insert(score);
+            try {
+                scoreMapper.insert(score);
+            } catch (DuplicateKeyException e) {
+                // 并发插入冲突，回退为更新
+                log.debug("Concurrent insert for robotId={}, falling back to update", robotId);
+                RobotQualityScore concurrent = scoreMapper.selectOne(
+                        new LambdaQueryWrapper<RobotQualityScore>().eq(RobotQualityScore::getRobotId, robotId));
+                if (concurrent != null) {
+                    score = concurrent;
+                    score.setBasicInfoScore(basicInfoScore);
+                    score.setParamScore(paramScore);
+                    score.setImageScore(imageScore);
+                    score.setVideoScore(videoScore);
+                    score.setDocScore(docScore);
+                    score.setPriceScore(priceScore);
+                    score.setSpecScore(specScore);
+                    score.setContactScore(contactScore);
+                    score.setBrandScore(brandScore);
+                    score.setCategoryScore(categoryScore);
+                    score.setDescScore(descScore);
+                    score.setQaScore(qaScore);
+                    score.setReviewScore(reviewScore);
+                    score.setTotalScore(totalScore);
+                    score.setUpdateTime(LocalDateTime.now());
+                    scoreMapper.updateById(score);
+                }
+            }
         }
 
         // 生成质量问题
@@ -237,8 +264,10 @@ public class RobotQualityServiceImpl implements RobotQualityService {
     // ---- Issue生成 ----
 
     private void generateIssues(Long robotId, RobotQualityScore score) {
-        // 删除旧issues
-        issueMapper.delete(new LambdaQueryWrapper<RobotQualityIssue>().eq(RobotQualityIssue::getRobotId, robotId));
+        // 删除未处理(状态=0)的旧issues，保留已处理/已忽略的
+        issueMapper.delete(new LambdaQueryWrapper<RobotQualityIssue>()
+                .eq(RobotQualityIssue::getRobotId, robotId)
+                .eq(RobotQualityIssue::getStatus, 0));
 
         List<RobotQualityIssue> issues = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();

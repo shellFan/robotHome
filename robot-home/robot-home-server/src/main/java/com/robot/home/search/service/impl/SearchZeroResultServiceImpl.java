@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class SearchZeroResultServiceImpl implements SearchZeroResultService {
 
+    private static final int KEYWORD_MAX_LENGTH = 200;
+
     private final SearchZeroResultMapper mapper;
 
     @Override
@@ -29,6 +31,9 @@ public class SearchZeroResultServiceImpl implements SearchZeroResultService {
             return;
         }
         String normalized = keyword.trim().toLowerCase();
+        if (normalized.length() > KEYWORD_MAX_LENGTH) {
+            normalized = normalized.substring(0, KEYWORD_MAX_LENGTH);
+        }
         // 尝试更新search_count+1
         int updated = mapper.update(null, new LambdaUpdateWrapper<SearchZeroResult>()
                 .eq(SearchZeroResult::getNormalizedKeyword, normalized)

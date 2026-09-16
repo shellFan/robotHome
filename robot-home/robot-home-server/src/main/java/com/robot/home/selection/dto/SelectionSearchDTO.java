@@ -12,6 +12,7 @@ import java.util.Map;
 @Data
 public class SelectionSearchDTO {
 
+    private Long userId;
     private String category;
     private BigDecimal budgetMin;
     private BigDecimal budgetMax;

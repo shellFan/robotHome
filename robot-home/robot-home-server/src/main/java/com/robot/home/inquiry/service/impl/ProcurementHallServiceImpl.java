@@ -122,7 +122,8 @@ public class ProcurementHallServiceImpl implements ProcurementHallService {
         vo.setPurchaseTime(i.getPurchaseTime());
         vo.setLeadPriority(i.getLeadPriority());
         vo.setCreateTime(i.getCreateTime());
-        // 脱敏: 不暴露name/phone/email
+        // 脱敏: 不暴露userId/name/phone/email/contactName
+        vo.setUserId(null);
         vo.setName(null);
         vo.setPhone(null);
         return vo;

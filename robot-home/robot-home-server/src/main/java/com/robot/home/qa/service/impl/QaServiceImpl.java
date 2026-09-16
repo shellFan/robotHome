@@ -30,6 +30,7 @@ import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +69,13 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
     public Long ask(Long userId, QuestionDTO dto) {
         if (StrUtil.isBlank(dto.getTitle())) {
             throw new BusinessException("标题不能为空");
+        }
+        // 验证robotId存在性
+        if (dto.getRobotId() != null) {
+            Robot robot = robotMapper.selectById(dto.getRobotId());
+            if (robot == null) {
+                throw new BusinessException("关联的机器人不存在");
+            }
         }
         RobotQuestion q = new RobotQuestion();
         q.setUserId(userId);
@@ -113,6 +121,7 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
         IPage<RobotQuestion> result = page(page, Wrappers.<RobotQuestion>lambdaQuery()
                 .eq(RobotQuestion::getStatus, STATUS_PUBLISHED)
                 .eq(robotId != null, RobotQuestion::getRobotId, robotId)
+                .eq("unanswered".equals(sort), RobotQuestion::getHasAccepted, 0)
                 .orderByDesc("hot".equals(sort), RobotQuestion::getFollowCount)
                 .orderByDesc(RobotQuestion::getCreateTime));
         return toQuestionPageResult(result, null, pn, ps);
@@ -145,16 +154,15 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void follow(Long userId, Long questionId) {
-        Long count = questionFollowMapper.selectCount(Wrappers.<QuestionFollow>lambdaQuery()
-                .eq(QuestionFollow::getUserId, userId)
-                .eq(QuestionFollow::getQuestionId, questionId));
-        if (count > 0) {
-            return;
-        }
         QuestionFollow f = new QuestionFollow();
         f.setUserId(userId);
         f.setQuestionId(questionId);
-        questionFollowMapper.insert(f);
+        try {
+            questionFollowMapper.insert(f);
+        } catch (DuplicateKeyException e) {
+            // 已关注，幂等返回
+            return;
+        }
         update(Wrappers.<RobotQuestion>lambdaUpdate()
                 .eq(RobotQuestion::getId, questionId)
                 .setSql("follow_count = follow_count + 1"));
@@ -176,16 +184,15 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void helpful(Long userId, Long answerId) {
-        Long count = helpfulMapper.selectCount(Wrappers.<AnswerHelpful>lambdaQuery()
-                .eq(AnswerHelpful::getUserId, userId)
-                .eq(AnswerHelpful::getAnswerId, answerId));
-        if (count > 0) {
-            return;
-        }
         AnswerHelpful h = new AnswerHelpful();
         h.setUserId(userId);
         h.setAnswerId(answerId);
-        helpfulMapper.insert(h);
+        try {
+            helpfulMapper.insert(h);
+        } catch (DuplicateKeyException e) {
+            // 已点赞，幂等返回
+            return;
+        }
         answerMapper.update(null, Wrappers.<RobotAnswer>lambdaUpdate()
                 .eq(RobotAnswer::getId, answerId)
                 .setSql("helpful_count = helpful_count + 1"));
@@ -261,6 +268,12 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
         answerMapper.update(null, Wrappers.<RobotAnswer>lambdaUpdate()
                 .eq(RobotAnswer::getId, answerId)
                 .set(RobotAnswer::getStatus, STATUS_DELETED));
+        // 递减问题回答数(仅对已发布的回答)
+        if (a.getStatus() != null && a.getStatus() == STATUS_PUBLISHED) {
+            update(Wrappers.<RobotQuestion>lambdaUpdate()
+                    .eq(RobotQuestion::getId, a.getQuestionId())
+                    .setSql("answer_count = GREATEST(answer_count - 1, 0)"));
+        }
     }
 
     @Override
