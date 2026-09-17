@@ -99,7 +99,11 @@ const searchApi = {
 }
 
 const rankingApi = {
-  rank: function (type, limit) { return get('/rankings', { type: type || 'hot', limit: limit || 20 }) },
+  rank: function (type, limit, timeRange) {
+    var params = { type: type || 'hot', limit: limit || 20 }
+    if (timeRange) params.timeRange = timeRange
+    return get('/rankings', params)
+  },
   types: function () { return get('/rankings/types') }
 }
 
@@ -107,6 +111,64 @@ const inquiryApi = {
   submit: function (data) { return post('/inquiries', data) },
   my: function (params) { return get('/inquiries/my', params) },
   detail: function (id) { return get('/inquiries/my/' + id) }
+}
+
+const feedbackApi = {
+  submit: function (data) { return post('/feedback', data) }
+}
+
+const behaviorApi = {
+  track: function (action, bizType, bizId, extra) {
+    return post('/behaviors', {
+      action: action, bizType: bizType, bizId: bizId, extra: extra || {}
+    }).catch(function () {})
+  }
+}
+
+// Phase7: Review API
+const reviewApi = {
+  submit: function (data) { return post('/reviews', data) },
+  update: function (id, data) { return put('/reviews/' + id, data) },
+  remove: function (id) { return del('/reviews/' + id) },
+  list: function (robotId, pageNum, pageSize) { return get('/reviews/robot/' + robotId, { pageNum: pageNum || 1, pageSize: pageSize || 20 }) },
+  summary: function (robotId) { return get('/reviews/robot/' + robotId + '/summary') },
+  helpful: function (id) { return post('/reviews/' + id + '/helpful') },
+  unhelpful: function (id) { return del('/reviews/' + id + '/helpful') }
+}
+
+// Phase7: Correction API
+const correctionApi = {
+  submit: function (data) { return post('/corrections', data) },
+  my: function (params) { return get('/corrections/my', params) }
+}
+
+// Phase7: Similar API
+const similarApi = {
+  list: function (robotId, limit) { return get('/robots/' + robotId + '/similar', { limit: limit || 6 }) }
+}
+
+// Phase8: Q&A API
+const qaApi = {
+  questions: function (params) { return get('/qa/questions', params) },
+  questionDetail: function (id) { return get('/qa/questions/' + id) },
+  ask: function (data) { return post('/qa/questions', data) },
+  answers: function (questionId, params) { return get('/qa/questions/' + questionId + '/answers', params) },
+  answer: function (questionId, data) { return post('/qa/questions/' + questionId + '/answers', data) },
+  follow: function (id) { return post('/qa/questions/' + id + '/follow') },
+  unfollow: function (id) { return del('/qa/questions/' + id + '/follow') },
+  helpful: function (id) { return post('/qa/answers/' + id + '/helpful') }
+}
+
+// Phase8: Selection API
+const selectionApi = {
+  search: function (data) { return post('/robot-selection/search', data) },
+  filters: function (category) { return get('/robot-selection/filters', { category: category || '' }) }
+}
+
+// Phase8: Procurement API
+const procurementApi = {
+  hallList: function (params) { return get('/procurement/hall', params) },
+  hallDetail: function (id) { return get('/procurement/hall/' + id) }
 }
 
 const userApi = {
@@ -155,6 +217,14 @@ module.exports = {
   searchApi,
   rankingApi,
   inquiryApi,
+  feedbackApi,
+  behaviorApi,
   userApi,
-  authApi
+  authApi,
+  reviewApi,
+  correctionApi,
+  similarApi,
+  qaApi,
+  selectionApi,
+  procurementApi
 }

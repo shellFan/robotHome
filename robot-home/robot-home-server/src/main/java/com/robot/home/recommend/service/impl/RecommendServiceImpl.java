@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.robot.home.common.Constants;
 import com.robot.home.common.util.RedisUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.robot.home.recommend.entity.RecommendItem;
 import com.robot.home.recommend.entity.RecommendPosition;
 import com.robot.home.recommend.mapper.RecommendItemMapper;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendServiceImpl extends ServiceImpl<RecommendItemMapper, RecommendItem> implements RecommendService {
 
+    private static final Logger log = LoggerFactory.getLogger(RecommendServiceImpl.class);
+
     private static final long CACHE_SECONDS = 600L;
 
     @Resource
@@ -39,16 +43,20 @@ public class RecommendServiceImpl extends ServiceImpl<RecommendItemMapper, Recom
             return new ArrayList<>();
         }
         String key = Constants.CACHE_RECOMMEND_PREFIX + code;
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<RecommendItemVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), RecommendItemVO.class);
-                if (list != null) {
-                    return list;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<RecommendItemVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), RecommendItemVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis推荐位缓存读取失败，降级到DB查询: code={}, error={}", code, e.getMessage());
         }
         RecommendPosition position = positionMapper.selectOne(Wrappers.<RecommendPosition>lambdaQuery()
                 .eq(RecommendPosition::getCode, code)
@@ -72,7 +80,11 @@ public class RecommendServiceImpl extends ServiceImpl<RecommendItemMapper, Recom
                 return vo;
             }).collect(Collectors.toList());
         }
-        redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis推荐位缓存写入失败（不影响返回）: code={}, error={}", code, e.getMessage());
+        }
         return vos;
     }
 }

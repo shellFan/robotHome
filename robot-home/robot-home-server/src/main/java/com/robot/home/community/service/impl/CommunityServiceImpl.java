@@ -1,6 +1,7 @@
 package com.robot.home.community.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -8,12 +9,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.exception.PermissionException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.JsonUtils;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.common.util.XssUtils;
 import com.robot.home.community.dto.PostDTO;
 import com.robot.home.community.entity.CommunityCircle;
@@ -30,15 +33,20 @@ import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +54,10 @@ import java.util.stream.Collectors;
  */
 @Service
 public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, CommunityPost> implements CommunityService {
+
+    private static final Logger log = LoggerFactory.getLogger(CommunityServiceImpl.class);
+
+    private static final long CACHE_SECONDS = 300L;
 
     @Resource
     private CommunityCircleMapper circleMapper;
@@ -61,9 +73,27 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
     private FavoriteService favoriteService;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public List<CircleVO> circles(Long currentUserId) {
+        String key = Constants.CACHE_COMMUNITY_PREFIX + "circles";
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<CircleVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CircleVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis圈子列表缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<CommunityCircle> circles = circleMapper.selectList(Wrappers.<CommunityCircle>lambdaQuery()
                 .eq(CommunityCircle::getStatus, 1)
                 .orderByAsc(CommunityCircle::getSort));
@@ -83,6 +113,11 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
             vo.setPostCount((int) count);
             vo.setFollowed(false);
             vos.add(vo);
+        }
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis圈子列表缓存写入失败（不影响返回）: error={}", e.getMessage());
         }
         return vos;
     }
@@ -139,6 +174,7 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
         post.setVideoUrl(dto.getVideoUrl());
         post.setRobotId(dto.getRobotId());
         post.setBrandId(dto.getBrandId());
+        post.setCompanyId(dto.getCompanyId());
         post.setTopic(StrUtil.isBlank(dto.getTopic()) ? null : StrUtil.trim(dto.getTopic()));
         post.setLikeCount(0);
         post.setCommentCount(0);
@@ -181,6 +217,23 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
 
     @Override
     public List<String> hotTopics(int limit) {
+        int size = Math.max(1, Math.min(limit, 50));
+        String key = Constants.CACHE_COMMUNITY_PREFIX + "hotTopics:" + size;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<String> list = JSONUtil.toList(JSONUtil.parseArray(cached), String.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis热门话题缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<CommunityPost> posts = list(Wrappers.<CommunityPost>lambdaQuery()
                 .eq(CommunityPost::getStatus, 1)
                 .isNotNull(CommunityPost::getTopic)
@@ -192,11 +245,17 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
             if (StrUtil.isNotBlank(p.getTopic())) {
                 set.add(p.getTopic());
             }
-            if (set.size() >= limit) {
+            if (set.size() >= size) {
                 break;
             }
         }
-        return new ArrayList<>(set);
+        List<String> result = new ArrayList<>(set);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis热门话题缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
+        return result;
     }
 
     @Override
@@ -208,18 +267,52 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
                 .eq(CommunityPost::getStatus, 1)
                 .eq("robot".equals(targetType), CommunityPost::getRobotId, targetId)
                 .eq("brand".equals(targetType), CommunityPost::getBrandId, targetId)
+                .eq("company".equals(targetType), CommunityPost::getCompanyId, targetId)
+                .orderByDesc(CommunityPost::getHotScore)
                 .orderByDesc(CommunityPost::getCreateTime));
         return toPageResult(result, null, pn, ps);
     }
 
     private PageResult<PostVO> toPageResult(IPage<CommunityPost> result, Long currentUserId, int pn, int ps) {
-        List<PostVO> vos = result.getRecords().stream()
-                .map(p -> toVO(p, currentUserId))
+        List<CommunityPost> records = result.getRecords();
+        if (records.isEmpty()) {
+            return PageResult.of(pn, ps, result.getTotal(), Collections.emptyList());
+        }
+
+        // 批量查询关联数据，避免N+1
+        Set<Long> userIds = new LinkedHashSet<>();
+        Set<Long> robotIds = new LinkedHashSet<>();
+        Set<Long> brandIds = new LinkedHashSet<>();
+        Set<Long> circleIds = new LinkedHashSet<>();
+        for (CommunityPost p : records) {
+            if (p.getUserId() != null) userIds.add(p.getUserId());
+            if (p.getRobotId() != null) robotIds.add(p.getRobotId());
+            if (p.getBrandId() != null) brandIds.add(p.getBrandId());
+            if (p.getCircleId() != null) circleIds.add(p.getCircleId());
+        }
+
+        Map<Long, User> userMap = userIds.isEmpty() ? Collections.emptyMap() :
+                userMapper.selectBatchIds(userIds).stream().collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, Robot> robotMap = robotIds.isEmpty() ? Collections.emptyMap() :
+                robotMapper.selectBatchIds(robotIds).stream().collect(Collectors.toMap(Robot::getId, r -> r, (a, b) -> a));
+        Map<Long, Brand> brandMap = brandIds.isEmpty() ? Collections.emptyMap() :
+                brandMapper.selectBatchIds(brandIds).stream().collect(Collectors.toMap(Brand::getId, b -> b, (a, b) -> a));
+        Map<Long, CommunityCircle> circleMap = circleIds.isEmpty() ? Collections.emptyMap() :
+                circleMapper.selectBatchIds(circleIds).stream().collect(Collectors.toMap(CommunityCircle::getId, c -> c, (a, b) -> a));
+
+        List<PostVO> vos = records.stream()
+                .map(p -> toVO(p, currentUserId, userMap, robotMap, brandMap, circleMap))
                 .collect(Collectors.toList());
         return PageResult.of(pn, ps, result.getTotal(), vos);
     }
 
     private PostVO toVO(CommunityPost p, Long currentUserId) {
+        return toVO(p, currentUserId, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    private PostVO toVO(CommunityPost p, Long currentUserId,
+                        Map<Long, User> userMap, Map<Long, Robot> robotMap,
+                        Map<Long, Brand> brandMap, Map<Long, CommunityCircle> circleMap) {
         PostVO vo = new PostVO();
         vo.setId(p.getId());
         vo.setCircleId(p.getCircleId());
@@ -229,23 +322,33 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
         vo.setVideoUrl(p.getVideoUrl());
         vo.setRobotId(p.getRobotId());
         vo.setBrandId(p.getBrandId());
+        vo.setCompanyId(p.getCompanyId());
         vo.setTopic(p.getTopic());
         vo.setLikeCount(p.getLikeCount());
         vo.setCommentCount(p.getCommentCount());
         vo.setFavoriteCount(p.getFavoriteCount());
         vo.setViewCount(p.getViewCount());
+        vo.setHotScore(p.getHotScore());
         vo.setIsTop(p.getIsTop());
         vo.setStatus(p.getStatus());
         vo.setCreateTime(p.getCreateTime());
 
+        // Circle - 优先使用批量查询Map，fallback到单条查询
         if (p.getCircleId() != null) {
-            CommunityCircle circle = circleMapper.selectById(p.getCircleId());
+            CommunityCircle circle = circleMap.getOrDefault(p.getCircleId(), null);
+            if (circle == null) {
+                circle = circleMapper.selectById(p.getCircleId());
+            }
             if (circle != null) {
                 vo.setCircleName(circle.getName());
             }
         }
+        // User/Author - 优先使用批量查询Map
         if (p.getUserId() != null) {
-            User u = userMapper.selectById(p.getUserId());
+            User u = userMap.getOrDefault(p.getUserId(), null);
+            if (u == null) {
+                u = userMapper.selectById(p.getUserId());
+            }
             if (u != null) {
                 PostAuthorVO author = new PostAuthorVO();
                 author.setId(u.getId());
@@ -254,15 +357,23 @@ public class CommunityServiceImpl extends ServiceImpl<CommunityPostMapper, Commu
                 vo.setAuthor(author);
             }
         }
+        // Robot - 优先使用批量查询Map
         if (p.getRobotId() != null) {
-            Robot r = robotMapper.selectById(p.getRobotId());
+            Robot r = robotMap.getOrDefault(p.getRobotId(), null);
+            if (r == null) {
+                r = robotMapper.selectById(p.getRobotId());
+            }
             if (r != null) {
                 vo.setRobotName(r.getName());
                 vo.setRobotCover(r.getCoverImage());
             }
         }
+        // Brand - 优先使用批量查询Map
         if (p.getBrandId() != null) {
-            Brand b = brandMapper.selectById(p.getBrandId());
+            Brand b = brandMap.getOrDefault(p.getBrandId(), null);
+            if (b == null) {
+                b = brandMapper.selectById(p.getBrandId());
+            }
             if (b != null) {
                 vo.setBrandName(b.getName());
             }

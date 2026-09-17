@@ -1,0 +1,16 @@
+.page{padding:24rpx;background:#f5f6f8;min-height:100vh}
+.form{background:#fff;border-radius:16rpx;padding:24rpx}
+.types{display:flex;flex-wrap:wrap;gap:16rpx;margin-bottom:24rpx}
+.chip{display:inline-block;padding:8rpx 24rpx;font-size:24rpx;border-radius:24rpx;background:#f5f5f5;color:#666}
+.chip--on{background:#1668dc;color:#fff}
+.textarea{width:100%;height:200rpx;padding:16rpx;border:1rpx solid #e5e5e5;border-radius:8rpx;font-size:28rpx;box-sizing:border-box;margin-bottom:24rpx}
+.input{width:100%;padding:16rpx;border:1rpx solid #e5e5e5;border-radius:8rpx;font-size:28rpx;box-sizing:border-box;margin-bottom:32rpx}
+.submit-btn{width:100%!important;margin-top:16rpx}
+.done{display:flex;flex-direction:column;align-items:center;padding-top:120rpx}
+.done__icon{font-size:80rpx;color:#52c41a;margin-bottom:24rpx}
+.done__title{font-size:36rpx;font-weight:600;color:#333;margin-bottom:12rpx}
+.done__desc{font-size:28rpx;color:#999;margin-bottom:48rpx}
+.done__actions{display:flex;gap:24rpx}
+.done__actions .rh-btn{min-width:200rpx}
+.rh-section-title{font-size:28rpx;font-weight:600;color:#333;margin-bottom:16rpx}
+.rh-text-light{font-size:24rpx;color:#999;font-weight:400}

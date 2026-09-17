@@ -6,6 +6,7 @@ import com.robot.home.comment.vo.CommentVO;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.util.SecurityUtils;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -45,6 +46,7 @@ public class CommentController {
     }
 
     @PostMapping
+    @RateLimit(action = "comment_add", windowSeconds = 60, maxRequests = 10, dimension = "IP_USER")
     public Result<Map<String, Object>> add(@RequestBody @Valid CommentDTO dto) {
         Long userId = SecurityUtils.requireUserId();
         Long id = commentService.add(userId, dto);

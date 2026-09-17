@@ -47,6 +47,8 @@ const stats = reactive({
   inquiryCount: 0,
   pendingInquiryCount: 0,
   commentCount: 0,
+  feedbackCount: 0,
+  pendingFeedbackCount: 0,
   todayPv: 0,
   todayUv: 0
 })
@@ -64,6 +66,8 @@ const cards = [
   { key: 'inquiryCount', label: '询价数', color: '#1668dc' },
   { key: 'pendingInquiryCount', label: '待处理询价', color: '#d93026' },
   { key: 'commentCount', label: '评论数', color: '#2ba471' },
+  { key: 'feedbackCount', label: '反馈数', color: '#1668dc' },
+  { key: 'pendingFeedbackCount', label: '待处理反馈', color: '#d93026' },
   { key: 'todayPv', label: '今日 PV', color: '#1668dc' },
   { key: 'todayUv', label: '今日 UV', color: '#7a5af8' }
 ]

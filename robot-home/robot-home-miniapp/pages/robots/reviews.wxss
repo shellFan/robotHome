@@ -1,0 +1,46 @@
+.page { padding: 16rpx; padding-bottom: 40rpx; }
+
+/* Summary */
+.summary { padding: 24rpx; }
+.summary-row { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
+.summary-score { font-size: 56rpx; font-weight: 700; color: #ff9900; }
+.summary-meta { font-size: 24rpx; color: #999; }
+.dims { display: block; margin-top: 4rpx; font-size: 22rpx; }
+.dist-row { display: flex; align-items: center; gap: 8rpx; margin: 6rpx 0; font-size: 22rpx; color: #999; }
+.dist-row text { width: 60rpx; text-align: right; }
+.dist-row progress { flex: 1; }
+
+/* Review Button */
+.review-btn { background: #409eff; color: #fff; border: none; border-radius: 8rpx; font-size: 28rpx; }
+
+/* Review List */
+.review-item { padding: 20rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.review-item:last-child { border-bottom: none; }
+.review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8rpx; }
+.review-user { font-size: 28rpx; font-weight: 500; }
+.review-date { font-size: 22rpx; }
+.review-stars { display: flex; gap: 12rpx; font-size: 22rpx; color: #ff9900; margin-bottom: 8rpx; }
+.review-content { font-size: 26rpx; line-height: 1.7; color: #333; margin-bottom: 8rpx; }
+.review-reply { background: #f5f7fa; border-radius: 8rpx; padding: 12rpx; font-size: 24rpx; color: #666; margin-bottom: 8rpx; }
+.reply-label { color: #409eff; font-weight: 500; }
+.review-actions { font-size: 24rpx; color: #999; }
+.load-more { text-align: center; padding: 20rpx; font-size: 26rpx; color: #999; }
+
+/* Modal */
+.modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+.modal-dialog { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 201; max-height: 80vh; overflow-y: auto; }
+.modal-title { font-size: 32rpx; font-weight: 600; text-align: center; padding: 28rpx 24rpx 12rpx; }
+.modal-body { padding: 12rpx 24rpx; }
+.modal-footer { display: flex; border-top: 1rpx solid #eee; }
+.modal-btn { flex: 1; text-align: center; padding: 24rpx; font-size: 30rpx; }
+.modal-btn.cancel { color: #999; }
+.modal-btn.confirm { color: #409eff; font-weight: 600; }
+
+/* Rate rows */
+.rate-row { display: flex; align-items: center; padding: 12rpx 0; }
+.rate-label { width: 140rpx; font-size: 28rpx; color: #333; }
+.star-group { display: flex; gap: 8rpx; }
+.star { font-size: 44rpx; line-height: 1; }
+.star-active { color: #ff9900; }
+.star-inactive { color: #dcdfe6; }
+.review-textarea { width: 100%; min-height: 160rpx; font-size: 28rpx; margin-top: 12rpx; padding: 12rpx; border: 1rpx solid #eee; border-radius: 8rpx; }

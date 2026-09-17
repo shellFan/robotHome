@@ -16,6 +16,8 @@ import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.RedisUtils;
 import com.robot.home.common.util.XssUtils;
 import com.robot.home.security.RequirePermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -29,6 +31,8 @@ import java.util.List;
 @RequestMapping("/api/admin/articles")
 public class AdminArticleController {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminArticleController.class);
+
     @Resource
     private ArticleMapper articleMapper;
     @Resource
@@ -38,8 +42,12 @@ public class AdminArticleController {
 
     /** 清空资讯栏目缓存 */
     private void clearArticleCategoryCache() {
-        for (String key : redisUtils.keys(Constants.CACHE_ARTICLE_CATEGORY_PREFIX + "*")) {
-            redisUtils.delete(key);
+        try {
+            for (String key : redisUtils.keys(Constants.CACHE_ARTICLE_CATEGORY_PREFIX + "*")) {
+                redisUtils.delete(key);
+            }
+        } catch (Exception e) {
+            log.warn("Redis资讯栏目缓存清空失败: error={}", e.getMessage());
         }
     }
 

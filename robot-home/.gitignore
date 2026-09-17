@@ -58,3 +58,7 @@ coverage/
 
 # Docker 本地覆盖（可选）
 docker-compose.override.yml
+
+# 垃圾文件（意外生成的0字节文件）
+reqs.push(p))
+'

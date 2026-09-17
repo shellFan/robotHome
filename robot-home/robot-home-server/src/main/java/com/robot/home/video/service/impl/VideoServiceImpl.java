@@ -1,6 +1,7 @@
 package com.robot.home.video.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -8,11 +9,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.robot.home.article.vo.CategoryCountVO;
 import com.robot.home.brand.entity.Brand;
 import com.robot.home.brand.mapper.BrandMapper;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.JsonUtils;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.favorite.service.FavoriteService;
 import com.robot.home.history.service.HistoryService;
 import com.robot.home.like.service.LikeService;
@@ -25,6 +28,8 @@ import com.robot.home.video.mapper.VideoMapper;
 import com.robot.home.video.service.VideoService;
 import com.robot.home.video.vo.VideoDetailVO;
 import com.robot.home.video.vo.VideoListVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +46,10 @@ import java.util.stream.Collectors;
  */
 @Service
 public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements VideoService {
+
+    private static final Logger log = LoggerFactory.getLogger(VideoServiceImpl.class);
+
+    private static final long CACHE_SECONDS = 300L;
 
     @Resource
     private VideoCategoryMapper categoryMapper;
@@ -55,6 +65,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
     private HistoryService historyService;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public PageResult<VideoListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize) {
@@ -139,17 +151,55 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
 
     @Override
     public List<VideoListVO> hot(int limit) {
+        int size = Math.max(1, Math.min(limit, 50));
+        String key = Constants.CACHE_VIDEO_PREFIX + "hot:" + size;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<VideoListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), VideoListVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis热门视频缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<Video> list = list(Wrappers.<Video>lambdaQuery()
                 .eq(Video::getStatus, 1)
                 .orderByDesc(Video::getViewCount)
-                .last("LIMIT " + Math.max(1, Math.min(limit, 50))));
-        List<VideoListVO> vos = list.stream().map(this::toListVO).collect(Collectors.toList());
-        fillCategoryNames(vos);
-        return vos;
+                .last("LIMIT " + size));
+        List<VideoListVO> result = list.stream().map(this::toListVO).collect(Collectors.toList());
+        fillCategoryNames(result);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis热门视频缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
+        return result;
     }
 
     @Override
     public List<CategoryCountVO> categories() {
+        String key = Constants.CACHE_VIDEO_PREFIX + "categories";
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<CategoryCountVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryCountVO.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis视频分类缓存读取失败，降级到DB查询: error={}", e.getMessage());
+        }
         List<VideoCategory> cats = categoryMapper.selectList(Wrappers.<VideoCategory>lambdaQuery()
                 .eq(VideoCategory::getStatus, 1)
                 .orderByAsc(VideoCategory::getSort));
@@ -165,8 +215,14 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
                 counts.put(Long.valueOf(cid.toString()), Long.valueOf(cnt.toString()));
             }
         }
-        return cats.stream().map(c -> new CategoryCountVO(c.getId(), c.getName(), c.getSort(),
+        List<CategoryCountVO> result = cats.stream().map(c -> new CategoryCountVO(c.getId(), c.getName(), c.getSort(),
                 counts.getOrDefault(c.getId(), 0L))).collect(Collectors.toList());
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS * 2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis视频分类缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
+        return result;
     }
 
     private void fillCategoryNames(List<VideoListVO> vos) {

@@ -8,6 +8,8 @@ import com.robot.home.banner.mapper.BannerMapper;
 import com.robot.home.banner.service.BannerService;
 import com.robot.home.common.Constants;
 import com.robot.home.common.util.RedisUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -21,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class BannerServiceImpl extends ServiceImpl<BannerMapper, Banner> implements BannerService {
 
+    private static final Logger log = LoggerFactory.getLogger(BannerServiceImpl.class);
+
     private static final long CACHE_SECONDS = 600L;
 
     @Resource
@@ -29,16 +33,20 @@ public class BannerServiceImpl extends ServiceImpl<BannerMapper, Banner> impleme
     @Override
     public List<Banner> list(String position) {
         String key = Constants.CACHE_BANNER_PREFIX + position;
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<Banner> list = JSONUtil.toList(JSONUtil.parseArray(cached), Banner.class);
-                if (list != null) {
-                    return list;
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<Banner> list = JSONUtil.toList(JSONUtil.parseArray(cached), Banner.class);
+                    if (list != null) {
+                        return list;
+                    }
+                } catch (Exception ignored) {
+                    // 缓存解析失败时回源数据库
                 }
-            } catch (Exception ignored) {
-                // 缓存解析失败时回源数据库
             }
+        } catch (Exception e) {
+            log.warn("Redis Banner缓存读取失败，降级到DB查询: position={}, error={}", position, e.getMessage());
         }
         List<Banner> list = list(Wrappers.<Banner>lambdaQuery()
                 .eq(Banner::getPosition, position)
@@ -47,7 +55,11 @@ public class BannerServiceImpl extends ServiceImpl<BannerMapper, Banner> impleme
         if (list == null) {
             list = new ArrayList<>();
         }
-        redisUtils.set(key, JSONUtil.toJsonStr(list), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(list), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis Banner缓存写入失败（不影响返回）: position={}, error={}", position, e.getMessage());
+        }
         return list;
     }
 }

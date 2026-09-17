@@ -33,6 +33,14 @@ public class Brand extends BaseEntity {
     /** 机器人数量（冗余，程序维护） */
     private Integer robotCount;
     private Long hotScore;
+    /** SEO标题 */
+    private String seoTitle;
+    /** SEO关键词 */
+    private String seoKeywords;
+    /** SEO描述 */
+    private String seoDescription;
+    /** 品牌介绍（富文本） */
+    private String detail;
     private Integer sort;
     private Integer status;
 }

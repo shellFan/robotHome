@@ -14,6 +14,8 @@ import com.robot.home.community.entity.CommunityPost;
 import com.robot.home.community.mapper.CommunityPostMapper;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
+import com.robot.home.feedback.entity.UserFeedback;
+import com.robot.home.feedback.mapper.UserFeedbackMapper;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.sys.service.AdminDashboardService;
@@ -64,6 +66,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Resource
     private InquiryMapper inquiryMapper;
     @Resource
+    private UserFeedbackMapper userFeedbackMapper;
+    @Resource
     private RedisUtils redisUtils;
 
     @Override
@@ -83,6 +87,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setInquiryCount(inquiryMapper.selectCount(Wrappers.<Inquiry>lambdaQuery()));
         vo.setPendingInquiryCount(inquiryMapper.selectCount(Wrappers.<Inquiry>lambdaQuery()
                 .eq(Inquiry::getStatus, 1)));
+        vo.setFeedbackCount(userFeedbackMapper.selectCount(Wrappers.<UserFeedback>lambdaQuery()));
+        vo.setPendingFeedbackCount(userFeedbackMapper.selectCount(Wrappers.<UserFeedback>lambdaQuery()
+                .eq(UserFeedback::getStatus, 0)));
         vo.setCommentCount(commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()));
         vo.setTodayPv(pvOf(LocalDate.now()));
         vo.setTodayUv(uvOf(LocalDate.now()));

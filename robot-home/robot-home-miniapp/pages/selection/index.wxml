@@ -1,0 +1,69 @@
+<view class="page safe-bottom">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <input class="search-bar__input" placeholder="搜索机器人名称或关键词" value="{{keyword}}" bindinput="onKeyword" bindconfirm="search" />
+    <view class="search-bar__filter" bindtap="toggleFilters">{{showFilters?'收起':'筛选'}} ▾</view>
+  </view>
+
+  <!-- 筛选面板 -->
+  <view class="filter-panel" wx:if="{{showFilters}}">
+    <view class="filter-item">
+      <text class="filter-label">分类</text>
+      <picker mode="selector" range="{{categories}}" range-key="name" bindchange="onCategory">
+        <view class="filter-value">{{category || '全部'}}</view>
+      </picker>
+    </view>
+    <view class="filter-item">
+      <text class="filter-label">预算范围</text>
+      <view class="filter-budget">
+        <input class="filter-input" placeholder="最低" type="digit" value="{{budgetMin}}" bindinput="onBudgetMin" />
+        <text>-</text>
+        <input class="filter-input" placeholder="最高" type="digit" value="{{budgetMax}}" bindinput="onBudgetMax" />
+        <text>万</text>
+      </view>
+    </view>
+    <view class="filter-item">
+      <text class="filter-label">使用场景</text>
+      <picker mode="selector" range="{{usages}}" bindchange="onUsage">
+        <view class="filter-value">{{usage || '全部'}}</view>
+      </picker>
+    </view>
+    <view class="filter-actions">
+      <button class="rh-btn rh-btn--ghost" size="mini" bindtap="resetFilters">重置</button>
+      <button class="rh-btn" size="mini" bindtap="search">搜索</button>
+    </view>
+  </view>
+
+  <!-- 结果列表 -->
+  <view class="rh-container">
+    <view wx:if="{{searched && !results.length && !loading}}" class="rh-empty">未找到匹配的机器人</view>
+    <view class="result rh-card" wx:for="{{results}}" wx:key="robotId">
+      <view class="result__header" bindtap="goRobot" data-id="{{item.robotId}}">
+        <image class="result__cover" src="{{item.cover}}" mode="aspectFill" />
+        <view class="result__body">
+          <view class="result__name">{{item.robotName}}</view>
+          <view class="result__meta">
+            <text class="rh-tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+            <text class="rh-tag" wx:if="{{item.brandName}}">{{item.brandName}}</text>
+          </view>
+          <view class="result__price">{{item.priceText}}</view>
+        </view>
+        <view class="result__score">
+          <view class="score-num">{{item.scoreText}}</view>
+          <view class="score-label">匹配度</view>
+        </view>
+      </view>
+      <view class="result__params" wx:if="{{item.keyParams && item.keyParams.length}}">
+        <view class="param" wx:for="{{item.keyParams}}" wx:for-item="p" wx:key="label">
+          <text class="param-label">{{p.label}}</text>
+          <text class="param-value">{{p.value}}</text>
+        </view>
+      </view>
+      <view class="result__actions">
+        <button class="rh-btn rh-btn--ghost" size="mini" data-id="{{item.robotId}}" bindtap="goRobot">查看详情</button>
+        <button class="rh-btn" size="mini" data-item="{{item}}" bindtap="goInquiry">询价</button>
+      </view>
+    </view>
+    <view class="load-more">{{finished ? '没有更多了' : (loading ? '加载中...' : '')}}</view>
+  </view>
+</view>

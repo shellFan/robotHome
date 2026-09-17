@@ -32,6 +32,8 @@ import com.robot.home.sys.mapper.SysUserMapper;
 import com.robot.home.sys.mapper.SysUserRoleMapper;
 import com.robot.home.sys.service.SysUserService;
 import com.robot.home.sys.vo.AdminInfoVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +54,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
+
+    private static final Logger log = LoggerFactory.getLogger(SysUserServiceImpl.class);
 
     @Resource
     private SysUserRoleMapper userRoleMapper;
@@ -84,9 +88,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
             throw new AuthenticationException("用户名和密码不能为空");
         }
-        // 登录限流：同一账号连续失败达到阈值后锁定 10 分钟
+        // 登录限流：同一账号连续失败达到阈值后锁定 10 分钟（Redis故障时降级放行）
         String failKey = Constants.CACHE_LIMIT_PREFIX + "login:" + username;
-        String failCount = redisUtils.get(failKey);
+        String failCount = safeGet(failKey);
         if (failCount != null && Integer.parseInt(failCount) >= loginMaxRetry) {
             recordLoginLog(null, username, ip, userAgent, 0);
             throw new AuthenticationException("登录失败次数过多，请 10 分钟后再试");
@@ -94,8 +98,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         SysUser user = getOne(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, username), false);
         if (user == null || !PasswordUtil.matches(password, user.getPassword())) {
-            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
-            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
+            safeSet(failKey, String.valueOf(failCount == null ? 1 : Long.parseLong(failCount) + 1), 600, TimeUnit.SECONDS);
             recordLoginLog(null, username, ip, userAgent, 0);
             throw new AuthenticationException("用户名或密码错误");
         }
@@ -103,7 +106,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             recordLoginLog(user.getId(), username, ip, userAgent, 0);
             throw new AuthenticationException("账号已被禁用");
         }
-        redisUtils.delete(failKey);
+        safeDelete(failKey);
 
         List<SysRole> roles = rolesOf(user.getId());
         String roleCodes = roles.stream().map(SysRole::getRoleCode).collect(Collectors.joining(","));
@@ -112,9 +115,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         String token = jwtUtils.generateAdminToken(user.getId(), user.getUsername(), roleCodes);
 
-        // 权限码缓存：供权限切面校验
+        // 权限码缓存：供权限切面校验（Redis故障时降级跳过）
         List<String> permissions = permissionCodes(user.getId());
-        redisUtils.set(Constants.CACHE_TOKEN_PREFIX + "perm:" + user.getId(),
+        safeSet(Constants.CACHE_TOKEN_PREFIX + "perm:" + user.getId(),
                 String.join(",", permissions), jwtExpiration / 1000, TimeUnit.SECONDS);
 
         recordLoginLog(user.getId(), username, ip, userAgent, 1);
@@ -234,7 +237,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         removeById(id);
         userRoleMapper.delete(Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, id));
-        redisUtils.delete(Constants.CACHE_TOKEN_PREFIX + "perm:" + id);
+        safeDelete(Constants.CACHE_TOKEN_PREFIX + "perm:" + id);
     }
 
     @Override
@@ -339,18 +342,45 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     private void refreshPermissionCache(Long userId) {
         List<String> permissions = permissionCodes(userId);
-        redisUtils.set(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId,
+        safeSet(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId,
                 String.join(",", permissions), jwtExpiration / 1000, TimeUnit.SECONDS);
     }
 
     private void recordLoginLog(Long userId, String username, String ip, String userAgent, int status) {
-        SysLogLogin log = new SysLogLogin();
-        log.setUserId(userId);
-        log.setUsername(username);
-        log.setIp(ip);
-        log.setUserAgent(userAgent == null ? null : (userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent));
-        log.setStatus(status);
-        log.setCreateTime(java.time.LocalDateTime.now());
-        loginLogMapper.insert(log);
+        SysLogLogin loginLog = new SysLogLogin();
+        loginLog.setUserId(userId);
+        loginLog.setUsername(username);
+        loginLog.setIp(ip);
+        loginLog.setUserAgent(userAgent == null ? null : (userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent));
+        loginLog.setStatus(status);
+        loginLog.setCreateTime(java.time.LocalDateTime.now());
+        loginLogMapper.insert(loginLog);
+    }
+
+    // ---------------- Redis 降级辅助方法 ----------------
+
+    private String safeGet(String key) {
+        try {
+            return redisUtils.get(key);
+        } catch (Exception e) {
+            log.warn("Redis读取异常，降级返回null: key={}, error={}", key, e.getMessage());
+            return null;
+        }
+    }
+
+    private void safeSet(String key, String value, long timeout, TimeUnit unit) {
+        try {
+            redisUtils.set(key, value, timeout, unit);
+        } catch (Exception e) {
+            log.warn("Redis写入异常，降级跳过: key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    private void safeDelete(String key) {
+        try {
+            redisUtils.delete(key);
+        } catch (Exception e) {
+            log.warn("Redis删除异常，降级跳过: key={}, error={}", key, e.getMessage());
+        }
     }
 }

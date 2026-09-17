@@ -11,6 +11,8 @@ import com.robot.home.recommend.entity.RecommendPosition;
 import com.robot.home.recommend.mapper.RecommendItemMapper;
 import com.robot.home.recommend.mapper.RecommendPositionMapper;
 import com.robot.home.security.RequirePermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -23,6 +25,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/admin/recommends")
 public class AdminRecommendController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminRecommendController.class);
 
     @Resource
     private RecommendPositionMapper positionMapper;
@@ -94,9 +98,13 @@ public class AdminRecommendController {
     }
 
     private void clearCache() {
-        Set<String> keys = redisUtils.keys(Constants.CACHE_RECOMMEND_PREFIX + "*");
-        if (keys != null && !keys.isEmpty()) {
-            redisUtils.delete(keys);
+        try {
+            Set<String> keys = redisUtils.keys(Constants.CACHE_RECOMMEND_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Redis推荐缓存清空失败: error={}", e.getMessage());
         }
     }
 }

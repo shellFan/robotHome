@@ -9,6 +9,7 @@
     "pages/robots/params",
     "pages/robots/images",
     "pages/robots/videos",
+    "pages/robots/reviews",
     "pages/compare/compare",
     "pages/rankings/rankings",
     "pages/brands/list",
@@ -31,7 +32,12 @@
     "pages/mine/history",
     "pages/mine/posts",
     "pages/mine/inquiries",
-    "pages/mine/settings"
+    "pages/mine/settings",
+    "pages/feedback/feedback",
+    "pages/qa/list",
+    "pages/qa/detail",
+    "pages/selection/index",
+    "pages/procurement/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

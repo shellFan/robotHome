@@ -1,0 +1,39 @@
+<view>
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <picker mode="selector" range="{{categories}}" bindchange="onCategoryChange">
+      <view class="filter-chip">{{category || '全部分类'}} ▾</view>
+    </picker>
+    <picker mode="selector" range="{{categories}}" bindchange="onSceneChange">
+      <view class="filter-chip">{{usageScene ? categories[scenes.indexOf(usageScene)] : '全部场景'}} ▾</view>
+    </picker>
+  </view>
+
+  <view class="rh-container">
+    <view class="inquiry rh-card" wx:for="{{inquiries}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="inquiry__header">
+        <view class="inquiry__type">
+          <text class="rh-tag" wx:if="{{item.inquiryType === 'PURCHASE'}}">采购</text>
+          <text class="rh-tag" wx:elif="{{item.inquiryType === 'LEASE'}}">租赁</text>
+          <text class="rh-tag" wx:elif="{{item.inquiryType === 'COOPERATE'}}">合作</text>
+          <text class="rh-tag" wx:else>询价</text>
+        </view>
+        <view class="inquiry__status">{{item.statusText}}</view>
+      </view>
+      <view class="inquiry__title" wx:if="{{item.robotName}}">{{item.robotName}}</view>
+      <view class="inquiry__title" wx:else>{{item.category || '机器人需求'}}</view>
+      <view class="inquiry__info rh-text-light">
+        <text wx:if="{{item.quantityText}}">{{item.quantityText}}</text>
+        <text wx:if="{{item.budgetText}}"> · {{item.budgetText}}</text>
+        <text wx:if="{{item.companyName}}"> · {{item.companyName}}</text>
+      </view>
+      <view class="inquiry__info rh-text-light" wx:if="{{item.usageScene}}">
+        使用场景: {{categories[scenes.indexOf(item.usageScene)] || item.usageScene}}
+      </view>
+      <view class="inquiry__footer rh-text-light">{{item.timeText}}</view>
+    </view>
+
+    <view wx:if="{{!inquiries.length && !loading}}" class="rh-empty">暂无采购需求</view>
+    <view class="load-more">{{finished ? '没有更多了' : (loading ? '加载中...' : '')}}</view>
+  </view>
+</view>

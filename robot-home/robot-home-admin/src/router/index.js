@@ -196,6 +196,101 @@ export const defaultMenus = [
     component: () => import('@/views/inquiry/index.vue')
   },
   {
+    path: '/review',
+    name: 'Review',
+    menuName: '口碑管理',
+    icon: 'ChatDotRound',
+    component: () => import('@/views/review/index.vue')
+  },
+  {
+    path: '/correction',
+    name: 'Correction',
+    menuName: '参数纠错',
+    icon: 'Edit',
+    component: () => import('@/views/correction/index.vue')
+  },
+  {
+    path: '/feedback',
+    name: 'Feedback',
+    menuName: '反馈管理',
+    icon: 'ChatDotSquare',
+    component: () => import('@/views/feedback/index.vue')
+  },
+  {
+    path: '/ranking-config',
+    name: 'RankingConfig',
+    menuName: '排名配置',
+    icon: 'TrendCharts',
+    redirect: '/ranking-config/weights',
+    children: [
+      {
+        path: 'weights',
+        name: 'RankingWeights',
+        menuName: '权重管理',
+        icon: 'ScaleToOriginal',
+        component: () => import('@/views/ranking-config/weights.vue')
+      },
+      {
+        path: 'snapshots',
+        name: 'RankingSnapshots',
+        menuName: '排名快照',
+        icon: 'Camera',
+        component: () => import('@/views/ranking-config/snapshots.vue')
+      }
+    ]
+  },
+  {
+    path: '/search-suggestion',
+    name: 'SearchSuggestion',
+    menuName: '搜索建议',
+    icon: 'Search',
+    component: () => import('@/views/search-suggestion/index.vue')
+  },
+  {
+    path: '/search-manage',
+    name: 'SearchManage',
+    menuName: '搜索管理',
+    icon: 'Search',
+    redirect: '/search-manage/alias',
+    children: [
+      {
+        path: 'alias',
+        name: 'SearchAlias',
+        menuName: '搜索别名',
+        icon: 'Link',
+        component: () => import('@/views/search-manage/alias.vue')
+      },
+      {
+        path: 'zero-result',
+        name: 'SearchZeroResult',
+        menuName: '零结果搜索',
+        icon: 'Warning',
+        component: () => import('@/views/search-manage/zero-result.vue')
+      }
+    ]
+  },
+  {
+    path: '/qa',
+    name: 'Qa',
+    menuName: '问答管理',
+    icon: 'ChatLineSquare',
+    component: () => import('@/views/qa/index.vue')
+  },
+  {
+    path: '/quality',
+    name: 'Quality',
+    menuName: '质量评分',
+    icon: 'Medal',
+    component: () => import('@/views/quality/index.vue')
+  },
+  {
+    path: '/procurement',
+    name: 'Procurement',
+    menuName: '采购管理',
+    icon: 'ShoppingCart',
+    component: () => import('@/views/procurement/index.vue')
+  },
+  {
     path: '/operation',
     name: 'Operation',
     menuName: '运营配置',

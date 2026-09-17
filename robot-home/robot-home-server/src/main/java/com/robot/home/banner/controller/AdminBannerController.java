@@ -9,6 +9,8 @@ import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.RedisUtils;
 import com.robot.home.security.RequirePermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -21,6 +23,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/admin/banners")
 public class AdminBannerController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminBannerController.class);
 
     @Resource
     private BannerMapper bannerMapper;
@@ -81,9 +85,13 @@ public class AdminBannerController {
      * 清理 Banner 缓存，保证后台修改即时生效
      */
     private void clearCache() {
-        Set<String> keys = redisUtils.keys(Constants.CACHE_BANNER_PREFIX + "*");
-        if (keys != null && !keys.isEmpty()) {
-            redisUtils.delete(keys);
+        try {
+            Set<String> keys = redisUtils.keys(Constants.CACHE_BANNER_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Redis Banner缓存清空失败: error={}", e.getMessage());
         }
     }
 }

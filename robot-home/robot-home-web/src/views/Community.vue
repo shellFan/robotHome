@@ -89,7 +89,7 @@
               :class="{ 'circle-item--active': circleId === circle.id }"
               @click="setCircle(circle.id)"
             >
-              <img :src="imageOf(circle.logo)" :alt="circle.name" />
+              <img :src="imageOf(circle.logo)" :alt="circle.name" loading="lazy" />
               <div>
                 <div class="circle-item__name">{{ circle.name }}</div>
                 <div class="rh-text-light">{{ circle.postCount || 0 }} 帖</div>

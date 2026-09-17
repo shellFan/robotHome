@@ -10,6 +10,8 @@ import com.robot.home.article.mapper.ArticleMapper;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.behavior.dto.BehaviorEventDTO;
+import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.community.entity.CommunityPost;
 import com.robot.home.community.mapper.CommunityPostMapper;
 import com.robot.home.favorite.entity.Favorite;
@@ -22,6 +24,8 @@ import com.robot.home.tutorial.entity.Tutorial;
 import com.robot.home.tutorial.mapper.TutorialMapper;
 import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +44,12 @@ import java.util.stream.Collectors;
 @Service
 public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> implements FavoriteService {
 
+    private static final Logger log = LoggerFactory.getLogger(FavoriteServiceImpl.class);
+
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private BehaviorEventService behaviorEventService;
     @Resource
     private RobotMapper robotMapper;
     @Resource
@@ -86,6 +94,8 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         if (exist != null) {
             removeById(exist.getId());
             bizCounter.decr(bizType, bizId, BizCounter.Field.FAVORITE);
+            // 取消收藏触发UNFAVORITE行为事件（服务端受信）
+            triggerFavoriteEvent(userId, bizType, bizId, "UNFAVORITE");
             return false;
         }
         Favorite favorite = new Favorite();
@@ -94,6 +104,8 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         favorite.setBizId(bizId);
         save(favorite);
         bizCounter.incr(bizType, bizId, BizCounter.Field.FAVORITE);
+        // 收藏触发FAVORITE行为事件（服务端受信）
+        triggerFavoriteEvent(userId, bizType, bizId, "FAVORITE");
         return true;
     }
 
@@ -224,5 +236,20 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
             return null;
         }
         return content.length() > 60 ? content.substring(0, 60) + "..." : content;
+    }
+
+    /**
+     * 触发收藏/取消收藏行为事件（服务端受信，更新热度排行）
+     */
+    private void triggerFavoriteEvent(Long userId, String bizType, Long bizId, String eventType) {
+        try {
+            BehaviorEventDTO eventDto = new BehaviorEventDTO();
+            eventDto.setEventType(eventType);
+            eventDto.setBizType(bizType);
+            eventDto.setBizId(bizId);
+            behaviorEventService.recordTrusted(userId, eventDto, null, null, null);
+        } catch (Exception e) {
+            log.warn("触发{}行为事件失败: bizType={}, bizId={}, error={}", eventType, bizType, bizId, e.getMessage());
+        }
     }
 }

@@ -4,20 +4,25 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.RedisUtils;
 import com.robot.home.security.RequirePermission;
 import com.robot.home.video.entity.Video;
 import com.robot.home.video.entity.VideoCategory;
 import com.robot.home.video.mapper.VideoCategoryMapper;
 import com.robot.home.video.mapper.VideoMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 后台视频管理
@@ -26,10 +31,14 @@ import java.util.List;
 @RequestMapping("/api/admin/videos")
 public class AdminVideoController {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminVideoController.class);
+
     @Resource
     private VideoMapper videoMapper;
     @Resource
     private VideoCategoryMapper categoryMapper;
+    @Resource
+    private RedisUtils redisUtils;
 
     @GetMapping
     @RequirePermission("video:list")
@@ -82,6 +91,7 @@ public class AdminVideoController {
             }
             videoMapper.updateById(video);
         }
+        clearCache();
         return Result.success(video.getId());
     }
 
@@ -89,6 +99,7 @@ public class AdminVideoController {
     @RequirePermission("video:delete")
     public Result<Void> delete(@PathVariable Long id) {
         videoMapper.deleteById(id);
+        clearCache();
         return Result.success();
     }
 
@@ -99,6 +110,7 @@ public class AdminVideoController {
         video.setId(id);
         video.setStatus(status);
         videoMapper.updateById(video);
+        clearCache();
         return Result.success();
     }
 
@@ -123,6 +135,7 @@ public class AdminVideoController {
         } else {
             categoryMapper.updateById(category);
         }
+        clearCache();
         return Result.success(category.getId());
     }
 
@@ -134,6 +147,21 @@ public class AdminVideoController {
             throw new BusinessException("该频道下仍有 " + count + " 个视频，不能删除");
         }
         categoryMapper.deleteById(id);
+        clearCache();
         return Result.success();
+    }
+
+    /**
+     * 清理视频缓存，保证后台修改即时生效
+     */
+    private void clearCache() {
+        try {
+            Set<String> keys = redisUtils.keys(Constants.CACHE_VIDEO_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Redis视频缓存清空失败: error={}", e.getMessage());
+        }
     }
 }

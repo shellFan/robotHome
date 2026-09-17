@@ -81,8 +81,8 @@ public class AuthServiceImpl implements AuthService {
         String role = Constants.ROLE_USER;
         String token = jwtUtils.generateToken(user.getId(), user.getUsername(), role);
         String refreshToken = jwtUtils.generateRefreshToken(user.getId(), user.getUsername());
-        // 登录成功写入 Redis（用于登出黑名单反向校验 / 会话管理）
-        redisUtils.set(Constants.CACHE_TOKEN_PREFIX + user.getId(), token, jwtExpiration / 1000, TimeUnit.SECONDS);
+        // 登录成功写入 Redis（用于登出黑名单反向校验 / 会话管理），Redis故障时降级放行
+        safeSet(Constants.CACHE_TOKEN_PREFIX + user.getId(), token, jwtExpiration / 1000, TimeUnit.SECONDS);
         Map<String, Object> result = new HashMap<>(8);
         result.put("token", token);
         result.put("refreshToken", refreshToken);
@@ -91,14 +91,54 @@ public class AuthServiceImpl implements AuthService {
         return result;
     }
 
+    // ---------------- Redis 降级辅助方法 ----------------
+
+    /** 安全读取Redis，故障时返回null并记录告警 */
+    private String safeGet(String key) {
+        try {
+            return redisUtils.get(key);
+        } catch (Exception e) {
+            log.warn("Redis读取异常，降级返回null: key={}, error={}", key, e.getMessage());
+            return null;
+        }
+    }
+
+    /** 安全写入Redis，故障时静默失败并记录告警 */
+    private void safeSet(String key, String value, long timeout, TimeUnit unit) {
+        try {
+            redisUtils.set(key, value, timeout, unit);
+        } catch (Exception e) {
+            log.warn("Redis写入异常，降级跳过: key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    /** 安全删除Redis，故障时静默失败并记录告警 */
+    private void safeDelete(String key) {
+        try {
+            redisUtils.delete(key);
+        } catch (Exception e) {
+            log.warn("Redis删除异常，降级跳过: key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    /** 安全检查Redis key是否存在，故障时返回false并记录告警 */
+    private boolean safeHasKey(String key) {
+        try {
+            return redisUtils.hasKey(key);
+        } catch (Exception e) {
+            log.warn("Redis hasKey异常，降级返回false: key={}, error={}", key, e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public Map<String, Object> loginByPassword(String username, String password, String ip) {
         if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
             throw new ValidationException("用户名和密码不能为空");
         }
-        // 登录限流：同一账号连续失败达到阈值后锁定 10 分钟
+        // 登录限流：同一账号连续失败达到阈值后锁定 10 分钟（Redis故障时降级放行）
         String failKey = Constants.CACHE_LIMIT_PREFIX + "user-login:" + username;
-        String failCount = redisUtils.get(failKey);
+        String failCount = safeGet(failKey);
         if (failCount != null && Integer.parseInt(failCount) >= loginMaxRetry) {
             throw new AuthenticationException("登录失败次数过多，请 10 分钟后再试");
         }
@@ -107,20 +147,18 @@ public class AuthServiceImpl implements AuthService {
             user = userService.getByPhone(username);
         }
         if (user == null) {
-            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
-            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
+            safeSet(failKey, String.valueOf(failCount == null ? 1 : Long.parseLong(failCount) + 1), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("用户不存在");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
             throw new AuthenticationException("账号已被禁用");
         }
         if (!PasswordUtil.matches(password, user.getPassword())) {
-            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
-            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
+            safeSet(failKey, String.valueOf(failCount == null ? 1 : Long.parseLong(failCount) + 1), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("密码错误");
         }
         // 登录成功清除失败计数
-        redisUtils.delete(failKey);
+        safeDelete(failKey);
         userService.updateLastLogin(user.getId(), ip);
         return buildTokenResult(user);
     }
@@ -130,24 +168,23 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(phone) || StrUtil.isBlank(code)) {
             throw new ValidationException("手机号和验证码不能为空");
         }
-        // 短信登录限流：同一手机号连续失败达到阈值后锁定 10 分钟
+        // 短信登录限流：同一手机号连续失败达到阈值后锁定 10 分钟（Redis故障时降级放行）
         String failKey = Constants.CACHE_LIMIT_PREFIX + "sms-login:" + phone;
-        String failCount = redisUtils.get(failKey);
+        String failCount = safeGet(failKey);
         if (failCount != null && Integer.parseInt(failCount) >= loginMaxRetry) {
             throw new AuthenticationException("登录失败次数过多，请 10 分钟后再试");
         }
-        String cached = redisUtils.get(Constants.CACHE_SMS_CODE_PREFIX + phone);
+        String cached = safeGet(Constants.CACHE_SMS_CODE_PREFIX + phone);
         if (StrUtil.isBlank(cached)) {
             throw new AuthenticationException("验证码已过期，请重新获取");
         }
         if (!cached.equals(code)) {
-            long count = failCount == null ? 1 : Long.parseLong(failCount) + 1;
-            redisUtils.set(failKey, String.valueOf(count), 600, TimeUnit.SECONDS);
+            safeSet(failKey, String.valueOf(failCount == null ? 1 : Long.parseLong(failCount) + 1), 600, TimeUnit.SECONDS);
             throw new AuthenticationException("验证码错误");
         }
-        redisUtils.delete(Constants.CACHE_SMS_CODE_PREFIX + phone);
+        safeDelete(Constants.CACHE_SMS_CODE_PREFIX + phone);
         // 登录成功清除失败计数
-        redisUtils.delete(failKey);
+        safeDelete(failKey);
         User user = userService.getByPhone(phone);
         if (user == null) {
             user = userService.register(null, phone, IdUtil.fastSimpleUUID(), null, "miniapp");
@@ -167,16 +204,16 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(password)) {
             throw new ValidationException("密码不能为空");
         }
-        // 注册限流：同一 IP 每小时最多注册 5 次，防止批量注册
+        // 注册限流：同一 IP 每小时最多注册 5 次，防止批量注册（Redis故障时降级放行）
         String regKey = Constants.CACHE_LIMIT_PREFIX + "register:" + ip;
-        String regCount = redisUtils.get(regKey);
+        String regCount = safeGet(regKey);
         if (regCount != null && Integer.parseInt(regCount) >= REGISTER_MAX_PER_HOUR) {
             throw new ValidationException("注册过于频繁，请稍后再试");
         }
         User user = userService.register(username, phone, password, nickname, "pc");
         // 注册成功后递增计数
         long count = regCount == null ? 1 : Long.parseLong(regCount) + 1;
-        redisUtils.set(regKey, String.valueOf(count), 3600, TimeUnit.SECONDS);
+        safeSet(regKey, String.valueOf(count), 3600, TimeUnit.SECONDS);
         return buildTokenResult(user);
     }
 
@@ -224,15 +261,20 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(phone) || phone.length() != 11) {
             throw new ValidationException("手机号格式不正确");
         }
-        // 短信发送限流：同一手机号 60 秒内只能发送一次
+        // 短信发送限流：同一手机号 60 秒内只能发送一次（Redis故障时降级放行）
         String sendKey = Constants.CACHE_LIMIT_PREFIX + "sms-send:" + phone;
-        if (redisUtils.hasKey(sendKey)) {
+        if (safeHasKey(sendKey)) {
             throw new ValidationException("发送过于频繁，请稍后再试");
         }
         String code = generateSecureCode(6);
-        redisUtils.set(Constants.CACHE_SMS_CODE_PREFIX + phone, code, smsCodeExpire, TimeUnit.SECONDS);
-        // 设置 60 秒发送间隔
-        redisUtils.set(sendKey, "1", 60, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(Constants.CACHE_SMS_CODE_PREFIX + phone, code, smsCodeExpire, TimeUnit.SECONDS);
+            // 设置 60 秒发送间隔
+            redisUtils.set(sendKey, "1", 60, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Redis存储短信验证码异常，短信登录暂不可用: phone={}, error={}", phone, e.getMessage());
+            throw new BusinessException("短信服务暂不可用，请稍后重试");
+        }
         Map<String, Object> result = new HashMap<>(4);
         result.put("phone", phone);
         result.put("expire", smsCodeExpire);
@@ -248,7 +290,12 @@ public class AuthServiceImpl implements AuthService {
     public Map<String, Object> captcha() {
         String code = generateSecureCode(4);
         String token = IdUtil.fastSimpleUUID();
-        redisUtils.set(Constants.CACHE_CAPTCHA_PREFIX + token, code, 300, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(Constants.CACHE_CAPTCHA_PREFIX + token, code, 300, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Redis存储图形验证码异常: error={}", e.getMessage());
+            throw new BusinessException("验证码服务暂不可用，请稍后重试");
+        }
         Map<String, Object> result = new HashMap<>(4);
         result.put("captchaToken", token);
         // 安全：不再在API响应中返回验证码

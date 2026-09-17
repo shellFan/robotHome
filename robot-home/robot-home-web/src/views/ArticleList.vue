@@ -40,7 +40,7 @@
             :to="'/article/' + item.id"
             class="article-item"
           >
-            <img :src="imageOf(item.cover)" :alt="item.title" />
+            <img :src="imageOf(item.cover)" :alt="item.title" loading="lazy" />
             <div class="article-item__body">
               <div class="article-item__title rh-clamp-2">{{ item.title }}</div>
               <div class="article-item__summary rh-clamp-2 rh-text-sub">{{ item.summary }}</div>

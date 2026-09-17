@@ -29,6 +29,8 @@ import com.robot.home.history.service.HistoryService;
 import com.robot.home.like.service.LikeService;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
+
+    private static final Logger log = LoggerFactory.getLogger(ArticleServiceImpl.class);
 
     @Resource
     private ArticleCategoryMapper categoryMapper;
@@ -168,12 +172,16 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public List<ArticleListVO> hot(int limit) {
         int size = Math.max(1, Math.min(limit, 50));
         String key = Constants.CACHE_ARTICLE_HOT_PREFIX + size;
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<ArticleListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), ArticleListVO.class);
-                if (list != null) { return list; }
-            } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<ArticleListVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), ArticleListVO.class);
+                    if (list != null) { return list; }
+                } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+            }
+        } catch (Exception e) {
+            log.warn("Redis热门文章缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         List<Article> list = list(Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
@@ -181,19 +189,27 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .last("LIMIT " + size));
         List<ArticleListVO> vos = list.stream().map(this::toListVO).collect(Collectors.toList());
         fillCategoryNames(vos);
-        redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(vos), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis热门文章缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return vos;
     }
 
     @Override
     public List<CategoryCountVO> categories() {
         String key = Constants.CACHE_ARTICLE_CATEGORY_PREFIX + "list";
-        String cached = redisUtils.get(key);
-        if (cached != null) {
-            try {
-                List<CategoryCountVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryCountVO.class);
-                if (list != null) { return list; }
-            } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+        try {
+            String cached = redisUtils.get(key);
+            if (cached != null) {
+                try {
+                    List<CategoryCountVO> list = JSONUtil.toList(JSONUtil.parseArray(cached), CategoryCountVO.class);
+                    if (list != null) { return list; }
+                } catch (Exception ignored) { /* 缓存解析失败时回源数据库 */ }
+            }
+        } catch (Exception e) {
+            log.warn("Redis文章分类缓存读取失败，降级到DB查询: error={}", e.getMessage());
         }
         List<ArticleCategory> cats = categoryMapper.selectList(Wrappers.<ArticleCategory>lambdaQuery()
                 .eq(ArticleCategory::getStatus, 1)
@@ -212,7 +228,11 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
         List<CategoryCountVO> result = cats.stream().map(c -> new CategoryCountVO(c.getId(), c.getName(), c.getSort(),
                 counts.getOrDefault(c.getId(), 0L))).collect(Collectors.toList());
-        redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        try {
+            redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis文章分类缓存写入失败（不影响返回）: error={}", e.getMessage());
+        }
         return result;
     }
 

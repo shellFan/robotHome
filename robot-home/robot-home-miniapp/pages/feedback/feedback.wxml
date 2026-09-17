@@ -1,0 +1,22 @@
+<view class="page safe-bottom">
+  <view wx:if="{{done}}" class="done">
+    <text class="done__icon">✓</text>
+    <view class="done__title">感谢您的反馈！</view>
+    <view class="done__desc">我们会认真处理每一条反馈</view>
+    <view class="done__actions">
+      <view class="rh-btn" bindtap="submitAgain">继续反馈</view>
+      <view class="rh-btn rh-btn--plain" bindtap="goBack">返回</view>
+    </view>
+  </view>
+  <view wx:else class="form">
+    <view class="rh-section-title">反馈类型</view>
+    <view class="types">
+      <text class="chip {{feedbackType===item.code?'chip--on':''}}" wx:for="{{types}}" wx:key="code" data-code="{{item.code}}" bindtap="switchType">{{item.name}}</text>
+    </view>
+    <view class="rh-section-title">反馈内容</view>
+    <textarea class="textarea" placeholder="请详细描述您的问题或建议（至少5个字）" value="{{content}}" bindinput="onContentInput" maxlength="500" />
+    <view class="rh-section-title">联系方式 <text class="rh-text-light">（选填）</text></view>
+    <input class="input" placeholder="手机号/邮箱，方便我们联系您" value="{{contact}}" bindinput="onContactInput" />
+    <button class="rh-btn submit-btn" bindtap="submit" disabled="{{submitting}}">{{submitting ? '提交中...' : '提交反馈'}}</button>
+  </view>
+</view>

@@ -2,7 +2,13 @@ const { rankingApi } = require('../../api/index')
 const { formatPrice, imageOf } = require('../../utils/format')
 
 Page({
-  data: { types: [], type: 'hot', list: [], loading: true },
+  data: { types: [], type: 'hot', timeRange: 'all', list: [], loading: true,
+    timeOptions: [
+      { code: 'all', name: '全部' },
+      { code: 'week', name: '近7天' },
+      { code: 'month', name: '近30天' }
+    ]
+  },
   onLoad(q) {
     this.setData({ type: q.type || 'hot' })
     this.loadTypes()
@@ -27,7 +33,7 @@ Page({
   async load() {
     this.setData({ loading: true })
     try {
-      const data = await rankingApi.rank(this.data.type, 50)
+      const data = await rankingApi.rank(this.data.type, 50, this.data.timeRange)
       let list = []
       if (Array.isArray(data)) list = data
       else if (data && data.robots) list = data.robots
@@ -44,6 +50,10 @@ Page({
   },
   switchType(e) {
     this.setData({ type: e.currentTarget.dataset.code })
+    this.load()
+  },
+  switchTime(e) {
+    this.setData({ timeRange: e.currentTarget.dataset.code })
     this.load()
   },
   goDetail(e) { wx.navigateTo({ url: '/pages/robots/detail?id=' + e.currentTarget.dataset.id }) }

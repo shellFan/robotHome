@@ -8,7 +8,7 @@
         <div v-if="!images.length" class="rh-empty">暂无图片</div>
         <div v-else class="image-grid">
           <div v-for="(img, idx) in images" :key="img.id || idx" class="image-grid__item">
-            <img :src="imageOf(img.url)" :alt="img.type || '图片'" @click="preview(idx)" />
+            <img :src="imageOf(img.url)" :alt="img.type || '图片'" @click="preview(idx)" loading="lazy" />
             <span v-if="img.type" class="image-grid__type">{{ typeText(img.type) }}</span>
           </div>
         </div>

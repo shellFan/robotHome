@@ -2,6 +2,7 @@ package com.robot.home.auth.controller;
 
 import com.robot.home.auth.service.AuthService;
 import com.robot.home.common.Result;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import com.robot.home.security.UserContext;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/login")
+    @RateLimit(action = "auth_login", windowSeconds = 60, maxRequests = 10, dimension = "IP")
     public Result<Map<String, Object>> login(@RequestParam String username,
                                              @RequestParam String password,
                                              HttpServletRequest request) {
@@ -27,6 +29,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @RateLimit(action = "auth_register", windowSeconds = 60, maxRequests = 5, dimension = "IP")
     public Result<Map<String, Object>> register(@RequestParam(required = false) String username,
                                                 @RequestParam(required = false) String phone,
                                                 @RequestParam String password,
@@ -36,6 +39,7 @@ public class AuthController {
     }
 
     @PostMapping("/sms-login")
+    @RateLimit(action = "auth_sms_login", windowSeconds = 60, maxRequests = 10, dimension = "IP")
     public Result<Map<String, Object>> smsLogin(@RequestParam String phone,
                                                 @RequestParam String code,
                                                 HttpServletRequest request) {
@@ -43,6 +47,7 @@ public class AuthController {
     }
 
     @PostMapping("/send-sms-code")
+    @RateLimit(action = "auth_send_sms", windowSeconds = 60, maxRequests = 3, dimension = "IP")
     public Result<Map<String, Object>> sendSmsCode(@RequestParam String phone,
                                                    @RequestParam(defaultValue = "login") String type) {
         return Result.success(authService.sendSmsCode(phone, type));
@@ -72,6 +77,7 @@ public class AuthController {
     }
 
     @PostMapping("/wx-login")
+    @RateLimit(action = "auth_wx_login", windowSeconds = 60, maxRequests = 10, dimension = "IP")
     public Result<Map<String, Object>> wxLogin(@RequestParam(required = false) String code,
                                                @RequestParam(required = false) String openid,
                                                @RequestParam(required = false) String nickname,

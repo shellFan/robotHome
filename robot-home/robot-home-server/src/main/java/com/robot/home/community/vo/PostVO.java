@@ -24,11 +24,14 @@ public class PostVO {
     private String robotCover;
     private Long brandId;
     private String brandName;
+    private Long companyId;
+    private String companyName;
     private String topic;
     private Integer likeCount;
     private Integer commentCount;
     private Integer favoriteCount;
     private Integer viewCount;
+    private Integer hotScore;
     private Integer isTop;
     private Integer status;
     private LocalDateTime createTime;

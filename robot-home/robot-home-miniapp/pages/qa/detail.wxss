@@ -1,0 +1,19 @@
+.q-header { display:flex; gap:16rpx; align-items:center; margin-bottom:16rpx; }
+.q-avatar { width:64rpx; height:64rpx; border-radius:50%; background:#f2f3f5; }
+.q-user { flex:1; min-width:0; }
+.q-user .name { font-weight:600; }
+.q-status { font-size:22rpx; padding:4rpx 12rpx; border-radius:8rpx; }
+.q-title { font-size:34rpx; font-weight:700; margin-bottom:12rpx; line-height:1.5; }
+.q-content { font-size:28rpx; line-height:1.7; color:#4e5969; white-space:pre-wrap; margin-bottom:12rpx; }
+.q-robot { margin-bottom:12rpx; }
+.q-meta { margin-bottom:12rpx; }
+.q-actions { display:flex; gap:16rpx; }
+.answer__header { display:flex; gap:16rpx; align-items:center; margin-bottom:12rpx; }
+.answer__avatar { width:56rpx; height:56rpx; border-radius:50%; background:#f2f3f5; }
+.answer__content { font-size:28rpx; line-height:1.7; color:#4e5969; white-space:pre-wrap; margin-bottom:12rpx; }
+.answer__actions { display:flex; gap:24rpx; }
+.answer-box textarea { width:100%; height:160rpx; background:#f5f6f8; border-radius:12rpx; padding:16rpx; margin-bottom:16rpx; font-size:28rpx; box-sizing:border-box; }
+.answer-box { display:flex; flex-direction:column; align-items:flex-end; }
+.status--accepted { background:#e8f8e8; color:#00b42a; }
+.status--answered { background:#e8f3ff; color:#1668dc; }
+.status--pending { background:#fff7e8; color:#ff7d00; }

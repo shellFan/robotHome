@@ -16,6 +16,8 @@ import com.robot.home.common.util.RedisUtils;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.security.RequirePermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +30,8 @@ import javax.validation.Valid;
 @RestController
 @RequestMapping("/api/admin/brands")
 public class AdminBrandController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminBrandController.class);
 
     @Resource
     private BrandMapper brandMapper;
@@ -128,8 +132,12 @@ public class AdminBrandController {
     }
 
     private void clearBrandCache() {
-        for (String key : redisUtils.keys(Constants.CACHE_BRAND_PREFIX + "*")) {
-            redisUtils.delete(key);
+        try {
+            for (String key : redisUtils.keys(Constants.CACHE_BRAND_PREFIX + "*")) {
+                redisUtils.delete(key);
+            }
+        } catch (Exception e) {
+            log.warn("Redis品牌缓存清空失败: error={}", e.getMessage());
         }
     }
 }

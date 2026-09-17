@@ -12,7 +12,7 @@
           <section class="rh-card video-detail">
             <div class="video-detail__player">
               <video v-if="detail.url" :src="detail.url" :poster="imageOf(detail.cover)" controls />
-              <img v-else :src="imageOf(detail.cover)" :alt="detail.title" />
+              <img v-else :src="imageOf(detail.cover)" :alt="detail.title" loading="lazy" />
             </div>
             <h1 class="video-detail__title">{{ detail.title }}</h1>
             <div class="video-detail__meta rh-text-light">
@@ -50,7 +50,7 @@
               :to="'/video/' + item.id"
               class="side-item"
             >
-              <img :src="imageOf(item.cover)" :alt="item.title" />
+              <img :src="imageOf(item.cover)" :alt="item.title" loading="lazy" />
               <span class="rh-clamp-2">{{ item.title }}</span>
             </router-link>
           </section>

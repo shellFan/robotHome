@@ -12,6 +12,8 @@ import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.SensitiveUtils;
 import com.robot.home.common.util.XssUtils;
+import com.robot.home.behavior.dto.BehaviorEventDTO;
+import com.robot.home.behavior.service.BehaviorEventService;
 import com.robot.home.inquiry.dto.InquiryDTO;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
@@ -19,6 +21,8 @@ import com.robot.home.inquiry.service.InquiryService;
 import com.robot.home.inquiry.vo.InquiryVO;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +35,14 @@ import java.util.stream.Collectors;
 @Service
 public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> implements InquiryService {
 
+    private static final Logger log = LoggerFactory.getLogger(InquiryServiceImpl.class);
+
     @Resource
     private RobotMapper robotMapper;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private BehaviorEventService behaviorEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -51,6 +59,12 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         inquiry.setBudget(dto.getBudget());
         inquiry.setRemark(XssUtils.escapeText(dto.getRemark()));
         inquiry.setStatus(Constants.INQUIRY_PENDING);
+        inquiry.setInquiryType(dto.getInquiryType() == null ? "GENERAL" : dto.getInquiryType());
+        inquiry.setProcurementScene(dto.getProcurementScene());
+        inquiry.setPurchaseTime(dto.getPurchaseTime());
+
+        // Lead Priority 自动规则
+        applyLeadPriority(inquiry, dto);
 
         if (dto.getRobotId() != null) {
             Robot robot = robotMapper.selectById(dto.getRobotId());
@@ -64,6 +78,21 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         if (dto.getRobotId() != null) {
             bizCounter.incr("robot", dto.getRobotId(), BizCounter.Field.INQUIRY);
         }
+
+        // 询价成功后触发INQUIRY行为事件（服务端受信，更新热度排行）
+        if (dto.getRobotId() != null) {
+            try {
+                BehaviorEventDTO eventDto = new BehaviorEventDTO();
+                eventDto.setEventType("INQUIRY");
+                eventDto.setBizType("robot");
+                eventDto.setBizId(dto.getRobotId());
+                behaviorEventService.recordTrusted(userId, eventDto, null, null, null);
+            } catch (Exception e) {
+                // 行为事件记录失败不影响询价主流程
+                log.warn("触发INQUIRY行为事件失败: robotId={}, error={}", dto.getRobotId(), e.getMessage());
+            }
+        }
+
         return inquiry.getId();
     }
 
@@ -109,6 +138,11 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
         vo.setStatusName(statusName(i.getStatus()));
         vo.setHandleNote(i.getHandleNote());
         vo.setCreateTime(i.getCreateTime());
+        vo.setInquiryType(i.getInquiryType());
+        vo.setProcurementScene(i.getProcurementScene());
+        vo.setPurchaseTime(i.getPurchaseTime());
+        vo.setLeadPriority(i.getLeadPriority());
+        vo.setLeadReason(i.getLeadReason());
         return vo;
     }
 
@@ -130,5 +164,38 @@ public class InquiryServiceImpl extends ServiceImpl<InquiryMapper, Inquiry> impl
             default:
                 return "未知";
         }
+    }
+
+    /**
+     * Lead Priority 自动规则:
+     * - 紧急(2): 企业客户 + 采购数量>=10 + 有预算
+     * - 高(1): 企业客户 或 采购数量>=5 或 采购类型(PURCHASE/LEASE)
+     * - 普通(0): 其他
+     */
+    private void applyLeadPriority(Inquiry inquiry, InquiryDTO dto) {
+        int priority = 0;
+        String reason = "";
+
+        boolean isEnterprise = Integer.valueOf(2).equals(inquiry.getCustomerType());
+        int qty = inquiry.getQuantity() != null ? inquiry.getQuantity() : 0;
+        boolean hasBudget = inquiry.getBudget() != null;
+        String type = inquiry.getInquiryType();
+
+        if (isEnterprise && qty >= 10 && hasBudget) {
+            priority = 2;
+            reason = "企业客户+大批量+有预算";
+        } else if (isEnterprise || qty >= 5 || "PURCHASE".equals(type) || "LEASE".equals(type)) {
+            priority = 1;
+            reason = "高意向客户";
+            if (isEnterprise) {
+                reason = "企业客户";
+            }
+            if (qty >= 5) {
+                reason = isEnterprise ? "企业客户+批量采购" : "批量采购";
+            }
+        }
+
+        inquiry.setLeadPriority(priority);
+        inquiry.setLeadReason(reason.isEmpty() ? null : reason);
     }
 }

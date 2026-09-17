@@ -1,10 +1,10 @@
-const { articleApi, videoApi, tutorialApi } = require('../../api/index')
-const { formatDate, formatCount, formatDuration, imageOf, unwrapList } = require('../../utils/format')
+const { articleApi, videoApi, tutorialApi, qaApi } = require('../../api/index')
+const { formatDate, formatCount, formatDuration, imageOf, unwrapList, fromNow } = require('../../utils/format')
 
 Page({
   data: {
     tab: 'articles',
-    articles: [], videos: [], tutorials: [],
+    articles: [], videos: [], tutorials: [], qaQuestions: [],
     page: 1, finished: false, loading: false
   },
   onLoad() { this.reload() },
@@ -16,7 +16,7 @@ Page({
     this.reload()
   },
   async reload() {
-    this.setData({ page: 1, articles: [], videos: [], tutorials: [], finished: false })
+    this.setData({ page: 1, articles: [], videos: [], tutorials: [], qaQuestions: [], finished: false })
     await this.fetch()
   },
   async more() {
@@ -31,6 +31,7 @@ Page({
       let data
       if (tab === 'articles') data = await articleApi.page({ page: this.data.page, size: 10 })
       else if (tab === 'videos') data = await videoApi.page({ page: this.data.page, size: 10 })
+      else if (tab === 'qa') data = await qaApi.questions({ sort: 'latest', pageNum: this.data.page, pageSize: 10 })
       else data = await tutorialApi.page({ page: this.data.page, size: 10 })
       let records = unwrapList(data)
       if (tab === 'articles') {
@@ -53,6 +54,16 @@ Page({
         })
         const list = append ? this.data.videos.concat(records) : records
         this.setData({ videos: list, finished: records.length < 10, loading: false })
+      } else if (tab === 'qa') {
+        records = records.map(function (q) {
+          return Object.assign({}, q, {
+            answerText: formatCount(q.answerCount),
+            viewText: formatCount(q.viewCount),
+            timeText: fromNow(q.createTime)
+          })
+        })
+        const list = append ? this.data.qaQuestions.concat(records) : records
+        this.setData({ qaQuestions: list, finished: records.length < 10, loading: false })
       } else {
         records = records.map(function (t) {
           return Object.assign({}, t, {
@@ -68,8 +79,10 @@ Page({
   goArticle(e) { wx.navigateTo({ url: '/pages/articles/detail?id=' + e.currentTarget.dataset.id }) },
   goVideo(e) { wx.navigateTo({ url: '/pages/videos/detail?id=' + e.currentTarget.dataset.id }) },
   goTutorial(e) { wx.navigateTo({ url: '/pages/tutorials/detail?id=' + e.currentTarget.dataset.id }) },
+  goQaDetail(e) { wx.navigateTo({ url: '/pages/qa/detail?id=' + e.currentTarget.dataset.id }) },
+  goQaList() { wx.navigateTo({ url: '/pages/qa/list' }) },
   goMore() {
-    const map = { articles: '/pages/articles/list', videos: '/pages/videos/list', tutorials: '/pages/tutorials/list' }
+    const map = { articles: '/pages/articles/list', videos: '/pages/videos/list', tutorials: '/pages/tutorials/list', qa: '/pages/qa/list' }
     wx.navigateTo({ url: map[this.data.tab] })
   }
 })

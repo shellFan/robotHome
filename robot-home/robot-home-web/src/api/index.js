@@ -131,7 +131,7 @@ export const searchApi = {
 }
 
 export const rankingApi = {
-  rank: (type = 'hot', limit = 20) => get('/rankings', { type, limit }),
+  rank: (type = 'hot', limit = 20, timeRange = 'all') => get('/rankings', { type, limit, timeRange }),
   types: () => get('/rankings/types')
 }
 
@@ -139,6 +139,51 @@ export const inquiryApi = {
   submit: (data) => post('/inquiries', data),
   my: (params) => get('/inquiries/my', params),
   detail: (id) => get(`/inquiries/my/${id}`)
+}
+
+export const reviewApi = {
+  /** 提交评价 */
+  submit: (data) => post('/reviews', data),
+  /** 修改评价 */
+  update: (id, data) => put(`/reviews/${id}`, data),
+  /** 删除评价 */
+  remove: (id) => del(`/reviews/${id}`),
+  /** 某机器人的评价列表 */
+  list: (robotId, pageNum = 1, pageSize = 20) => get(`/reviews/robot/${robotId}`, { pageNum, pageSize }),
+  /** 某机器人的评价汇总 */
+  summary: (robotId) => get(`/reviews/robot/${robotId}/summary`),
+  /** 标记有用 */
+  helpful: (id) => post(`/reviews/${id}/helpful`),
+  /** 取消有用 */
+  unhelpful: (id) => del(`/reviews/${id}/helpful`)
+}
+
+export const correctionApi = {
+  /** 提交参数纠错 */
+  submit: (data) => post('/corrections', data),
+  /** 我的纠错列表 */
+  my: (params) => get('/corrections/my', params)
+}
+
+export const similarApi = {
+  /** 获取相似机器人列表 */
+  list: (robotId, limit = 10) => get(`/robots/${robotId}/similar`, { limit })
+}
+
+export const behaviorApi = {
+  /** 单条行为事件上报 (VIEW/SEARCH/CLICK/COMPARE/SHARE 由前端提交; FAVORITE/INQUIRY 由服务端产生) */
+  track: (eventType, bizType, bizId, extra) => post('/behavior/event', { eventType, bizType, bizId, extra }),
+  /** 批量行为事件上报 */
+  batch: (events) => post('/behavior/batch', events),
+  /** 查询对象热度分 */
+  hotScore: (bizType, bizId) => get('/behavior/hot/score', { bizType, bizId }),
+  /** 查询热度排行榜 Top N */
+  hotTop: (bizType, limit = 20) => get('/behavior/hot/top', { bizType, limit })
+}
+
+export const feedbackApi = {
+  /** 提交用户反馈 (bug/feature/improvement/other) */
+  submit: (data) => post('/feedback/submit', data)
 }
 
 export const messageApi = {
@@ -179,4 +224,37 @@ export const fileApi = {
 
 export const systemApi = {
   siteConfig: () => get('/admin/system/site-config')
+}
+
+export const qaApi = {
+  /** 问答列表 */
+  questions: (params) => get('/qa/questions', params),
+  /** 问题详情 */
+  questionDetail: (id) => get(`/qa/questions/${id}`),
+  /** 提问 */
+  createQuestion: (data) => post('/qa/questions', data),
+  /** 回答 */
+  createAnswer: (questionId, data) => post(`/qa/questions/${questionId}/answers`, data),
+  /** 关注问题 */
+  followQuestion: (id) => post(`/qa/questions/${id}/follow`),
+  /** 取消关注 */
+  unfollowQuestion: (id) => del(`/qa/questions/${id}/follow`),
+  /** 标记有用 */
+  helpfulAnswer: (id) => post(`/qa/answers/${id}/helpful`),
+  /** 取消有用 */
+  unhelpfulAnswer: (id) => del(`/qa/answers/${id}/helpful`)
+}
+
+export const selectionApi = {
+  /** 选型搜索 */
+  search: (data) => post('/selection/search', data),
+  /** 选型筛选条件 */
+  filters: () => get('/selection/filters')
+}
+
+export const procurementApi = {
+  /** 采购大厅列表 */
+  hallList: (params) => get('/procurement/hall', params),
+  /** 采购需求详情 */
+  hallDetail: (id) => get(`/procurement/hall/${id}`)
 }

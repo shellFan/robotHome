@@ -24,6 +24,8 @@
     <view class="ql" bindtap="goBrands"><text>品牌馆</text></view>
     <view class="ql" bindtap="goCompare"><text>对比</text></view>
     <navigator class="ql" url="/pages/companies/list"><text>企业</text></navigator>
+    <navigator class="ql" url="/pages/selection/index"><text>选型</text></navigator>
+    <navigator class="ql" url="/pages/procurement/index"><text>采购</text></navigator>
   </view>
   <view class="rh-container" wx:if="{{!loading}}">
     <view class="rh-section-head">

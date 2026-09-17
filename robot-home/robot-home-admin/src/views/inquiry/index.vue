@@ -17,6 +17,9 @@
             :value="Number(key)"
           />
         </el-select>
+        <el-select v-model="query.inquiryType" placeholder="询价类型" clearable style="width: 140px">
+          <el-option v-for="(label, key) in INQUIRY_TYPE_MAP" :key="key" :label="label" :value="key" />
+        </el-select>
         <el-button type="primary" @click="handleSearch">查询</el-button>
         <el-button @click="handleReset">重置</el-button>
       </div>
@@ -42,11 +45,18 @@
       <el-table v-loading="loading" :data="list" border stripe>
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="联系人" width="100" />
-        <el-table-column prop="phone" label="手机号" width="130" />
+        <el-table-column prop="phone" label="手机号" width="130">
+          <template #default="{ row }">
+            <span>{{ maskPhone(row.phone) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="客户类型" width="100">
           <template #default="{ row }">{{ CUSTOMER_TYPE_MAP[row.customerType] || '-' }}</template>
         </el-table-column>
         <el-table-column prop="robotName" label="意向产品" min-width="140" show-overflow-tooltip />
+        <el-table-column label="询价类型" width="100">
+          <template #default="{ row }">{{ INQUIRY_TYPE_MAP[row.inquiryType] || '通用' }}</template>
+        </el-table-column>
         <el-table-column prop="companyName" label="公司" min-width="140" show-overflow-tooltip />
         <el-table-column prop="budget" label="预算" width="100" />
         <el-table-column label="状态" width="100">
@@ -86,7 +96,7 @@
     <el-dialog v-model="dialogVisible" title="询价处理" width="680px" destroy-on-close>
       <el-descriptions v-if="detail" :column="2" border size="small">
         <el-descriptions-item label="联系人">{{ detail.name }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ detail.phone }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ maskPhone(detail.phone) }}</el-descriptions-item>
         <el-descriptions-item label="客户类型">
           {{ CUSTOMER_TYPE_MAP[detail.customerType] || '-' }}
         </el-descriptions-item>
@@ -95,6 +105,9 @@
         <el-descriptions-item label="意向产品">{{ detail.robotName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="预算">{{ detail.budget || '-' }}</el-descriptions-item>
         <el-descriptions-item label="数量">{{ detail.quantity ?? '-' }}</el-descriptions-item>
+        <el-descriptions-item label="询价类型">{{ INQUIRY_TYPE_MAP[detail.inquiryType] || '通用' }}</el-descriptions-item>
+        <el-descriptions-item v-if="detail.procurementScene" label="使用场景">{{ PROCUREMENT_SCENE_MAP[detail.procurementScene] || detail.procurementScene }}</el-descriptions-item>
+        <el-descriptions-item v-if="detail.purchaseTime" label="采购时间">{{ detail.purchaseTime }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
@@ -152,6 +165,30 @@ import {
   CUSTOMER_TYPE_MAP
 } from '@/api/inquiry'
 import { cleanParams, formatTime, safeParse } from '@/utils'
+
+/** Phase7 V2: 询价类型映射 */
+const INQUIRY_TYPE_MAP = {
+  GENERAL: '通用咨询',
+  PRICE: '获取底价',
+  PURCHASE: '我要采购',
+  LEASE: '租赁咨询',
+  COOPERATE: '合作洽谈'
+}
+
+/** Phase7 V2: 使用场景映射 */
+const PROCUREMENT_SCENE_MAP = {
+  INDUSTRIAL: '工业制造',
+  LOGISTICS: '物流仓储',
+  MEDICAL: '医疗健康',
+  EDUCATION: '教育培训',
+  SERVICE: '服务行业',
+  OTHER: '其他'
+}
+
+function maskPhone(phone) {
+  if (!phone || phone.length < 7) return phone || '-'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
 
 const loading = ref(false)
 const saving = ref(false)

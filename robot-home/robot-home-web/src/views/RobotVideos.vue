@@ -8,7 +8,7 @@
         <div v-if="!videos.length" class="rh-empty">暂无视频</div>
         <div v-else class="video-grid">
           <div v-for="video in videos" :key="video.id" class="video-grid__item" @click="play(video)">
-            <img :src="imageOf(video.cover)" :alt="video.title" />
+            <img :src="imageOf(video.cover)" :alt="video.title" loading="lazy" />
             <div class="video-grid__mask">
               <el-icon :size="36"><VideoPlay /></el-icon>
             </div>

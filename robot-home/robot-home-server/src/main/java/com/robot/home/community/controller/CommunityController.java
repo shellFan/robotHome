@@ -7,6 +7,7 @@ import com.robot.home.community.dto.PostDTO;
 import com.robot.home.community.service.CommunityService;
 import com.robot.home.community.vo.CircleVO;
 import com.robot.home.community.vo.PostVO;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -54,6 +55,7 @@ public class CommunityController {
      * 发帖
      */
     @PostMapping("/posts")
+    @RateLimit(action = "post_create", windowSeconds = 60, maxRequests = 5, dimension = "IP_USER")
     public Result<Map<String, Object>> create(@RequestBody @Valid PostDTO dto) {
         Long userId = SecurityUtils.requireUserId();
         Long id = communityService.create(userId, dto);

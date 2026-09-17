@@ -8,7 +8,7 @@
       </el-breadcrumb>
 
       <section class="rh-card brand-head">
-        <img :src="imageOf(detail.brand.logo)" :alt="detail.brand.name" class="brand-head__logo" />
+        <img :src="imageOf(detail.brand.logo)" :alt="detail.brand.name" class="brand-head__logo" loading="lazy" />
         <div class="brand-head__body">
           <h1 class="brand-head__name">{{ detail.brand.name }}</h1>
           <div class="brand-head__meta">

@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableLogic;
-import lombok.Data;
+
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -14,7 +16,8 @@ import java.time.LocalDateTime;
  * 所有业务表的公共字段基类
  * 统一包含：id / create_time / update_time / deleted
  */
-@Data
+@Getter
+@Setter
 public abstract class BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

@@ -25,8 +25,9 @@ public class RankingController {
 
     @GetMapping
     public Result<List<RobotListVO>> rank(@RequestParam(defaultValue = "hot") String type,
-                                          @RequestParam(defaultValue = "20") Integer limit) {
-        return Result.success(rankingService.rank(type, limit, SecurityUtils.currentUserId()));
+                                          @RequestParam(defaultValue = "20") Integer limit,
+                                          @RequestParam(defaultValue = "all") String timeRange) {
+        return Result.success(rankingService.rank(type, limit, SecurityUtils.currentUserId(), timeRange));
     }
 
     @GetMapping("/types")

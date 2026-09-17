@@ -33,7 +33,13 @@ public class TestDataSourceInitializer {
         run(TestSqlSupport.load("05_brand_alias_and_indexes.sql"));
         run(TestSqlSupport.load("06_real_brands_companies.sql"));
         run(TestSqlSupport.load("07_real_robot_products.sql"));
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data）");
+        // Phase6 Beta: 排行榜/行为事件/询价跟进/限流/搜索建议/用户反馈等新表
+        run(TestSqlSupport.load("10_phase6_beta.sql"));
+        // Phase7: 内容/社区/增长等新表与新列
+        run(TestSqlSupport.load("11_phase7_content_community_growth.sql"));
+        // Phase8: 社区增强/Q&A/选型/采购/搜索增长/数据质量
+        run(TestSqlSupport.load("12_phase8_community_procurement_growth.sql"));
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8）");
     }
 
     private void run(String sql) throws Exception {

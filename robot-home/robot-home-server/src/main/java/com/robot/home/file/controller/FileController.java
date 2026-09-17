@@ -4,6 +4,7 @@ import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.file.FileStorageService;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -44,6 +45,7 @@ public class FileController {
     private FileStorageService fileStorageService;
 
     @PostMapping("/upload")
+    @RateLimit(action = "file_upload", windowSeconds = 60, maxRequests = 20, dimension = "IP_USER")
     public Result<Map<String, Object>> upload(@RequestParam("file") MultipartFile file,
                                               @RequestParam(defaultValue = "common") String module) {
         SecurityUtils.requireUserId();
