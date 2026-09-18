@@ -202,14 +202,28 @@ public class RankingServiceImpl implements RankingService {
         ensureWeightsLoaded();
         List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery().orderByAsc(Robot::getId));
         int updated = 0;
+        // 批量更新hotScore，避免N+1逐条UPDATE
+        List<Robot> batch = new ArrayList<>();
+        int batchSize = 50;
         for (Robot r : robots) {
             long score = hotScore(r, Constants.RANK_HOT);
             Robot update = new Robot();
             update.setId(r.getId());
             update.setHotScore(score);
-            robotMapper.updateById(update);
-            updated++;
+            batch.add(update);
+            if (batch.size() >= batchSize) {
+                for (Robot u : batch) {
+                    robotMapper.updateById(u);
+                }
+                updated += batch.size();
+                batch.clear();
+            }
         }
+        // 处理剩余
+        for (Robot u : batch) {
+            robotMapper.updateById(u);
+        }
+        updated += batch.size();
         // 刷新后清空榜单缓存
         try {
             for (String key : new ArrayList<>(redisUtils.keys(Constants.CACHE_RANKING_PREFIX + "*"))) {

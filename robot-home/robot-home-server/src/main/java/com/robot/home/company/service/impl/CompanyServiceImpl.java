@@ -235,8 +235,15 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
         }
         CompanyPageVO page = new CompanyPageVO();
 
-        // 企业详情
-        CompanyDetailVO detailVO = detail(companyId);
+        // 企业详情（直接构建，避免调用detail()重复查询Company+Brand+Robot）
+        CompanyDetailVO detailVO = new CompanyDetailVO();
+        detailVO.setCompany(company);
+        // 品牌列表（后面companyPage也需要，一次查询复用）
+        List<Brand> brands = brandMapper.selectList(Wrappers.<Brand>lambdaQuery()
+                .eq(Brand::getCompanyId, companyId)
+                .eq(Brand::getStatus, 1)
+                .orderByDesc(Brand::getHotScore));
+        detailVO.setBrandList(brands);
         page.setCompany(detailVO);
 
         // 关注数和关注状态
@@ -251,11 +258,7 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
             page.setFollowed(false);
         }
 
-        // 品牌列表
-        List<Brand> brands = brandMapper.selectList(Wrappers.<Brand>lambdaQuery()
-                .eq(Brand::getCompanyId, companyId)
-                .eq(Brand::getStatus, 1)
-                .orderByDesc(Brand::getHotScore));
+        // 品牌列表（复用上面已查询的brands）
         List<CompanyPageVO.BrandSimpleVO> brandVOs = new ArrayList<>();
         for (Brand b : brands) {
             CompanyPageVO.BrandSimpleVO vo = new CompanyPageVO.BrandSimpleVO();
@@ -286,7 +289,7 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
                     .in(Robot::getBrandId, brandIds)
                     .eq(Robot::getStatus, 1));
         }
-        // 品牌名映射
+        // 品牌名映射（复用已查询的brands）
         java.util.Map<Long, String> brandNameMap = new java.util.HashMap<>();
         for (Brand b : brands) {
             brandNameMap.put(b.getId(), b.getName());
@@ -339,7 +342,7 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
             for (Robot r : hotRobots) {
                 robotIds.add(r.getId());
             }
-            // 补充更多robotIds
+            // 补充更多robotIds（仅当需要时）
             if (robotCount > hotRobots.size()) {
                 List<Robot> allRobots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
                         .in(Robot::getBrandId, brandIds)

@@ -253,8 +253,15 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
         }
         BrandPageVO page = new BrandPageVO();
 
-        // 品牌详情
-        BrandDetailVO detailVO = detail(brandId);
+        // 品牌详情（直接构建，避免调用detail()重复查询Brand+Robot）
+        BrandDetailVO detailVO = new BrandDetailVO();
+        detailVO.setBrand(brand);
+        if (brand.getCompanyId() != null) {
+            Company company = companyMapper.selectById(brand.getCompanyId());
+            if (company != null) {
+                detailVO.setCompanyName(company.getName());
+            }
+        }
         page.setBrand(detailVO);
 
         // 关注数和关注状态
@@ -315,6 +322,8 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
                 .eq(Robot::getBrandId, brandId)
                 .eq(Robot::getStatus, 1));
         page.setRobotCount(robotCount);
+        // 设置detailVO的productCount避免前端再请求
+        detailVO.setProductCount(robotCount);
 
         // 相关文章
         List<Article> articles = articleMapper.selectList(Wrappers.<Article>lambdaQuery()
@@ -340,28 +349,27 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
                 .eq(Article::getStatus, 1));
         page.setArticleCount(articleCount);
 
-        // 相关评测（通过品牌下的机器人）
+        // 相关评测/讨论/问答（通过品牌下所有机器人ID，一次查询获取robotIds）
         List<Long> robotIds = new ArrayList<>();
+        // 合并hotRobots+newRobots的ID
+        java.util.Set<Long> robotIdSet = new java.util.LinkedHashSet<>();
         for (Robot r : hotRobotList) {
-            robotIds.add(r.getId());
+            robotIdSet.add(r.getId());
         }
         for (Robot r : newRobotList) {
-            if (!robotIds.contains(r.getId())) {
-                robotIds.add(r.getId());
-            }
+            robotIdSet.add(r.getId());
         }
-        if (!robotIds.isEmpty()) {
-            // 补充更多robotIds
+        // 如果还有更多机器人，一次查询获取所有robotIds（避免之前的allBrandRobots冗余查询）
+        if (robotCount > robotIdSet.size()) {
             List<Robot> allBrandRobots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
                     .eq(Robot::getBrandId, brandId)
                     .eq(Robot::getStatus, 1)
                     .select(Robot::getId));
             for (Robot r : allBrandRobots) {
-                if (!robotIds.contains(r.getId())) {
-                    robotIds.add(r.getId());
-                }
+                robotIdSet.add(r.getId());
             }
         }
+        robotIds.addAll(robotIdSet);
 
         List<BrandPageVO.ReviewSimpleVO> reviewVOs = new ArrayList<>();
         List<BrandPageVO.PostSimpleVO> postVOs = new ArrayList<>();
@@ -378,7 +386,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
             for (RobotReview r : reviews) {
                 BrandPageVO.ReviewSimpleVO vo = new BrandPageVO.ReviewSimpleVO();
                 vo.setId(r.getId());
-                vo.setTitle(null); // Review没有title字段
+                vo.setTitle(null);
                 vo.setScore(r.getOverallScore() == null ? null : new java.math.BigDecimal(r.getOverallScore()));
                 vo.setViewCount(r.getHelpfulCount());
                 vo.setCreateTime(r.getCreateTime());

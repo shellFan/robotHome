@@ -106,9 +106,13 @@ public class FeedServiceImpl implements FeedService {
         // 2. 查询各类型的新内容（只查PUBLISHED）
         List<FeedItemVO> feedItems = new ArrayList<>();
 
+        // 预加载关联对象映射（避免重复查询）
+        Map<Long, Robot> robotMap = new HashMap<>();
+        Map<Long, User> userMap = new HashMap<>();
+
         // 关注机器人的新帖子
         if (!followedRobotIds.isEmpty()) {
-            addRobotPosts(followedRobotIds, lastId, ps, feedItems);
+            addRobotPosts(followedRobotIds, lastId, ps, feedItems, robotMap);
         }
 
         // 关注品牌的新文章
@@ -118,12 +122,12 @@ public class FeedServiceImpl implements FeedService {
 
         // 关注用户的新帖子
         if (!followedUserIds.isEmpty()) {
-            addUserPosts(followedUserIds, lastId, ps, feedItems);
+            addUserPosts(followedUserIds, lastId, ps, feedItems, userMap);
         }
 
         // 关注机器人的新问题
         if (!followedRobotIds.isEmpty()) {
-            addRobotQuestions(followedRobotIds, lastId, ps, feedItems);
+            addRobotQuestions(followedRobotIds, lastId, ps, feedItems, robotMap);
         }
 
         // 3. 按createTime降序排序，取前pageSize条
@@ -147,7 +151,7 @@ public class FeedServiceImpl implements FeedService {
         return PageResult.of(1, ps, (long) feedItems.size(), result);
     }
 
-    private void addRobotPosts(List<Long> robotIds, Long lastId, int pageSize, List<FeedItemVO> feedItems) {
+    private void addRobotPosts(List<Long> robotIds, Long lastId, int pageSize, List<FeedItemVO> feedItems, Map<Long, Robot> robotMap) {
         // 批量查询关注机器人的帖子
         List<CommunityPost> posts = communityPostMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
                 .in(CommunityPost::getRobotId, robotIds)
@@ -155,8 +159,8 @@ public class FeedServiceImpl implements FeedService {
                 .gt(lastId != null, CommunityPost::getId, lastId)
                 .orderByDesc(CommunityPost::getCreateTime)
                 .last("LIMIT " + pageSize));
-        // 填充机器人名
-        Map<Long, Robot> robotMap = loadRobotMap(robotIds);
+        // 按需填充机器人名（复用外部robotMap）
+        ensureRobotMap(robotIds, robotMap);
         for (CommunityPost p : posts) {
             FeedItemVO item = new FeedItemVO();
             item.setId(p.getId());
@@ -197,15 +201,15 @@ public class FeedServiceImpl implements FeedService {
         }
     }
 
-    private void addUserPosts(List<Long> userIds, Long lastId, int pageSize, List<FeedItemVO> feedItems) {
+    private void addUserPosts(List<Long> userIds, Long lastId, int pageSize, List<FeedItemVO> feedItems, Map<Long, User> userMap) {
         List<CommunityPost> posts = communityPostMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
                 .in(CommunityPost::getUserId, userIds)
                 .eq(CommunityPost::getStatus, 1)
                 .gt(lastId != null, CommunityPost::getId, lastId)
                 .orderByDesc(CommunityPost::getCreateTime)
                 .last("LIMIT " + pageSize));
-        // 填充用户信息
-        Map<Long, User> userMap = loadUserMap(userIds);
+        // 按需填充用户信息（复用外部userMap）
+        ensureUserMap(userIds, userMap);
         for (CommunityPost p : posts) {
             FeedItemVO item = new FeedItemVO();
             item.setId(p.getId());
@@ -227,14 +231,15 @@ public class FeedServiceImpl implements FeedService {
         }
     }
 
-    private void addRobotQuestions(List<Long> robotIds, Long lastId, int pageSize, List<FeedItemVO> feedItems) {
+    private void addRobotQuestions(List<Long> robotIds, Long lastId, int pageSize, List<FeedItemVO> feedItems, Map<Long, Robot> robotMap) {
         List<RobotQuestion> questions = robotQuestionMapper.selectList(Wrappers.<RobotQuestion>lambdaQuery()
                 .in(RobotQuestion::getRobotId, robotIds)
                 .eq(RobotQuestion::getStatus, 1)
                 .gt(lastId != null, RobotQuestion::getId, lastId)
                 .orderByDesc(RobotQuestion::getCreateTime)
                 .last("LIMIT " + pageSize));
-        Map<Long, Robot> robotMap = loadRobotMap(robotIds);
+        // 复用外部robotMap
+        ensureRobotMap(robotIds, robotMap);
         for (RobotQuestion q : questions) {
             FeedItemVO item = new FeedItemVO();
             item.setId(q.getId());
@@ -251,27 +256,42 @@ public class FeedServiceImpl implements FeedService {
         }
     }
 
-    private Map<Long, Robot> loadRobotMap(List<Long> robotIds) {
-        Map<Long, Robot> map = new HashMap<>();
+    /** 按需加载Robot映射（复用已有Map，避免重复查询） */
+    private void ensureRobotMap(List<Long> robotIds, Map<Long, Robot> robotMap) {
         if (robotIds == null || robotIds.isEmpty()) {
-            return map;
+            return;
         }
-        List<Robot> robots = robotMapper.selectBatchIds(robotIds);
-        for (Robot r : robots) {
-            map.put(r.getId(), r);
+        // 找出尚未加载的ID
+        List<Long> missingIds = new ArrayList<>();
+        for (Long id : robotIds) {
+            if (!robotMap.containsKey(id)) {
+                missingIds.add(id);
+            }
         }
-        return map;
+        if (!missingIds.isEmpty()) {
+            List<Robot> robots = robotMapper.selectBatchIds(missingIds);
+            for (Robot r : robots) {
+                robotMap.put(r.getId(), r);
+            }
+        }
     }
 
-    private Map<Long, User> loadUserMap(List<Long> userIds) {
-        Map<Long, User> map = new HashMap<>();
+    /** 按需加载User映射（复用已有Map，避免重复查询） */
+    private void ensureUserMap(List<Long> userIds, Map<Long, User> userMap) {
         if (userIds == null || userIds.isEmpty()) {
-            return map;
+            return;
         }
-        List<User> users = userMapper.selectBatchIds(userIds);
-        for (User u : users) {
-            map.put(u.getId(), u);
+        List<Long> missingIds = new ArrayList<>();
+        for (Long id : userIds) {
+            if (!userMap.containsKey(id)) {
+                missingIds.add(id);
+            }
         }
-        return map;
+        if (!missingIds.isEmpty()) {
+            List<User> users = userMapper.selectBatchIds(missingIds);
+            for (User u : users) {
+                userMap.put(u.getId(), u);
+            }
+        }
     }
 }
