@@ -53,7 +53,8 @@ public class GrowthDailyStat {
     /** 评测数 */
     private Integer reviews;
 
-    /** 选型搜索数 */
+    /** 选型搜索数 - DB列名selections */
+    @TableField("selections")
     private Integer selectionSearches;
 
     /** 询价数 */

@@ -3,6 +3,135 @@
 -- H2兼容 / MySQL 5.6兼容
 -- ============================================================
 
+-- 0a. Phase6核心表兜底（生产SQL10经TestSqlSupport翻译后部分表可能未创建）
+CREATE TABLE IF NOT EXISTS behavior_event (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT DEFAULT NULL,
+  session_id VARCHAR(64) DEFAULT NULL,
+  event_type VARCHAR(32) NOT NULL,
+  biz_type VARCHAR(16) DEFAULT NULL,
+  biz_id BIGINT DEFAULT NULL,
+  extra VARCHAR(512) DEFAULT NULL,
+  ip VARCHAR(64) DEFAULT NULL,
+  user_agent VARCHAR(512) DEFAULT NULL,
+  create_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS ranking_snapshot (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  rank_type VARCHAR(32) NOT NULL,
+  snapshot_date DATE NOT NULL,
+  robot_id BIGINT NOT NULL,
+  hot_score BIGINT DEFAULT 0,
+  rank_no INT NOT NULL,
+  prev_rank_no INT DEFAULT NULL,
+  rank_change INT DEFAULT NULL,
+  reason_code VARCHAR(64) DEFAULT NULL,
+  reason_text VARCHAR(255) DEFAULT NULL,
+  create_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT uk_ranking_snapshot_type_date_robot UNIQUE (rank_type, snapshot_date, robot_id)
+);
+
+CREATE TABLE IF NOT EXISTS ranking_weight (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  event_type VARCHAR(32) NOT NULL,
+  weight INT NOT NULL DEFAULT 0,
+  description VARCHAR(128) DEFAULT NULL,
+  create_time TIMESTAMP DEFAULT NULL,
+  update_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT uk_ranking_weight_event UNIQUE (event_type)
+);
+
+CREATE TABLE IF NOT EXISTS ranking_decay_config (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  rank_type VARCHAR(32) NOT NULL,
+  half_life_days INT NOT NULL DEFAULT 90,
+  min_decay_factor DECIMAL(5,4) DEFAULT 0.1000,
+  description VARCHAR(128) DEFAULT NULL,
+  update_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT uk_ranking_decay_config_type UNIQUE (rank_type)
+);
+
+-- ranking_weight 初始数据
+MERGE INTO ranking_weight (event_type, weight, description, create_time) KEY(event_type) VALUES
+('VIEW', 1, '浏览', CURRENT_TIMESTAMP),
+('FAVORITE', 8, '收藏', CURRENT_TIMESTAMP),
+('COMPARE', 12, '对比', CURRENT_TIMESTAMP),
+('INQUIRY', 30, '询价', CURRENT_TIMESTAMP),
+('COMMENT', 5, '评论', CURRENT_TIMESTAMP),
+('SCORE', 10, '评分', CURRENT_TIMESTAMP),
+('NEW_PRODUCT', 2, '新品加权', CURRENT_TIMESTAMP),
+('FOLLOW', 6, '关注', CURRENT_TIMESTAMP),
+('REVIEW_CREATE', 15, '发布评价', CURRENT_TIMESTAMP),
+('POST_CREATE', 4, '发帖', CURRENT_TIMESTAMP),
+('QUESTION_CREATE', 3, '提问', CURRENT_TIMESTAMP),
+('ANSWER_CREATE', 2, '回答', CURRENT_TIMESTAMP),
+('BRAND_VIEW', 1, '品牌浏览', CURRENT_TIMESTAMP),
+('COMPANY_VIEW', 1, '企业浏览', CURRENT_TIMESTAMP),
+('SELECTION_SEARCH', 8, '选型搜索', CURRENT_TIMESTAMP);
+
+-- ranking_decay_config 初始数据
+MERGE INTO ranking_decay_config (rank_type, half_life_days, min_decay_factor, description, update_time) KEY(rank_type) VALUES
+('hot', 90, 0.1000, '综合热度', CURRENT_TIMESTAMP),
+('humanoid', 120, 0.1000, '人形机器人', CURRENT_TIMESTAMP),
+('quadruped', 120, 0.1000, '四足机器人', CURRENT_TIMESTAMP),
+('service', 90, 0.1000, '服务机器人', CURRENT_TIMESTAMP),
+('industrial', 180, 0.0500, '工业机器人', CURRENT_TIMESTAMP),
+('family', 90, 0.1000, '家庭机器人', CURRENT_TIMESTAMP),
+('dev', 60, 0.1500, '开发平台', CURRENT_TIMESTAMP),
+('follow', 90, 0.1000, '关注榜', CURRENT_TIMESTAMP),
+('favorite', 60, 0.1000, '收藏榜', CURRENT_TIMESTAMP),
+('discussion', 30, 0.1500, '讨论榜', CURRENT_TIMESTAMP),
+('review', 120, 0.0800, '口碑榜', CURRENT_TIMESTAMP),
+('new_product', 45, 0.2000, '新品榜', CURRENT_TIMESTAMP),
+('company_attention', 90, 0.1000, '企业关注榜', CURRENT_TIMESTAMP);
+
+-- 0b. H2兼容建表（生产SQL13经TestSqlSupport翻译后可能部分语句跳过，此处确保核心表存在）
+CREATE TABLE IF NOT EXISTS user_contribution_stat (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  review_count INT NOT NULL DEFAULT 0,
+  post_count INT NOT NULL DEFAULT 0,
+  question_count INT NOT NULL DEFAULT 0,
+  answer_count INT NOT NULL DEFAULT 0,
+  helpful_received INT NOT NULL DEFAULT 0,
+  correction_accepted INT NOT NULL DEFAULT 0,
+  contribution_score INT NOT NULL DEFAULT 0,
+  contributor_level TINYINT NOT NULL DEFAULT 0,
+  update_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT uk_user_contribution_stat_user_id UNIQUE (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS growth_daily_stat (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  stat_date DATE NOT NULL,
+  new_users INT NOT NULL DEFAULT 0,
+  active_users INT NOT NULL DEFAULT 0,
+  robot_views INT NOT NULL DEFAULT 0,
+  searches INT NOT NULL DEFAULT 0,
+  favorites INT NOT NULL DEFAULT 0,
+  compares INT NOT NULL DEFAULT 0,
+  questions INT NOT NULL DEFAULT 0,
+  answers INT NOT NULL DEFAULT 0,
+  posts INT NOT NULL DEFAULT 0,
+  reviews INT NOT NULL DEFAULT 0,
+  selections INT NOT NULL DEFAULT 0,
+  inquiries INT NOT NULL DEFAULT 0,
+  procurements INT NOT NULL DEFAULT 0,
+  brand_views INT NOT NULL DEFAULT 0,
+  company_views INT NOT NULL DEFAULT 0,
+  follows INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT NULL,
+  update_time TIMESTAMP DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT uk_growth_daily_stat_stat_date UNIQUE (stat_date)
+);
+
 -- 1. 用户贡献统计测试数据
 INSERT IGNORE INTO `user_contribution_stat` (`user_id`, `review_count`, `post_count`, `question_count`, `answer_count`, `helpful_received`, `correction_accepted`, `contribution_score`, `contributor_level`, `update_time`)
 VALUES
