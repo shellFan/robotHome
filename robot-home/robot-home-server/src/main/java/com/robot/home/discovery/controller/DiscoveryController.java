@@ -5,6 +5,7 @@ import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.discovery.service.DiscoveryService;
 import com.robot.home.discovery.vo.DiscoveryHomeVO;
 import com.robot.home.discovery.vo.DiscoveryRankItemVO;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import com.robot.home.robot.vo.RobotListVO;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +29,7 @@ public class DiscoveryController {
      * 发现页聚合数据
      * @param position 展示位置: pc/miniapp，影响返回数量
      */
+    @RateLimit(action = "discovery_home", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     @GetMapping("/home")
     public Result<DiscoveryHomeVO> home(@RequestParam(required = false) String position) {
         return Result.success(discoveryService.home(SecurityUtils.currentUserId(), position));
@@ -63,6 +65,7 @@ public class DiscoveryController {
     /**
      * 榜单机器人
      */
+    @RateLimit(action = "discovery_rank", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     @GetMapping("/rank")
     public Result<List<DiscoveryRankItemVO>> rankRobots(
             @RequestParam(defaultValue = "hot") String type,
