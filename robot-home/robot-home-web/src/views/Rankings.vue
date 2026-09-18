@@ -42,13 +42,19 @@
         <div v-else>
           <!-- TOP3 强化展示 -->
           <div v-if="top3.length" class="rank-top3">
-            <div v-for="(robot, idx) in top3" :key="robot.id" class="rank-top3__item" :class="'rank-top3__' + (idx + 1)">
-              <router-link :to="'/robot/' + robot.id" class="rank-top3__link">
+            <div v-for="(robot, idx) in top3" :key="robot.robotId || robot.id" class="rank-top3__item" :class="'rank-top3__' + (idx + 1)">
+              <router-link :to="'/robot/' + (robot.robotId || robot.id)" class="rank-top3__link">
                 <div class="rank-top3__rank">{{ idx + 1 }}</div>
-                <img :src="imageOf(robot.coverImage)" :alt="robot.name" class="rank-top3__img" />
-                <div class="rank-top3__name">{{ robot.name }}</div>
+                <img :src="imageOf(robot.robotCoverImage || robot.coverImage)" :alt="robot.robotName || robot.name" class="rank-top3__img" />
+                <div class="rank-top3__name">{{ robot.robotName || robot.name }}</div>
                 <div class="rank-top3__brand">{{ robot.brandName || '-' }}</div>
                 <div class="rank-top3__score">{{ robot.score ? Number(robot.score).toFixed(1) : '-' }}</div>
+                <div v-if="robot.rankChange !== undefined" class="rank-top3__change">
+                  <span v-if="robot.rankChange > 0" class="rank-up">↑{{ robot.rankChange }}</span>
+                  <span v-else-if="robot.rankChange < 0" class="rank-down">↓{{ Math.abs(robot.rankChange) }}</span>
+                  <span v-else-if="robot.rankChange === 0" class="rank-same">—</span>
+                  <span v-else class="rank-new">NEW</span>
+                </div>
               </router-link>
             </div>
           </div>
@@ -60,28 +66,37 @@
             <span class="rank-row__price">指导价</span>
             <span class="rank-row__score">评分</span>
             <span class="rank-row__stat">热度</span>
+            <span class="rank-row__change">变化</span>
+            <span class="rank-row__reason">上榜原因</span>
             <span class="rank-row__op">操作</span>
           </div>
           <router-link
             v-for="(robot, index) in restList"
-            :key="robot.id"
-            :to="'/robot/' + robot.id"
+            :key="robot.robotId || robot.id"
+            :to="'/robot/' + (robot.robotId || robot.id)"
             class="rank-row"
           >
             <span class="rank-row__no">
               <em :class="{ 'is-top': index < 3 }">{{ index + 4 }}</em>
             </span>
             <span class="rank-row__name">
-              <img :src="imageOf(robot.coverImage)" :alt="robot.name" loading="lazy" />
-              <b class="rh-ellipsis">{{ robot.name }}</b>
-              <span class="rh-text-light rh-ellipsis">{{ robot.subtitle }}</span>
+              <img :src="imageOf(robot.robotCoverImage || robot.coverImage)" :alt="robot.robotName || robot.name" loading="lazy" />
+              <b class="rh-ellipsis">{{ robot.robotName || robot.name }}</b>
+              <span class="rh-text-light rh-ellipsis">{{ robot.robotSubtitle || robot.subtitle }}</span>
             </span>
             <span class="rank-row__brand">{{ robot.brandName || '-' }}</span>
             <span class="rank-row__price rh-price">{{ formatPrice(robot.guidePrice) }}</span>
             <span class="rank-row__score">{{ robot.score ? Number(robot.score).toFixed(1) : '-' }}</span>
             <span class="rank-row__stat">{{ formatCount(robot.hotScore) }}</span>
+            <span class="rank-row__change">
+              <span v-if="robot.rankChange > 0" class="rank-up">↑{{ robot.rankChange }}</span>
+              <span v-else-if="robot.rankChange < 0" class="rank-down">↓{{ Math.abs(robot.rankChange) }}</span>
+              <span v-else-if="robot.rankChange === 0" class="rank-same">—</span>
+              <span v-else-if="robot.rankChange === null || robot.rankChange === undefined" class="rank-new">NEW</span>
+            </span>
+            <span class="rank-row__reason" :title="robot.reasonText">{{ robot.reasonText || '-' }}</span>
             <span class="rank-row__op">
-              <el-button size="small" text type="primary" @click.prevent="addCompare(robot.id)">
+              <el-button size="small" text type="primary" @click.prevent="addCompare(robot.robotId || robot.id)">
                 对比
               </el-button>
             </span>
@@ -129,7 +144,7 @@ async function loadTypes () {
 async function load () {
   loading.value = true
   try {
-    list.value = await rankingApi.rank(active.value, 20, timeRange.value)
+    list.value = await rankingApi.snapshot(active.value, 20)
   } finally {
     loading.value = false
   }
@@ -213,7 +228,7 @@ onMounted(async () => {
 
 .rank-row {
   display: grid;
-  grid-template-columns: 60px 2fr 1fr 1fr 70px 90px 70px;
+  grid-template-columns: 60px 2fr 1fr 1fr 70px 90px 60px 100px 70px;
   gap: 10px;
   align-items: center;
   padding: 12px 8px;
@@ -386,6 +401,36 @@ onMounted(async () => {
   color: var(--rh-primary);
 }
 
+.rank-top3__change {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.rank-up {
+  color: #e53935;
+  font-weight: 600;
+}
+.rank-down {
+  color: #43a047;
+  font-weight: 600;
+}
+.rank-same {
+  color: var(--rh-text-light);
+}
+.rank-new {
+  color: #f5a623;
+  font-weight: 700;
+}
+
+.rank-row__change,
+.rank-row__reason {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .rank-top3 {
     grid-template-columns: 1fr;
@@ -395,6 +440,8 @@ onMounted(async () => {
   }
   .rank-row__brand,
   .rank-row__score,
+  .rank-row__change,
+  .rank-row__reason,
   .rank-row__op {
     display: none;
   }

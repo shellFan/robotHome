@@ -4,7 +4,7 @@
       <view class="feed-item" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-item="{{item}}">
         <image class="feed-item__cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
         <view class="feed-item__body">
-          <view class="feed-item__type">{{item.contentType || item.type}}</view>
+          <view class="feed-item__type">{{item.feedType}}</view>
           <view class="feed-item__title">{{item.title || item.name}}</view>
           <view class="feed-item__meta">
             <text>{{item.dateText}}</text>

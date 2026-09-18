@@ -68,8 +68,10 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private RedisUtils redisUtils;
 
     @Override
-    public DiscoveryHomeVO home(Long currentUserId) {
-        String cacheKey = "robot:discovery:home";
+    public DiscoveryHomeVO home(Long currentUserId, String position) {
+        boolean isPc = "pc".equalsIgnoreCase(position);
+        int limit = isPc ? 15 : DEFAULT_LIMIT;
+        String cacheKey = "robot:discovery:home:" + (isPc ? "pc" : "miniapp");
         try {
             DiscoveryHomeVO cached = redisUtils.getObj(cacheKey, DiscoveryHomeVO.class);
             if (cached != null) {
@@ -80,17 +82,17 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         }
 
         DiscoveryHomeVO vo = new DiscoveryHomeVO();
-        vo.setHotRobots(hotRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setTrendingRobots(trendingRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setNewRobots(newRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setTopRatedRobots(topRatedRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setMostFavoritedRobots(mostFavoritedRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setMostDiscussedRobots(mostDiscussedRobots(DEFAULT_LIMIT, currentUserId));
-        vo.setHotBrands(hotBrands(DEFAULT_LIMIT));
+        vo.setHotRobots(hotRobots(limit, currentUserId));
+        vo.setTrendingRobots(trendingRobots(limit, currentUserId));
+        vo.setNewRobots(newRobots(limit, currentUserId));
+        vo.setTopRatedRobots(topRatedRobots(limit, currentUserId));
+        vo.setMostFavoritedRobots(mostFavoritedRobots(limit, currentUserId));
+        vo.setMostDiscussedRobots(mostDiscussedRobots(limit, currentUserId));
+        vo.setHotBrands(hotBrands(limit));
         vo.setCategories(robotService.categoryTree());
         vo.setRankingCards(buildRankingCards());
-        vo.setHotPosts(hotPosts(5));
-        vo.setHotQuestions(hotQuestions(5));
+        vo.setHotPosts(hotPosts(isPc ? 8 : 5));
+        vo.setHotQuestions(hotQuestions(isPc ? 8 : 5));
 
         try {
             redisUtils.setObj(cacheKey, vo, CACHE_SECONDS + (long) (Math.random() * 30), TimeUnit.SECONDS);

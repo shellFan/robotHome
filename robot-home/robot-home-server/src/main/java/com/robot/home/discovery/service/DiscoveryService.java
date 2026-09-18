@@ -13,8 +13,9 @@ public interface DiscoveryService {
 
     /**
      * 发现页聚合数据
+     * @param position 展示位置: pc/miniapp
      */
-    DiscoveryHomeVO home(Long currentUserId);
+    DiscoveryHomeVO home(Long currentUserId, String position);
 
     /**
      * 热门机器人

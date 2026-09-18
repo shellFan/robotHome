@@ -33,6 +33,7 @@ const routes = [
   { path: '/feedback', name: 'feedback', component: () => import('@/views/Feedback.vue'), meta: { title: '意见反馈 - 机器人之家' } },
   { path: '/login', name: 'login', component: () => import('@/views/Login.vue'), meta: { title: '登录 - 机器人之家' } },
   { path: '/user/:id/profile', name: 'user-public-profile', component: () => import('@/views/user/PublicProfile.vue'), meta: { title: '用户主页 - 机器人之家' } },
+  { path: '/discovery', name: 'discovery', component: () => import('@/views/Discovery.vue'), meta: { title: '发现 - 机器人之家' } },
   { path: '/feed', name: 'feed', component: () => import('@/views/Feed.vue'), meta: { title: '关注动态 - 机器人之家', auth: true } },
   {
     path: '/user',

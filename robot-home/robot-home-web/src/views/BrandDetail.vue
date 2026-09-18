@@ -1,29 +1,27 @@
 <template>
   <MainLayout>
-    <div v-if="detail" class="rh-container">
+    <div v-if="page" class="rh-container">
       <el-breadcrumb separator="/" class="page-crumb">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item :to="{ name: 'brands' }">品牌库</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail.brand.name }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ page.brand.name }}</el-breadcrumb-item>
       </el-breadcrumb>
 
       <section class="rh-card brand-head">
-        <img :src="imageOf(detail.brand.logo)" :alt="detail.brand.name" class="brand-head__logo" loading="lazy" />
+        <img :src="imageOf(page.brand.logo)" :alt="page.brand.name" class="brand-head__logo" loading="lazy" />
         <div class="brand-head__body">
-          <h1 class="brand-head__name">{{ detail.brand.name }}</h1>
+          <h1 class="brand-head__name">{{ page.brand.name }}</h1>
           <div class="brand-head__meta">
-            <span v-if="detail.brand.country">{{ detail.brand.country }}</span>
-            <span v-if="detail.brand.foundYear">{{ detail.brand.foundYear }} 年成立</span>
-            <span v-if="detail.companyName">
+            <span v-if="page.brand.country">{{ page.brand.country }}</span>
+            <span v-if="page.brand.foundYear">{{ page.brand.foundYear }} 年成立</span>
+            <span v-if="page.brand.companyId">
               所属企业：
-              <router-link v-if="detail.brand.companyId" :to="'/company/' + detail.brand.companyId">
-                {{ detail.companyName }}
-              </router-link>
-              <template v-else>{{ detail.companyName }}</template>
+              <router-link :to="'/company/' + page.brand.companyId">{{ page.brand.companyName }}</router-link>
             </span>
-            <span>{{ detail.productCount }} 款产品</span>
+            <span>{{ page.robotCount || 0 }} 款产品</span>
+            <span v-if="page.followCount">{{ page.followCount }} 人关注</span>
           </div>
-          <p class="brand-head__intro">{{ detail.brand.intro }}</p>
+          <p class="brand-head__intro">{{ page.brand.intro }}</p>
           <div class="brand-head__actions">
             <el-button
               size="default"
@@ -33,16 +31,37 @@
             >
               {{ followed ? '已关注' : '关注品牌' }}
             </el-button>
-            <el-button v-if="detail.brand.website" size="default" text @click="openSite">
+            <el-button v-if="page.brand.website" size="default" text @click="openSite">
               访问官网
             </el-button>
           </div>
         </div>
       </section>
 
+      <!-- 热门机器人 -->
+      <section v-if="page.hotRobots && page.hotRobots.length" class="rh-section">
+        <div class="rh-section__head">
+          <h2 class="rh-section__title">热门机器人</h2>
+        </div>
+        <div class="rh-grid rh-grid--5">
+          <RobotCard v-for="robot in page.hotRobots" :key="robot.id" :robot="robot" />
+        </div>
+      </section>
+
+      <!-- 新品机器人 -->
+      <section v-if="page.newRobots && page.newRobots.length" class="rh-section">
+        <div class="rh-section__head">
+          <h2 class="rh-section__title">新品机器人</h2>
+        </div>
+        <div class="rh-grid rh-grid--5">
+          <RobotCard v-for="robot in page.newRobots" :key="robot.id" :robot="robot" />
+        </div>
+      </section>
+
+      <!-- 全部机器人(分页) -->
       <section class="rh-section">
         <div class="rh-section__head">
-          <h2 class="rh-section__title">旗下机器人（{{ detail.productCount }}）</h2>
+          <h2 class="rh-section__title">旗下机器人（{{ page.robotCount || 0 }}）</h2>
         </div>
         <div v-if="!products.length" class="rh-empty">暂无产品</div>
         <div v-else class="rh-grid rh-grid--5">
@@ -57,6 +76,49 @@
           :total="productTotal"
           @current-change="changeProductPage"
         />
+      </section>
+
+      <!-- 相关文章 -->
+      <section v-if="page.articles && page.articles.length" class="rh-section">
+        <div class="rh-section__head">
+          <h2 class="rh-section__title">相关文章（{{ page.articleCount || 0 }}）</h2>
+        </div>
+        <div class="rh-grid rh-grid--3">
+          <div v-for="a in page.articles" :key="a.id" class="rh-card article-card" @click="$router.push('/article/' + a.id)">
+            <img v-if="a.coverImage" :src="imageOf(a.coverImage)" class="article-card__cover" loading="lazy" />
+            <div class="article-card__body">
+              <h3 class="article-card__title">{{ a.title }}</h3>
+              <span class="article-card__meta">{{ a.viewCount || 0 }} 阅读</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 相关评测 -->
+      <section v-if="page.reviews && page.reviews.length" class="rh-section">
+        <div class="rh-section__head">
+          <h2 class="rh-section__title">相关评测（{{ page.reviewCount || 0 }}）</h2>
+        </div>
+        <div class="rh-list">
+          <div v-for="r in page.reviews" :key="r.id" class="rh-card review-card">
+            <span class="review-card__score">{{ r.score }}</span>
+            <span class="review-card__title">{{ r.title }}</span>
+            <span class="review-card__meta">{{ r.viewCount || 0 }} 阅读</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 社区讨论 -->
+      <section v-if="page.posts && page.posts.length" class="rh-section">
+        <div class="rh-section__head">
+          <h2 class="rh-section__title">社区讨论</h2>
+        </div>
+        <div class="rh-list">
+          <div v-for="p in page.posts" :key="p.id" class="rh-card post-card" @click="$router.push('/community/' + p.id)">
+            <span class="post-card__title">{{ p.title }}</span>
+            <span class="post-card__meta">{{ p.likeCount || 0 }} 赞 · {{ p.commentCount || 0 }} 评论</span>
+          </div>
+        </div>
       </section>
     </div>
     <div v-else class="rh-container"><div class="rh-empty">加载中…</div></div>
@@ -79,7 +141,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const id = computed(() => Number(route.params.id))
-const detail = ref(null)
+const page = ref(null)
 const products = ref([])
 const productPageNum = ref(1)
 const productPageSize = ref(10)
@@ -87,14 +149,14 @@ const productTotal = ref(0)
 const followed = ref(false)
 
 async function load () {
-  detail.value = await brandApi.detail(id.value)
+  page.value = await brandApi.brandPage(id.value)
+  followed.value = !!page.value.followed
   setPageMeta({
-    title: detail.value.brand.name + ' - 品牌介绍与旗下机器人 - 机器人之家',
-    description: detail.value.brand.intro || detail.value.brand.name + ' 品牌介绍、旗下机器人产品与报价。',
-    keywords: detail.value.brand.name + ',机器人品牌,机器人产品'
+    title: page.value.brand.name + ' - 品牌介绍与旗下机器人 - 机器人之家',
+    description: page.value.brand.intro || page.value.brand.name + ' 品牌介绍、旗下机器人产品与报价。',
+    keywords: page.value.brand.name + ',机器人品牌,机器人产品'
   })
   await loadProducts()
-  await loadFollow()
 }
 
 async function loadProducts () {
@@ -104,16 +166,6 @@ async function loadProducts () {
   })
   products.value = data.list || []
   productTotal.value = data.total || 0
-}
-
-async function loadFollow () {
-  if (!userStore.isLogin) return
-  try {
-    const data = await followApi.check('brand', id.value)
-    followed.value = !!(data && data.followed)
-  } catch (e) {
-    followed.value = false
-  }
 }
 
 async function toggleFollow () {
@@ -128,7 +180,7 @@ async function toggleFollow () {
 }
 
 function openSite () {
-  window.open(detail.value.brand.website, '_blank')
+  window.open(page.value.brand.website, '_blank')
 }
 
 function changeProductPage (p) {
@@ -186,5 +238,79 @@ onMounted(load)
 .brand-head__actions {
   display: flex;
   gap: 10px;
+}
+
+.article-card {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.article-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.article-card__cover {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+}
+.article-card__body {
+  padding: 10px 12px;
+}
+.article-card__title {
+  font-size: 14px;
+  margin: 0 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.article-card__meta {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+}
+
+.review-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.review-card__score {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--rh-primary);
+  min-width: 36px;
+}
+.review-card__title {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-card__meta {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+}
+
+.post-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.post-card__title {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-card__meta {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+  white-space: nowrap;
 }
 </style>

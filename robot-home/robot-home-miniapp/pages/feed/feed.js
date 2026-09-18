@@ -28,8 +28,8 @@ Page({
       if (!Array.isArray(records)) records = []
       records = records.map(function (item) {
         return Object.assign({}, item, {
-          cover: imageOf(item.cover || item.imageUrl),
-          dateText: formatDate(item.createdAt)
+          cover: imageOf(item.coverImage),
+          dateText: formatDate(item.createTime)
         })
       })
       var lastItem = records.length ? records[records.length - 1] : null
@@ -47,13 +47,21 @@ Page({
   goDetail(e) {
     var item = e.currentTarget.dataset.item
     if (!item) return
-    var type = item.contentType || item.type || ''
-    if (type === 'ROBOT' || type === 'robot') {
+    var type = item.feedType || ''
+    if (type === 'ROBOT' || type === 'NEW_ROBOT') {
       wx.navigateTo({ url: '/pages/robots/detail?id=' + item.targetId })
-    } else if (type === 'BRAND' || type === 'brand') {
+    } else if (type === 'BRAND') {
       wx.navigateTo({ url: '/pages/brands/detail?id=' + item.targetId })
-    } else if (type === 'ARTICLE' || type === 'article') {
+    } else if (type === 'ARTICLE') {
       wx.navigateTo({ url: '/pages/articles/detail?id=' + item.targetId })
+    } else if (type === 'POST') {
+      wx.navigateTo({ url: '/pages/community/post-detail?id=' + item.targetId })
+    } else if (type === 'QUESTION') {
+      wx.navigateTo({ url: '/pages/qa/detail?id=' + item.targetId })
+    } else if (type === 'ANSWER') {
+      wx.navigateTo({ url: '/pages/qa/detail?id=' + (item.sourceId || item.targetId) })
+    } else if (type === 'REVIEW') {
+      wx.navigateTo({ url: '/pages/robots/detail?id=' + (item.sourceId || item.targetId) })
     }
   }
 })

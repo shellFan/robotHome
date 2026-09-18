@@ -1,31 +1,32 @@
 <template>
   <MainLayout>
-    <div v-if="detail" class="rh-container">
+    <div v-if="page" class="rh-container">
       <el-breadcrumb separator="/" class="page-crumb">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item :to="{ name: 'companies' }">企业库</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail.company.name }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ page.company.name }}</el-breadcrumb-item>
       </el-breadcrumb>
 
       <section class="rh-card company-head">
-        <img :src="imageOf(detail.company.logo)" :alt="detail.company.name" class="company-head__logo" loading="lazy" />
+        <img :src="imageOf(page.company.logo)" :alt="page.company.name" class="company-head__logo" loading="lazy" />
         <div class="company-head__body">
-          <h1 class="company-head__name">{{ detail.company.name }}</h1>
+          <h1 class="company-head__name">{{ page.company.name }}</h1>
           <div class="company-head__meta">
-            <span v-if="detail.company.region">{{ detail.company.region }}</span>
-            <span v-if="detail.company.foundYear">{{ detail.company.foundYear }} 年成立</span>
-            <span>{{ (detail.brandList || []).length }} 个品牌</span>
-            <span>{{ (detail.productList || []).length }}+ 款产品</span>
+            <span v-if="page.company.region">{{ page.company.region }}</span>
+            <span v-if="page.company.foundYear">{{ page.company.foundYear }} 年成立</span>
+            <span>{{ page.brandCount || (page.brands || []).length }} 个品牌</span>
+            <span>{{ page.robotCount || 0 }}+ 款产品</span>
+            <span v-if="page.followCount">{{ page.followCount }} 人关注</span>
           </div>
-          <p class="company-head__intro">{{ detail.company.intro }}</p>
-          <div v-if="detail.company.tags" class="company-head__tags">
+          <p class="company-head__intro">{{ page.company.intro }}</p>
+          <div v-if="page.company.tags" class="company-head__tags">
             <span v-for="tag in tags" :key="tag" class="rh-tag">{{ tag }}</span>
           </div>
           <div class="company-head__contact">
-            <span v-if="detail.company.website">官网：{{ detail.company.website }}</span>
-            <span v-if="detail.company.contactPhone">电话：{{ detail.company.contactPhone }}</span>
-            <span v-if="detail.company.contactEmail">邮箱：{{ detail.company.contactEmail }}</span>
-            <span v-if="detail.company.address">地址：{{ detail.company.address }}</span>
+            <span v-if="page.company.website">官网：{{ page.company.website }}</span>
+            <span v-if="page.company.contactPhone">电话：{{ page.company.contactPhone }}</span>
+            <span v-if="page.company.contactEmail">邮箱：{{ page.company.contactEmail }}</span>
+            <span v-if="page.company.address">地址：{{ page.company.address }}</span>
           </div>
           <el-button size="default" :type="followed ? 'primary' : 'default'" plain @click="toggleFollow">
             {{ followed ? '已关注' : '关注企业' }}
@@ -33,11 +34,12 @@
         </div>
       </section>
 
-      <section v-if="detail.brandList && detail.brandList.length" class="rh-section">
+      <!-- 旗下品牌 -->
+      <section v-if="page.brands && page.brands.length" class="rh-section">
         <h2 class="rh-section__title">旗下品牌</h2>
         <div class="brand-row">
           <router-link
-            v-for="brand in detail.brandList"
+            v-for="brand in page.brands"
             :key="brand.id"
             :to="'/brand/' + brand.id"
             class="brand-row__item"
@@ -48,6 +50,15 @@
         </div>
       </section>
 
+      <!-- 热门机器人 -->
+      <section v-if="page.hotRobots && page.hotRobots.length" class="rh-section">
+        <h2 class="rh-section__title">热门机器人</h2>
+        <div class="rh-grid rh-grid--5">
+          <RobotCard v-for="robot in page.hotRobots" :key="robot.id" :robot="robot" />
+        </div>
+      </section>
+
+      <!-- 全部产品(分页) -->
       <section class="rh-section">
         <h2 class="rh-section__title">全部产品</h2>
         <div v-if="!products.length" class="rh-empty">暂无产品</div>
@@ -63,6 +74,31 @@
           :total="productTotal"
           @current-change="changePage"
         />
+      </section>
+
+      <!-- 相关文章 -->
+      <section v-if="page.articles && page.articles.length" class="rh-section">
+        <h2 class="rh-section__title">相关文章（{{ page.articleCount || 0 }}）</h2>
+        <div class="rh-grid rh-grid--3">
+          <div v-for="a in page.articles" :key="a.id" class="rh-card article-card" @click="$router.push('/article/' + a.id)">
+            <img v-if="a.coverImage" :src="imageOf(a.coverImage)" class="article-card__cover" loading="lazy" />
+            <div class="article-card__body">
+              <h3 class="article-card__title">{{ a.title }}</h3>
+              <span class="article-card__meta">{{ a.viewCount || 0 }} 阅读</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 社区讨论 -->
+      <section v-if="page.posts && page.posts.length" class="rh-section">
+        <h2 class="rh-section__title">社区讨论</h2>
+        <div class="rh-list">
+          <div v-for="p in page.posts" :key="p.id" class="rh-card post-card" @click="$router.push('/community/' + p.id)">
+            <span class="post-card__title">{{ p.title }}</span>
+            <span class="post-card__meta">{{ p.likeCount || 0 }} 赞 · {{ p.commentCount || 0 }} 评论</span>
+          </div>
+        </div>
       </section>
     </div>
     <div v-else class="rh-container"><div class="rh-empty">加载中…</div></div>
@@ -85,7 +121,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const id = computed(() => Number(route.params.id))
-const detail = ref(null)
+const page = ref(null)
 const products = ref([])
 const pageNum = ref(1)
 const pageSize = ref(10)
@@ -93,7 +129,7 @@ const productTotal = ref(0)
 const followed = ref(false)
 
 const tags = computed(() => {
-  const raw = detail.value && detail.value.company.tags
+  const raw = page.value && page.value.company.tags
   if (!raw) return []
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
@@ -104,29 +140,19 @@ const tags = computed(() => {
 })
 
 async function load () {
-  detail.value = await companyApi.detail(id.value)
+  page.value = await companyApi.companyPage(id.value)
+  followed.value = !!page.value.followed
   setPageMeta({
-    title: detail.value.company.name + ' - 企业介绍与产品 - 机器人之家',
-    description: detail.value.company.intro || detail.value.company.name + ' 企业介绍、旗下品牌与机器人产品。'
+    title: page.value.company.name + ' - 企业介绍与产品 - 机器人之家',
+    description: page.value.company.intro || page.value.company.name + ' 企业介绍、旗下品牌与机器人产品。'
   })
   await loadProducts()
-  await loadFollow()
 }
 
 async function loadProducts () {
   const data = await companyApi.robots(id.value, { pageNum: pageNum.value, pageSize: pageSize.value })
   products.value = data.list || []
   productTotal.value = data.total || 0
-}
-
-async function loadFollow () {
-  if (!userStore.isLogin) return
-  try {
-    const data = await followApi.check('company', id.value)
-    followed.value = !!(data && data.followed)
-  } catch (e) {
-    followed.value = false
-  }
 }
 
 async function toggleFollow () {
@@ -230,5 +256,54 @@ onMounted(load)
   width: 32px;
   height: 32px;
   object-fit: contain;
+}
+
+.article-card {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.article-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.article-card__cover {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+}
+.article-card__body {
+  padding: 10px 12px;
+}
+.article-card__title {
+  font-size: 14px;
+  margin: 0 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.article-card__meta {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+}
+
+.post-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.post-card__title {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-card__meta {
+  font-size: 12px;
+  color: var(--rh-text-sub);
+  white-space: nowrap;
 }
 </style>

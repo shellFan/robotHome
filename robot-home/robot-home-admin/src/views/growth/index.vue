@@ -105,7 +105,10 @@ const todayCards = [
   { key: 'favorites', label: '收藏', color: '#e34d59' },
   { key: 'compares', label: '对比', color: '#1668dc' },
   { key: 'questions', label: '提问', color: '#2ba471' },
-  { key: 'answers', label: '回答', color: '#d9822b' }
+  { key: 'answers', label: '回答', color: '#d9822b' },
+  { key: 'posts', label: '发帖', color: '#7a5af8' },
+  { key: 'reviews', label: '评测', color: '#e34d59' },
+  { key: 'inquiries', label: '询价', color: '#d9822b' }
 ]
 
 const funnelItems = computed(() => {

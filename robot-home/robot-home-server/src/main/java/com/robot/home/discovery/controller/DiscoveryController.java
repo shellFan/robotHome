@@ -26,10 +26,11 @@ public class DiscoveryController {
 
     /**
      * 发现页聚合数据
+     * @param position 展示位置: pc/miniapp，影响返回数量
      */
     @GetMapping("/home")
-    public Result<DiscoveryHomeVO> home() {
-        return Result.success(discoveryService.home(SecurityUtils.currentUserId()));
+    public Result<DiscoveryHomeVO> home(@RequestParam(required = false) String position) {
+        return Result.success(discoveryService.home(SecurityUtils.currentUserId(), position));
     }
 
     /**
