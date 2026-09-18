@@ -1,6 +1,7 @@
 package com.robot.home.growth.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -21,7 +22,8 @@ public class GrowthDailyStat {
     /** 统计日期 */
     private LocalDate statDate;
 
-    /** DAU（日活跃用户） */
+    /** DAU（日活跃用户）- DB列名active_users */
+    @TableField("active_users")
     private Integer dau;
 
     /** 新注册用户数 */
@@ -59,6 +61,15 @@ public class GrowthDailyStat {
 
     /** 采购需求数 */
     private Integer procurements;
+
+    /** 品牌浏览数 */
+    private Integer brandViews;
+
+    /** 企业浏览数 */
+    private Integer companyViews;
+
+    /** 关注次数 */
+    private Integer follows;
 
     /** 创建时间 */
     private java.time.LocalDateTime createTime;

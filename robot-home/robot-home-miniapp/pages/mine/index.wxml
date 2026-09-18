@@ -23,6 +23,8 @@
   </view>
 
   <view class="menu rh-card">
+    <view class="item" bindtap="goFollow">我的关注 ›</view>
+    <view class="item" bindtap="goFeed">关注动态 ›</view>
     <view class="item" bindtap="goFavorites">我的收藏 ›</view>
     <view class="item" bindtap="goHistory">浏览足迹 ›</view>
     <view class="item" bindtap="goPosts">我的帖子 ›</view>

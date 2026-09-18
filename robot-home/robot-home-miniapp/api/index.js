@@ -171,6 +171,36 @@ const procurementApi = {
   hallDetail: function (id) { return get('/procurement/hall/' + id) }
 }
 
+// Phase9: Follow API
+const followApi = {
+  list: function (params) { return get('/follows', params) },
+  toggle: function (followType, followId) { return postForm('/follows', { followType: followType, followId: followId }) },
+  remove: function (followType, followId) { return del('/follows/' + followType + '/' + followId) },
+  check: function (followType, followId) { return get('/follows/check', { followType: followType, followId: followId }) }
+}
+
+// Phase9: Feed API
+const feedApi = {
+  mine: function (lastId, pageSize) {
+    var params = { pageSize: pageSize || 20 }
+    if (lastId) params.lastId = lastId
+    return get('/feed/mine', params)
+  }
+}
+
+// Phase9: Discovery API
+const discoveryApi = {
+  home: function () { return get('/discovery/home') },
+  hot: function (limit) { return get('/discovery/hot', { limit: limit || 10 }) },
+  trending: function (limit) { return get('/discovery/trending', { limit: limit || 10 }) },
+  newRobots: function (limit) { return get('/discovery/new', { limit: limit || 10 }) }
+}
+
+// Phase9: Recommend API (related robots)
+const recommendApi = {
+  related: function (robotId, limit) { return get('/recommends/robots/' + robotId + '/related', { limit: limit || 6 }) }
+}
+
 const userApi = {
   me: function () { return get('/users/me') },
   update: function (data) { return put('/users/me', data) },
@@ -226,5 +256,9 @@ module.exports = {
   similarApi,
   qaApi,
   selectionApi,
-  procurementApi
+  procurementApi,
+  followApi,
+  feedApi,
+  discoveryApi,
+  recommendApi
 }

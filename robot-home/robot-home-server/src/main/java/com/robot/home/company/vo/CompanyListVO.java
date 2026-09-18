@@ -21,8 +21,6 @@ public class CompanyListVO {
     private String province;
     private String city;
     private String website;
-    private String contactPhone;
-    private String contactEmail;
     private String address;
     private List<String> tags;
     private Integer brandCount;

@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -83,7 +84,9 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
                 .orderBy(Boolean.TRUE.equals(hot), false, Brand::getHotScore)
                 .orderBy(true, true, Brand::getSort)
                 .orderByDesc(Brand::getHotScore));
-        List<BrandListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
+        // 批量加载公司名，避免N+1
+        Map<Long, String> companyNameMap = buildCompanyNameMap(result.getRecords());
+        List<BrandListVO> vos = result.getRecords().stream().map(b -> toListVO(b, companyNameMap)).collect(Collectors.toList());
         return PageResult.of(pn, ps, result.getTotal(), vos);
     }
 
@@ -150,10 +153,11 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
                 .eq(Brand::getStatus, 1)
                 .orderByAsc(Brand::getInitial)
                 .orderByDesc(Brand::getHotScore));
+        Map<Long, String> companyNameMap = buildCompanyNameMap(brands);
         Map<String, List<BrandListVO>> map = new LinkedHashMap<>();
         for (Brand b : brands) {
             String letter = StrUtil.isBlank(b.getInitial()) ? "#" : b.getInitial().toUpperCase();
-            map.computeIfAbsent(letter, k -> new ArrayList<>()).add(toListVO(b));
+            map.computeIfAbsent(letter, k -> new ArrayList<>()).add(toListVO(b, companyNameMap));
         }
         List<BrandLetterGroupVO> result = map.entrySet().stream().map(e -> {
             BrandLetterGroupVO g = new BrandLetterGroupVO();
@@ -192,7 +196,8 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
                 .eq(Brand::getStatus, 1)
                 .orderByDesc(Brand::getHotScore)
                 .last("LIMIT " + size));
-        List<BrandListVO> result = brands.stream().map(this::toListVO).collect(Collectors.toList());
+        Map<Long, String> companyNameMap = buildCompanyNameMap(brands);
+        List<BrandListVO> result = brands.stream().map(b -> toListVO(b, companyNameMap)).collect(Collectors.toList());
         try {
             redisUtils.set(key, JSONUtil.toJsonStr(result), CACHE_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -201,7 +206,24 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
         return result;
     }
 
-    private BrandListVO toListVO(Brand b) {
+    /**
+     * 批量构建公司名映射，避免N+1查询
+     */
+    private Map<Long, String> buildCompanyNameMap(List<Brand> brands) {
+        Map<Long, String> map = new java.util.HashMap<>();
+        Set<Long> companyIds = new java.util.HashSet<>();
+        for (Brand b : brands) {
+            if (b.getCompanyId() != null) {
+                companyIds.add(b.getCompanyId());
+            }
+        }
+        if (!companyIds.isEmpty()) {
+            companyMapper.selectBatchIds(companyIds).forEach(c -> map.put(c.getId(), c.getName()));
+        }
+        return map;
+    }
+
+    private BrandListVO toListVO(Brand b, Map<Long, String> companyNameMap) {
         BrandListVO vo = new BrandListVO();
         vo.setId(b.getId());
         vo.setName(b.getName());
@@ -217,11 +239,8 @@ public class BrandServiceImpl extends ServiceImpl<BrandMapper, Brand> implements
         vo.setFollowCount(b.getFollowCount());
         vo.setArticleCount(b.getArticleCount());
         vo.setReviewCount(b.getReviewCount());
-        if (b.getCompanyId() != null) {
-            Company c = companyMapper.selectById(b.getCompanyId());
-            if (c != null) {
-                vo.setCompanyName(c.getName());
-            }
+        if (b.getCompanyId() != null && companyNameMap != null) {
+            vo.setCompanyName(companyNameMap.get(b.getCompanyId()));
         }
         return vo;
     }

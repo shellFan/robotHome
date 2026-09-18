@@ -28,6 +28,7 @@ import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -119,9 +120,10 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             vo.setFollowType(f.getFollowType());
             vo.setFollowId(f.getFollowId());
             vo.setCreateTime(f.getCreateTime());
-            fillTarget(vo, f.getFollowType(), f.getFollowId());
             items.add(vo);
         }
+        // 批量填充目标信息，避免N+1
+        fillTargetsBatch(items);
         return PageResult.of(pn, ps, result.getTotal(), items);
     }
 
@@ -132,50 +134,94 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 .eq(StrUtil.isNotBlank(followType), Follow::getFollowType, followType));
     }
 
-    private void fillTarget(FollowItemVO vo, String type, Long id) {
-        switch (type) {
-            case "user": {
-                User u = userMapper.selectById(id);
-                if (u != null) {
-                    vo.setName(u.getNickname() != null ? u.getNickname() : u.getUsername());
-                    vo.setAvatar(u.getAvatar());
-                    vo.setDescription(u.getIntro());
-                    vo.setUrl("/user/" + id);
-                }
-                break;
+    /**
+     * 批量填充目标信息，避免N+1查询
+     */
+    private void fillTargetsBatch(List<FollowItemVO> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        // 按类型分组收集ID
+        Map<String, List<Long>> typeIds = new java.util.HashMap<>();
+        for (FollowItemVO vo : items) {
+            if (vo.getFollowType() != null && vo.getFollowId() != null) {
+                typeIds.computeIfAbsent(vo.getFollowType(), k -> new ArrayList<>()).add(vo.getFollowId());
             }
-            case "brand": {
-                Brand b = brandMapper.selectById(id);
-                if (b != null) {
-                    vo.setName(b.getName());
-                    vo.setAvatar(b.getLogo());
-                    vo.setDescription(b.getIntro());
-                    vo.setUrl("/brand/" + id);
-                }
-                break;
+        }
+        // 批量查询各类型
+        Map<Long, User> userMap = new java.util.HashMap<>();
+        Map<Long, Brand> brandMap = new java.util.HashMap<>();
+        Map<Long, Company> companyMap = new java.util.HashMap<>();
+        Map<Long, Robot> robotMap = new java.util.HashMap<>();
+
+        List<Long> userIds = typeIds.getOrDefault("user", Collections.emptyList());
+        if (!userIds.isEmpty()) {
+            userMapper.selectBatchIds(userIds).forEach(u -> userMap.put(u.getId(), u));
+        }
+        List<Long> brandIds = typeIds.getOrDefault("brand", Collections.emptyList());
+        if (!brandIds.isEmpty()) {
+            brandMapper.selectBatchIds(brandIds).forEach(b -> brandMap.put(b.getId(), b));
+        }
+        List<Long> companyIds = typeIds.getOrDefault("company", Collections.emptyList());
+        if (!companyIds.isEmpty()) {
+            companyMapper.selectBatchIds(companyIds).forEach(c -> companyMap.put(c.getId(), c));
+        }
+        List<Long> robotIds = typeIds.getOrDefault("robot", Collections.emptyList());
+        if (!robotIds.isEmpty()) {
+            robotMapper.selectBatchIds(robotIds).forEach(r -> robotMap.put(r.getId(), r));
+        }
+
+        // 填充
+        for (FollowItemVO vo : items) {
+            String type = vo.getFollowType();
+            Long id = vo.getFollowId();
+            if (type == null || id == null) {
+                continue;
             }
-            case "company": {
-                Company c = companyMapper.selectById(id);
-                if (c != null) {
-                    vo.setName(c.getName());
-                    vo.setAvatar(c.getLogo());
-                    vo.setDescription(c.getIntro());
-                    vo.setUrl("/company/" + id);
+            switch (type) {
+                case "user": {
+                    User u = userMap.get(id);
+                    if (u != null) {
+                        vo.setName(u.getNickname() != null ? u.getNickname() : u.getUsername());
+                        vo.setAvatar(u.getAvatar());
+                        vo.setDescription(u.getIntro());
+                        vo.setUrl("/user/" + id);
+                    }
+                    break;
                 }
-                break;
-            }
-            case "robot": {
-                Robot r = robotMapper.selectById(id);
-                if (r != null) {
-                    vo.setName(r.getName());
-                    vo.setAvatar(r.getCoverImage());
-                    vo.setDescription(r.getSubtitle());
-                    vo.setUrl("/robot/" + id);
+                case "brand": {
+                    Brand b = brandMap.get(id);
+                    if (b != null) {
+                        vo.setName(b.getName());
+                        vo.setAvatar(b.getLogo());
+                        vo.setDescription(b.getIntro());
+                        vo.setUrl("/brand/" + id);
+                    }
+                    break;
                 }
-                break;
+                case "company": {
+                    Company c = companyMap.get(id);
+                    if (c != null) {
+                        vo.setName(c.getName());
+                        vo.setAvatar(c.getLogo());
+                        vo.setDescription(c.getIntro());
+                        vo.setUrl("/company/" + id);
+                    }
+                    break;
+                }
+                case "robot": {
+                    Robot r = robotMap.get(id);
+                    if (r != null) {
+                        vo.setName(r.getName());
+                        vo.setAvatar(r.getCoverImage());
+                        vo.setDescription(r.getSubtitle());
+                        vo.setUrl("/robot/" + id);
+                    }
+                    break;
+                }
+                default:
+                    break;
             }
-            default:
-                break;
         }
     }
 

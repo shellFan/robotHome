@@ -18,6 +18,13 @@ export const defaultMenus = [
     component: () => import('@/views/dashboard/index.vue')
   },
   {
+    path: '/growth',
+    name: 'Growth',
+    menuName: '增长看板',
+    icon: 'TrendCharts',
+    component: () => import('@/views/growth/index.vue')
+  },
+  {
     path: '/user',
     name: 'User',
     menuName: '用户管理',

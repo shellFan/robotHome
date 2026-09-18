@@ -1,0 +1,28 @@
+<view class="follow-page">
+  <view class="follow-tabs">
+    <view class="follow-tab {{tab === item.code ? 'follow-tab--active' : ''}}" wx:for="{{tabs}}" wx:key="code" bindtap="switchTab" data-code="{{item.code}}">
+      {{item.name}}
+    </view>
+  </view>
+  <view class="follow-list">
+    <view class="follow-item" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-item="{{item}}">
+      <image class="follow-item__avatar" src="{{item.cover}}" mode="aspectFill" />
+      <view class="follow-item__info">
+        <view class="follow-item__name">{{item.targetName || item.name}}</view>
+        <view class="follow-item__type">{{item.typeName}}</view>
+      </view>
+      <view class="follow-item__action" catchtap="unfollow" data-item="{{item}}">
+        <text>已关注</text>
+      </view>
+    </view>
+  </view>
+  <view class="follow-empty" wx:if="{{!loading && !list.length}}">
+    <text>暂无关注</text>
+  </view>
+  <view class="follow-loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+  <view class="follow-finished" wx:if="{{finished && list.length}}">
+    <text>没有更多了</text>
+  </view>
+</view>

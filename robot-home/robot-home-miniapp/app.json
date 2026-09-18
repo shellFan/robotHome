@@ -37,7 +37,9 @@
     "pages/qa/list",
     "pages/qa/detail",
     "pages/selection/index",
-    "pages/procurement/index"
+    "pages/procurement/index",
+    "pages/feed/feed",
+    "pages/follow/follow"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

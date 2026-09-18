@@ -219,8 +219,6 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
         vo.setFoundYear(c.getFoundYear());
         vo.setRegion(c.getRegion());
         vo.setWebsite(c.getWebsite());
-        vo.setContactPhone(c.getContactPhone());
-        vo.setContactEmail(c.getContactEmail());
         vo.setAddress(c.getAddress());
         vo.setTags(JsonUtils.parseStringList(c.getTags()));
         vo.setBrandCount(c.getBrandCount());
