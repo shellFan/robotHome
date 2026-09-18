@@ -1,1 +1,50 @@
-.more-link { text-align:right; color:#1668dc; font-size:24rpx; margin-bottom:12rpx; }
+.rh-section { margin: 24rpx 0 0; padding: 0 24rpx; }
+.rh-section-title { font-size: 32rpx; font-weight: 600; margin-bottom: 16rpx; }
+
+/* 横向滚动机器人卡片 */
+.robot-scroll { white-space: nowrap; }
+.robot-scroll__inner { display: inline-flex; gap: 16rpx; padding-bottom: 8rpx; }
+.robot-card { display: inline-flex; flex-direction: column; width: 200rpx; background: #fff; border-radius: 12rpx; overflow: hidden; }
+.robot-card__cover { width: 200rpx; height: 200rpx; }
+.robot-card__name { font-size: 24rpx; padding: 8rpx 12rpx 2rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.robot-card__price { font-size: 22rpx; color: #e4393c; padding: 2rpx 12rpx 10rpx; }
+
+/* 横向滚动品牌 */
+.brand-scroll { white-space: nowrap; }
+.brand-scroll__inner { display: inline-flex; gap: 16rpx; }
+.brand-chip { display: inline-flex; flex-direction: column; align-items: center; width: 120rpx; background: #fff; border-radius: 12rpx; padding: 16rpx 8rpx; }
+.brand-chip__logo { width: 64rpx; height: 64rpx; margin-bottom: 8rpx; }
+.brand-chip__name { font-size: 22rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 108rpx; }
+
+/* 榜单卡片 */
+.rank-cards { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.rank-card { width: 100%; background: #fff; border-radius: 12rpx; padding: 20rpx; box-sizing: border-box; }
+.rank-card__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; padding-bottom: 8rpx; border-bottom: 1rpx solid #f0f0f0; }
+.rank-card__title { font-size: 28rpx; font-weight: 600; }
+.rank-card__more { font-size: 24rpx; color: #999; }
+.rank-card__list { display: flex; flex-direction: column; }
+.rank-card__row { display: flex; align-items: center; gap: 12rpx; padding: 8rpx 0; }
+.rank-card__no { width: 36rpx; height: 36rpx; line-height: 36rpx; text-align: center; border-radius: 6rpx; background: #f5f5f5; color: #999; font-size: 22rpx; flex-shrink: 0; }
+.rank-card__no--top { background: #e4393c; color: #fff; }
+.rank-card__cover { width: 60rpx; height: 60rpx; border-radius: 8rpx; flex-shrink: 0; }
+.rank-card__body { flex: 1; min-width: 0; }
+.rank-card__name { font-size: 26rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-card__sub { font-size: 20rpx; }
+.rank-card__right { text-align: right; flex-shrink: 0; }
+.rank-card__price { font-size: 22rpx; color: #e4393c; }
+.rank-card__change { font-size: 20rpx; }
+.rank-up { color: #e4393c; }
+.rank-down { color: #09bb07; }
+.rank-new { color: #ff9c00; }
+
+/* 帖子行 */
+.post-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; border-bottom: 1rpx solid #f5f5f5; }
+.post-row:last-child { border-bottom: none; }
+.post-row__title { flex: 1; font-size: 26rpx; margin-right: 16rpx; }
+.post-row__meta { font-size: 22rpx; flex-shrink: 0; }
+
+/* 问答行 */
+.qa-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; border-bottom: 1rpx solid #f5f5f5; }
+.qa-row:last-child { border-bottom: none; }
+.qa-row__title { flex: 1; font-size: 26rpx; margin-right: 16rpx; }
+.qa-row__meta { font-size: 22rpx; flex-shrink: 0; }

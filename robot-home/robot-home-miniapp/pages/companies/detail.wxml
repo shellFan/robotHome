@@ -5,17 +5,50 @@
       <view class="name">{{company.name}}</view>
       <view class="rh-text-light">{{company.region || company.city || ''}}</view>
     </view>
+    <view class="follow-btn {{followed?'followed':''}}" bindtap="toggleFollow">{{followed?'已关注':'关注'}} {{followCount}}</view>
   </view>
+
   <view class="rh-card" wx:if="{{company.intro || company.description}}">
     <view class="rh-section-title" style="margin-bottom:12rpx">简介</view>
     <text>{{company.intro || company.description}}</text>
   </view>
-  <view class="rh-section-title" style="margin:16rpx 0">相关机器人</view>
-  <view class="robot-row" wx:for="{{robots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+
+  <!-- 旗下品牌 -->
+  <view wx:if="{{brands.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">旗下品牌</view>
+  <scroll-view scroll-x style="white-space:nowrap">
+    <view style="display:inline-flex;gap:16rpx">
+      <view class="brand-chip" wx:for="{{brands}}" wx:key="id" bindtap="goBrand" data-id="{{item.id}}">
+        <image class="brand-chip__logo" src="{{item.logo}}" mode="aspectFit" />
+        <view class="brand-chip__name">{{item.name}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 热门机器人 -->
+  <view wx:if="{{hotRobots.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">热门机器人</view>
+  <view class="robot-row" wx:for="{{hotRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
     <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
     <view class="robot-row__body">
       <view class="robot-row__name">{{item.name}}</view>
       <view class="robot-row__price">{{item.priceText}}</view>
+    </view>
+  </view>
+
+  <!-- 相关文章 -->
+  <view wx:if="{{articles.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">相关文章</view>
+  <view class="rh-card">
+    <view class="article-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
+      <view class="article-row__title rh-ellipsis">{{item.title}}</view>
+      <view class="rh-text-light" style="font-size:22rpx">{{item.viewText}} 阅读</view>
+    </view>
+  </view>
+
+  <!-- 社区讨论 -->
+  <view wx:if="{{posts.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">社区讨论</view>
+  <view class="rh-card">
+    <view class="article-row" wx:for="{{posts}}" wx:key="id" bindtap="goPost" data-id="{{item.id}}">
+      <view class="article-row__title rh-ellipsis">{{item.title || item.content}}</view>
+      <view class="rh-text-light" style="font-size:22rpx">{{item.viewText}} 浏览</view>
     </view>
   </view>
 </view>

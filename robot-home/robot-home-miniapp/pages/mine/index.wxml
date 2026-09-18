@@ -20,6 +20,8 @@
     <view class="stat"><text class="n">{{stats.favoriteCount || 0}}</text><text>收藏</text></view>
     <view class="stat"><text class="n">{{stats.historyCount || 0}}</text><text>足迹</text></view>
     <view class="stat"><text class="n">{{stats.postCount || 0}}</text><text>帖子</text></view>
+    <view class="stat" wx:if="{{stats.contributionScore !== undefined}}"><text class="n">{{stats.contributionScore || 0}}</text><text>贡献分</text></view>
+    <view class="stat" wx:if="{{stats.reviewCount !== undefined}}"><text class="n">{{stats.reviewCount || 0}}</text><text>评价</text></view>
   </view>
 
   <view class="menu rh-card">

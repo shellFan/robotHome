@@ -5,10 +5,10 @@ Page({
   data: {
     tabs: [
       { code: '', name: '全部' },
-      { code: 'BRAND', name: '品牌' },
-      { code: 'COMPANY', name: '企业' },
-      { code: 'ROBOT', name: '机器人' },
-      { code: 'USER', name: '用户' }
+      { code: 'brand', name: '品牌' },
+      { code: 'company', name: '企业' },
+      { code: 'robot', name: '机器人' },
+      { code: 'user', name: '用户' }
     ],
     tab: '',
     list: [],
@@ -44,7 +44,7 @@ Page({
       records = records.map(function (item) {
         return Object.assign({}, item, {
           cover: imageOf(item.cover || item.avatar || item.logo),
-          typeName: item.followType === 'BRAND' ? '品牌' : item.followType === 'COMPANY' ? '企业' : item.followType === 'ROBOT' ? '机器人' : item.followType === 'USER' ? '用户' : ''
+          typeName: item.followType === 'brand' ? '品牌' : item.followType === 'company' ? '企业' : item.followType === 'robot' ? '机器人' : item.followType === 'user' ? '用户' : ''
         })
       })
       var list = append ? this.data.list.concat(records) : records

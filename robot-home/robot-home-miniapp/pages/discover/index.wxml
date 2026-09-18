@@ -1,50 +1,149 @@
 <view>
-  <view class="tab-filter">
-    <view class="tab-filter__item {{tab==='articles'?'tab-filter__item--on':''}}" data-tab="articles" bindtap="switchTab">资讯</view>
-    <view class="tab-filter__item {{tab==='videos'?'tab-filter__item--on':''}}" data-tab="videos" bindtap="switchTab">视频</view>
-    <view class="tab-filter__item {{tab==='tutorials'?'tab-filter__item--on':''}}" data-tab="tutorials" bindtap="switchTab">教程</view>
-    <view class="tab-filter__item {{tab==='qa'?'tab-filter__item--on':''}}" data-tab="qa" bindtap="switchTab">问答</view>
+  <!-- 热门机器人 -->
+  <view class="rh-section" wx:if="{{hotRobots.length}}">
+    <view class="rh-section-title">热门机器人</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{hotRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
+        </view>
+      </view>
+    </scroll-view>
   </view>
-  <view class="rh-container">
-    <view class="more-link" bindtap="goMore">查看完整列表 ›</view>
-    <block wx:if="{{tab==='articles'}}">
-      <view class="media-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
-        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
-        <view class="media-row__body">
-          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
-          <view class="rh-text-light">{{item.dateText}} · {{item.viewText}} 阅读</view>
+
+  <!-- 近期热门 -->
+  <view class="rh-section" wx:if="{{trendingRobots.length}}">
+    <view class="rh-section-title">近期热门</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{trendingRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
         </view>
       </view>
-      <view wx:if="{{!articles.length && !loading}}" class="rh-empty">暂无资讯</view>
-    </block>
-    <block wx:elif="{{tab==='videos'}}">
-      <view class="media-row" wx:for="{{videos}}" wx:key="id" bindtap="goVideo" data-id="{{item.id}}">
-        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
-        <view class="media-row__body">
-          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
-          <view class="rh-text-light">{{item.durationText}} · {{item.viewText}} 播放</view>
-        </view>
-      </view>
-      <view wx:if="{{!videos.length && !loading}}" class="rh-empty">暂无视频</view>
-    </block>
-    <block wx:elif="{{tab==='qa'}}">
-      <view class="rh-card" wx:for="{{qaQuestions}}" wx:key="id" bindtap="goQaDetail" data-id="{{item.id}}" style="margin-bottom:16rpx;">
-        <view style="font-size:28rpx;font-weight:600;margin-bottom:8rpx;">{{item.title}}</view>
-        <view class="rh-text-light" style="margin-bottom:8rpx;">💬 {{item.answerText || 0}} 回答 · 👁 {{item.viewText || 0}}</view>
-      </view>
-      <view wx:if="{{!qaQuestions.length && !loading}}" class="rh-empty">暂无问答</view>
-      <view class="more-link" bindtap="goQaList">查看全部问答 ›</view>
-    </block>
-    <block wx:else>
-      <view class="media-row" wx:for="{{tutorials}}" wx:key="id" bindtap="goTutorial" data-id="{{item.id}}">
-        <image class="media-row__cover" src="{{item.cover}}" mode="aspectFill" />
-        <view class="media-row__body">
-          <view class="media-row__title rh-clamp-2">{{item.title}}</view>
-          <view class="rh-text-light">{{item.dateText}}</view>
-        </view>
-      </view>
-      <view wx:if="{{!tutorials.length && !loading}}" class="rh-empty">暂无教程</view>
-    </block>
-    <view class="load-more">{{finished ? '没有更多了' : (loading ? '加载中...' : '')}}</view>
+    </scroll-view>
   </view>
+
+  <!-- 新品机器人 -->
+  <view class="rh-section" wx:if="{{newRobots.length}}">
+    <view class="rh-section-title">新品机器人</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{newRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 榜单卡片 -->
+  <view class="rh-section" wx:if="{{rankingCards.length}}">
+    <view class="rh-section-title">排行榜</view>
+    <view class="rank-cards">
+      <view class="rank-card" wx:for="{{rankingCards}}" wx:key="rankType">
+        <view class="rank-card__head">
+          <text class="rank-card__title">{{item.rankName}}</text>
+          <text class="rank-card__more" data-type="{{item.rankType}}" bindtap="goRanking">更多 ›</text>
+        </view>
+        <view class="rank-card__list">
+          <view class="rank-card__row" wx:for="{{item.items}}" wx:for-item="ri" wx:key="robotId" bindtap="goRobot" data-id="{{ri.robotId}}">
+            <text class="rank-card__no {{ri.rankNo<=3?'rank-card__no--top':''}}">{{ri.rankNo}}</text>
+            <image class="rank-card__cover" src="{{ri.cover}}" mode="aspectFill" />
+            <view class="rank-card__body">
+              <view class="rank-card__name rh-ellipsis">{{ri.name}}</view>
+              <view class="rank-card__sub rh-text-light">{{ri.brandName || ''}}</view>
+            </view>
+            <view class="rank-card__right">
+              <view class="rank-card__price">{{ri.priceText}}</view>
+              <view class="rank-card__change {{ri.rankChange>0?'rank-up':(ri.rankChange<0?'rank-down':'rank-new')}}">{{ri.rankChangeText}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 高评分 -->
+  <view class="rh-section" wx:if="{{topRatedRobots.length}}">
+    <view class="rh-section-title">高评分机器人</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{topRatedRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 高收藏 -->
+  <view class="rh-section" wx:if="{{mostFavoritedRobots.length}}">
+    <view class="rh-section-title">高收藏机器人</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{mostFavoritedRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 高讨论 -->
+  <view class="rh-section" wx:if="{{mostDiscussedRobots.length}}">
+    <view class="rh-section-title">高讨论机器人</view>
+    <scroll-view scroll-x class="robot-scroll">
+      <view class="robot-scroll__inner">
+        <view class="robot-card" wx:for="{{mostDiscussedRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+          <image class="robot-card__cover" src="{{item.cover}}" mode="aspectFill" />
+          <view class="robot-card__name rh-ellipsis">{{item.name}}</view>
+          <view class="robot-card__price">{{item.priceText}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 热门品牌 -->
+  <view class="rh-section" wx:if="{{hotBrands.length}}">
+    <view class="rh-section-title">热门品牌</view>
+    <scroll-view scroll-x class="brand-scroll">
+      <view class="brand-scroll__inner">
+        <view class="brand-chip" wx:for="{{hotBrands}}" wx:key="id" bindtap="goBrand" data-id="{{item.id}}">
+          <image class="brand-chip__logo" src="{{item.logo}}" mode="aspectFit" />
+          <view class="brand-chip__name rh-ellipsis">{{item.name}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 热门讨论 -->
+  <view class="rh-section" wx:if="{{hotPosts.length}}">
+    <view class="rh-section-title">热门讨论</view>
+    <view class="rh-card">
+      <view class="post-row" wx:for="{{hotPosts}}" wx:key="id" bindtap="goPost" data-id="{{item.id}}">
+        <view class="post-row__title rh-ellipsis">{{item.title || item.content}}</view>
+        <view class="post-row__meta rh-text-light">{{item.viewText}} 浏览</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 热门问答 -->
+  <view class="rh-section" wx:if="{{hotQuestions.length}}">
+    <view class="rh-section-title">热门问答</view>
+    <view class="rh-card">
+      <view class="qa-row" wx:for="{{hotQuestions}}" wx:key="id" bindtap="goQuestion" data-id="{{item.id}}">
+        <view class="qa-row__title rh-ellipsis">{{item.title}}</view>
+        <view class="qa-row__meta rh-text-light">{{item.answerText}} 回答</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="rh-empty">加载中...</view>
 </view>

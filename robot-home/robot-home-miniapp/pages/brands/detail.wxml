@@ -5,14 +5,46 @@
       <view class="name">{{brand.name}}</view>
       <view class="rh-text-light">{{brand.country || ''}} {{brand.intro || brand.description || ''}}</view>
     </view>
+    <view class="follow-btn {{followed?'followed':''}}" bindtap="toggleFollow">{{followed?'已关注':'关注'}} {{followCount}}</view>
   </view>
-  <view class="rh-section-title" style="margin:16rpx 0">旗下机器人</view>
-  <view class="robot-row" wx:for="{{robots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+
+  <!-- 热门机器人 -->
+  <view wx:if="{{hotRobots.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">热门机器人</view>
+  <view class="robot-row" wx:for="{{hotRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
     <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
     <view class="robot-row__body">
       <view class="robot-row__name">{{item.name}}</view>
       <view class="robot-row__price">{{item.priceText}}</view>
     </view>
   </view>
-  <view wx:if="{{!robots.length}}" class="rh-empty">暂无机器人</view>
+
+  <!-- 新品机器人 -->
+  <view wx:if="{{newRobots.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">新品机器人</view>
+  <view class="robot-row" wx:for="{{newRobots}}" wx:key="id" bindtap="goRobot" data-id="{{item.id}}">
+    <image class="robot-row__cover" src="{{item.cover}}" mode="aspectFill" />
+    <view class="robot-row__body">
+      <view class="robot-row__name">{{item.name}}</view>
+      <view class="robot-row__price">{{item.priceText}}</view>
+    </view>
+  </view>
+
+  <!-- 相关文章 -->
+  <view wx:if="{{articles.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">相关文章</view>
+  <view class="rh-card">
+    <view class="article-row" wx:for="{{articles}}" wx:key="id" bindtap="goArticle" data-id="{{item.id}}">
+      <view class="article-row__title rh-ellipsis">{{item.title}}</view>
+      <view class="rh-text-light" style="font-size:22rpx">{{item.viewText}} 阅读</view>
+    </view>
+  </view>
+
+  <!-- 社区讨论 -->
+  <view wx:if="{{posts.length}}" class="rh-section-title" style="margin:24rpx 0 12rpx">社区讨论</view>
+  <view class="rh-card">
+    <view class="article-row" wx:for="{{posts}}" wx:key="id" bindtap="goPost" data-id="{{item.id}}">
+      <view class="article-row__title rh-ellipsis">{{item.title || item.content}}</view>
+      <view class="rh-text-light" style="font-size:22rpx">{{item.viewText}} 浏览</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!hotRobots.length && !newRobots.length}}" class="rh-empty">暂无机器人</view>
 </view>

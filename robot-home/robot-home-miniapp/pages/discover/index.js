@@ -1,88 +1,93 @@
-const { articleApi, videoApi, tutorialApi, qaApi } = require('../../api/index')
-const { formatDate, formatCount, formatDuration, imageOf, unwrapList, fromNow } = require('../../utils/format')
+var discoveryApi = require('../../api/index').discoveryApi
+var rankingApi = require('../../api/index').rankingApi
+var formatPrice = require('../../utils/format').formatPrice
+var imageOf = require('../../utils/format').imageOf
+var formatCount = require('../../utils/format').formatCount
 
 Page({
   data: {
-    tab: 'articles',
-    articles: [], videos: [], tutorials: [], qaQuestions: [],
-    page: 1, finished: false, loading: false
+    loading: true,
+    hotRobots: [],
+    trendingRobots: [],
+    newRobots: [],
+    topRatedRobots: [],
+    mostFavoritedRobots: [],
+    mostDiscussedRobots: [],
+    hotBrands: [],
+    rankingCards: [],
+    hotPosts: [],
+    hotQuestions: []
   },
-  onLoad() { this.reload() },
-  onReachBottom() { this.more() },
-  switchTab(e) {
-    const tab = e.currentTarget.dataset.tab
-    if (tab === this.data.tab) return
-    this.setData({ tab: tab })
-    this.reload()
+  onLoad: function () {
+    this.load()
   },
-  async reload() {
-    this.setData({ page: 1, articles: [], videos: [], tutorials: [], qaQuestions: [], finished: false })
-    await this.fetch()
+  onPullDownRefresh: function () {
+    this.load()
   },
-  async more() {
-    if (this.data.loading || this.data.finished) return
-    this.setData({ page: this.data.page + 1 })
-    await this.fetch(true)
-  },
-  async fetch(append) {
-    this.setData({ loading: true })
-    try {
-      const tab = this.data.tab
-      let data
-      if (tab === 'articles') data = await articleApi.page({ page: this.data.page, size: 10 })
-      else if (tab === 'videos') data = await videoApi.page({ page: this.data.page, size: 10 })
-      else if (tab === 'qa') data = await qaApi.questions({ sort: 'latest', pageNum: this.data.page, pageSize: 10 })
-      else data = await tutorialApi.page({ page: this.data.page, size: 10 })
-      let records = unwrapList(data)
-      if (tab === 'articles') {
-        records = records.map(function (a) {
-          return Object.assign({}, a, {
-            cover: imageOf(a.cover),
-            dateText: formatDate(a.publishTime),
-            viewText: formatCount(a.viewCount)
-          })
+  load: function () {
+    var that = this
+    that.setData({ loading: true })
+    discoveryApi.home('miniapp').then(function (data) {
+      if (!data) data = {}
+      // Process robot lists
+      var mapRobot = function (r) {
+        return Object.assign({}, r, {
+          cover: imageOf(r.cover || r.mainImage),
+          priceText: formatPrice(r.guidePrice)
         })
-        const list = append ? this.data.articles.concat(records) : records
-        this.setData({ articles: list, finished: records.length < 10, loading: false })
-      } else if (tab === 'videos') {
-        records = records.map(function (v) {
-          return Object.assign({}, v, {
-            cover: imageOf(v.cover),
-            durationText: formatDuration(v.duration),
-            viewText: formatCount(v.viewCount)
-          })
-        })
-        const list = append ? this.data.videos.concat(records) : records
-        this.setData({ videos: list, finished: records.length < 10, loading: false })
-      } else if (tab === 'qa') {
-        records = records.map(function (q) {
-          return Object.assign({}, q, {
-            answerText: formatCount(q.answerCount),
-            viewText: formatCount(q.viewCount),
-            timeText: fromNow(q.createTime)
-          })
-        })
-        const list = append ? this.data.qaQuestions.concat(records) : records
-        this.setData({ qaQuestions: list, finished: records.length < 10, loading: false })
-      } else {
-        records = records.map(function (t) {
-          return Object.assign({}, t, {
-            cover: imageOf(t.cover),
-            dateText: formatDate(t.publishTime || t.createTime)
-          })
-        })
-        const list = append ? this.data.tutorials.concat(records) : records
-        this.setData({ tutorials: list, finished: records.length < 10, loading: false })
       }
-    } catch (e) { this.setData({ loading: false }) }
+      var mapRankItem = function (item) {
+        return Object.assign({}, item, {
+          cover: imageOf(item.coverImage),
+          priceText: formatPrice(item.guidePrice),
+          rankChangeText: item.rankChange > 0 ? '+' + item.rankChange : (item.rankChange < 0 ? '' + item.rankChange : 'NEW')
+        })
+      }
+      var mapBrand = function (b) {
+        return Object.assign({}, b, { logo: imageOf(b.logo) })
+      }
+      var mapPost = function (p) {
+        return Object.assign({}, p, { viewText: formatCount(p.viewCount || 0) })
+      }
+      that.setData({
+        hotRobots: (data.hotRobots || []).map(mapRobot),
+        trendingRobots: (data.trendingRobots || []).map(mapRobot),
+        newRobots: (data.newRobots || []).map(mapRobot),
+        topRatedRobots: (data.topRatedRobots || []).map(mapRobot),
+        mostFavoritedRobots: (data.mostFavoritedRobots || []).map(mapRobot),
+        mostDiscussedRobots: (data.mostDiscussedRobots || []).map(mapRobot),
+        hotBrands: (data.hotBrands || []).map(mapBrand),
+        rankingCards: (data.rankingCards || []).map(function (card) {
+          return Object.assign({}, card, {
+            items: (card.items || []).map(mapRankItem)
+          })
+        }),
+        hotPosts: (data.hotPosts || []).map(mapPost),
+        hotQuestions: (data.hotQuestions || []).map(function (q) {
+          return Object.assign({}, q, { answerText: formatCount(q.answerCount || 0) })
+        }),
+        loading: false
+      })
+      wx.stopPullDownRefresh()
+    }).catch(function () {
+      that.setData({ loading: false })
+      wx.stopPullDownRefresh()
+    })
   },
-  goArticle(e) { wx.navigateTo({ url: '/pages/articles/detail?id=' + e.currentTarget.dataset.id }) },
-  goVideo(e) { wx.navigateTo({ url: '/pages/videos/detail?id=' + e.currentTarget.dataset.id }) },
-  goTutorial(e) { wx.navigateTo({ url: '/pages/tutorials/detail?id=' + e.currentTarget.dataset.id }) },
-  goQaDetail(e) { wx.navigateTo({ url: '/pages/qa/detail?id=' + e.currentTarget.dataset.id }) },
-  goQaList() { wx.navigateTo({ url: '/pages/qa/list' }) },
-  goMore() {
-    const map = { articles: '/pages/articles/list', videos: '/pages/videos/list', tutorials: '/pages/tutorials/list', qa: '/pages/qa/list' }
-    wx.navigateTo({ url: map[this.data.tab] })
+  goRobot: function (e) {
+    wx.navigateTo({ url: '/pages/robots/detail?id=' + e.currentTarget.dataset.id })
+  },
+  goBrand: function (e) {
+    wx.navigateTo({ url: '/pages/brands/detail?id=' + e.currentTarget.dataset.id })
+  },
+  goRanking: function (e) {
+    var type = e.currentTarget.dataset.type || 'hot'
+    wx.navigateTo({ url: '/pages/rankings/rankings?type=' + type })
+  },
+  goPost: function (e) {
+    wx.navigateTo({ url: '/pages/community/post-detail?id=' + e.currentTarget.dataset.id })
+  },
+  goQuestion: function (e) {
+    wx.navigateTo({ url: '/pages/qa/detail?id=' + e.currentTarget.dataset.id })
   }
 })
