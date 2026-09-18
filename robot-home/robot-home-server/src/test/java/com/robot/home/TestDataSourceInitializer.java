@@ -39,7 +39,9 @@ public class TestDataSourceInitializer {
         run(TestSqlSupport.load("11_phase7_content_community_growth.sql"));
         // Phase8: 社区增强/Q&A/选型/采购/搜索增长/数据质量
         run(TestSqlSupport.load("12_phase8_community_procurement_growth.sql"));
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8）");
+        // Phase9: 产品增长与生态 - 发现/榜单2.0/品牌主页/企业主页/用户贡献/关注动态/规则推荐/增长分析
+        run(TestSqlSupport.load("13_phase9_product_growth.sql"));
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9）");
     }
 
     private void run(String sql) throws Exception {

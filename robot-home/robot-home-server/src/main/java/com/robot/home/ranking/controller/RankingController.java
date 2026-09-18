@@ -3,6 +3,7 @@ package com.robot.home.ranking.controller;
 import com.robot.home.common.Result;
 import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.ranking.service.RankingService;
+import com.robot.home.ranking.vo.RankingSnapshotVO;
 import com.robot.home.ranking.vo.RankingTypeVO;
 import com.robot.home.robot.vo.RobotListVO;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,5 +34,15 @@ public class RankingController {
     @GetMapping("/types")
     public Result<List<RankingTypeVO>> types() {
         return Result.success(rankingService.types());
+    }
+
+    /**
+     * Phase9: 带排名变化的榜单
+     */
+    @GetMapping("/snapshot")
+    public Result<List<RankingSnapshotVO>> rankWithChange(
+            @RequestParam(defaultValue = "hot") String type,
+            @RequestParam(defaultValue = "20") Integer limit) {
+        return Result.success(rankingService.rankWithChange(type, limit));
     }
 }

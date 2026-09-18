@@ -23,4 +23,10 @@ public class BrandListVO {
     private Integer robotCount;
     private Long hotScore;
     private String dataSource;
+    /** Phase9: 品牌关注数 */
+    private Integer followCount;
+    /** Phase9: 品牌文章数 */
+    private Integer articleCount;
+    /** Phase9: 品牌评测数 */
+    private Integer reviewCount;
 }

@@ -51,4 +51,8 @@ public class Company extends BaseEntity {
     private String detail;
     private Integer sort;
     private Integer status;
+    /** Phase9: 企业关注数 */
+    private Integer followCount;
+    /** Phase9: 企业文章数 */
+    private Integer articleCount;
 }

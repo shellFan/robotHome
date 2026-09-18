@@ -198,7 +198,7 @@ class RobotHomeIntegrationTest {
         assertTrue(f.path("priceRanges").size() == 5, "价格区间应为 5 档");
 
         JsonNode types = getJson("/api/rankings/types");
-        assertEquals(7, types.size(), "榜单类型应为 7 个");
+        assertEquals(13, types.size(), "榜单类型应为 13 个（Phase9新增6种）");
         JsonNode hot = getJson("/api/rankings?type=hot&limit=10");
         assertTrue(hot.size() > 0, "热门榜为空");
         JsonNode humanoid = getJson("/api/rankings?type=humanoid&limit=10");

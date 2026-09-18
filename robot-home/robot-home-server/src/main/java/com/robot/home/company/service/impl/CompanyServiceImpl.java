@@ -19,7 +19,15 @@ import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.company.service.CompanyService;
 import com.robot.home.company.vo.CompanyDetailVO;
 import com.robot.home.company.vo.CompanyListVO;
+import com.robot.home.company.vo.CompanyPageVO;
+import com.robot.home.follow.service.FollowService;
 import com.robot.home.robot.entity.Robot;
+import com.robot.home.robot.mapper.RobotMapper;
+import com.robot.home.robot.vo.RobotSummaryVO;
+import com.robot.home.article.entity.Article;
+import com.robot.home.article.mapper.ArticleMapper;
+import com.robot.home.community.entity.CommunityPost;
+import com.robot.home.community.mapper.CommunityPostMapper;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.robot.vo.RobotSummaryVO;
 import org.slf4j.Logger;
@@ -50,6 +58,12 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
     private RobotMapper robotMapper;
     @Resource
     private RedisUtils redisUtils;
+    @Resource
+    private FollowService followService;
+    @Resource
+    private ArticleMapper articleMapper;
+    @Resource
+    private CommunityPostMapper communityPostMapper;
 
     @Override
     public PageResult<CompanyListVO> page(String keyword, String region, Integer pageNum, Integer pageSize) {
@@ -213,5 +227,149 @@ public class CompanyServiceImpl extends ServiceImpl<CompanyMapper, Company> impl
         vo.setProductCount(c.getProductCount());
         vo.setHotScore(c.getHotScore());
         return vo;
+    }
+
+    @Override
+    public CompanyPageVO companyPage(Long companyId, Long currentUserId) {
+        Company company = getById(companyId);
+        if (company == null || !Integer.valueOf(1).equals(company.getStatus())) {
+            throw new BusinessException("企业不存在");
+        }
+        CompanyPageVO page = new CompanyPageVO();
+
+        // 企业详情
+        CompanyDetailVO detailVO = detail(companyId);
+        page.setCompany(detailVO);
+
+        // 关注数和关注状态
+        page.setFollowCount(company.getFollowCount() == null ? 0 : company.getFollowCount());
+        if (currentUserId != null) {
+            try {
+                page.setFollowed(followService.checkBatch(currentUserId, Constants.BIZ_TYPE_COMPANY, java.util.Collections.singletonList(companyId)).contains(companyId));
+            } catch (Exception e) {
+                page.setFollowed(false);
+            }
+        } else {
+            page.setFollowed(false);
+        }
+
+        // 品牌列表
+        List<Brand> brands = brandMapper.selectList(Wrappers.<Brand>lambdaQuery()
+                .eq(Brand::getCompanyId, companyId)
+                .eq(Brand::getStatus, 1)
+                .orderByDesc(Brand::getHotScore));
+        List<CompanyPageVO.BrandSimpleVO> brandVOs = new ArrayList<>();
+        for (Brand b : brands) {
+            CompanyPageVO.BrandSimpleVO vo = new CompanyPageVO.BrandSimpleVO();
+            vo.setId(b.getId());
+            vo.setName(b.getName());
+            vo.setLogo(b.getLogo());
+            vo.setCountry(b.getCountry());
+            vo.setRobotCount(b.getRobotCount());
+            brandVOs.add(vo);
+        }
+        page.setBrands(brandVOs);
+        page.setBrandCount((long) brands.size());
+
+        // 机器人（通过品牌关联）
+        List<Long> brandIds = new ArrayList<>();
+        for (Brand b : brands) {
+            brandIds.add(b.getId());
+        }
+        List<Robot> hotRobots = new ArrayList<>();
+        Long robotCount = 0L;
+        if (!brandIds.isEmpty()) {
+            hotRobots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                    .in(Robot::getBrandId, brandIds)
+                    .eq(Robot::getStatus, 1)
+                    .orderByDesc(Robot::getHotScore)
+                    .last("LIMIT 10"));
+            robotCount = robotMapper.selectCount(Wrappers.<Robot>lambdaQuery()
+                    .in(Robot::getBrandId, brandIds)
+                    .eq(Robot::getStatus, 1));
+        }
+        // 品牌名映射
+        java.util.Map<Long, String> brandNameMap = new java.util.HashMap<>();
+        for (Brand b : brands) {
+            brandNameMap.put(b.getId(), b.getName());
+        }
+        List<CompanyPageVO.RobotSimpleVO> robotVOs = new ArrayList<>();
+        for (Robot r : hotRobots) {
+            CompanyPageVO.RobotSimpleVO vo = new CompanyPageVO.RobotSimpleVO();
+            vo.setId(r.getId());
+            vo.setName(r.getName());
+            vo.setCoverImage(r.getCoverImage());
+            vo.setSubtitle(r.getSubtitle());
+            vo.setGuidePrice(r.getGuidePrice());
+            vo.setScore(r.getScore());
+            vo.setBrandId(r.getBrandId());
+            vo.setBrandName(r.getBrandId() != null ? brandNameMap.get(r.getBrandId()) : null);
+            robotVOs.add(vo);
+        }
+        page.setHotRobots(robotVOs);
+        page.setRobotCount(robotCount);
+
+        // 相关文章（通过品牌关联）
+        List<CompanyPageVO.ArticleSimpleVO> articleVOs = new ArrayList<>();
+        Long articleCount = 0L;
+        if (!brandIds.isEmpty()) {
+            List<Article> articles = articleMapper.selectList(Wrappers.<Article>lambdaQuery()
+                    .in(Article::getBrandId, brandIds)
+                    .eq(Article::getStatus, 1)
+                    .orderByDesc(Article::getPublishTime)
+                    .last("LIMIT 5"));
+            for (Article a : articles) {
+                CompanyPageVO.ArticleSimpleVO vo = new CompanyPageVO.ArticleSimpleVO();
+                vo.setId(a.getId());
+                vo.setTitle(a.getTitle());
+                vo.setCoverImage(a.getCover());
+                vo.setViewCount(a.getViewCount());
+                vo.setPublishTime(a.getPublishTime());
+                articleVOs.add(vo);
+            }
+            articleCount = articleMapper.selectCount(Wrappers.<Article>lambdaQuery()
+                    .in(Article::getBrandId, brandIds)
+                    .eq(Article::getStatus, 1));
+        }
+        page.setArticles(articleVOs);
+        page.setArticleCount(articleCount);
+
+        // 社区讨论（通过品牌下的机器人关联）
+        List<CompanyPageVO.PostSimpleVO> postVOs = new ArrayList<>();
+        if (!brandIds.isEmpty() && !hotRobots.isEmpty()) {
+            List<Long> robotIds = new ArrayList<>();
+            for (Robot r : hotRobots) {
+                robotIds.add(r.getId());
+            }
+            // 补充更多robotIds
+            if (robotCount > hotRobots.size()) {
+                List<Robot> allRobots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .in(Robot::getBrandId, brandIds)
+                        .eq(Robot::getStatus, 1)
+                        .select(Robot::getId));
+                for (Robot r : allRobots) {
+                    if (!robotIds.contains(r.getId())) {
+                        robotIds.add(r.getId());
+                    }
+                }
+            }
+            List<CommunityPost> posts = communityPostMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
+                    .in(CommunityPost::getRobotId, robotIds)
+                    .eq(CommunityPost::getStatus, 1)
+                    .orderByDesc(CommunityPost::getCreateTime)
+                    .last("LIMIT 5"));
+            for (CommunityPost p : posts) {
+                CompanyPageVO.PostSimpleVO vo = new CompanyPageVO.PostSimpleVO();
+                vo.setId(p.getId());
+                vo.setTitle(p.getTitle());
+                vo.setLikeCount(p.getLikeCount());
+                vo.setCommentCount(p.getCommentCount());
+                vo.setCreateTime(p.getCreateTime());
+                postVOs.add(vo);
+            }
+        }
+        page.setPosts(postVOs);
+
+        return page;
     }
 }

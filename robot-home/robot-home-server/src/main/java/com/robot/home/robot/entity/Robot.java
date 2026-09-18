@@ -69,6 +69,14 @@ public class Robot extends BaseEntity {
     private Integer commentCount;
     private BigDecimal score;
     private Integer isExample;
+    /** Phase9: 讨论数 */
+    private Integer discussionCount;
+    /** Phase9: 提问数 */
+    private Integer questionCount;
+    /** Phase9: 评测数 */
+    private Integer reviewCount;
+    /** Phase9: 关注数 */
+    private Integer followCount;
 
     // --- 别名方法(兼容旧接口) ---
     public BigDecimal getPrice() { return guidePrice; }

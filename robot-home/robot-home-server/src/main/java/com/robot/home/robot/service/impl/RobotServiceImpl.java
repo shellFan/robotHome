@@ -741,7 +741,8 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         }
     }
 
-    private List<CategoryNodeVO> categoryTree() {
+    @Override
+    public List<CategoryNodeVO> categoryTree() {
         String key = Constants.CACHE_CATEGORY_PREFIX + "robot";
         try {
             String cached = redisUtils.get(key);

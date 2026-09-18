@@ -3,6 +3,7 @@ package com.robot.home.brand.service;
 import com.robot.home.brand.vo.BrandDetailVO;
 import com.robot.home.brand.vo.BrandLetterGroupVO;
 import com.robot.home.brand.vo.BrandListVO;
+import com.robot.home.brand.vo.BrandPageVO;
 import com.robot.home.common.PageResult;
 import com.robot.home.robot.vo.RobotSummaryVO;
 
@@ -25,4 +26,9 @@ public interface BrandService {
     List<BrandLetterGroupVO> groupByLetter();
 
     List<BrandListVO> hot(int limit);
+
+    /**
+     * Phase9: 品牌主页聚合数据
+     */
+    BrandPageVO brandPage(Long brandId, Long currentUserId);
 }

@@ -3,6 +3,7 @@ package com.robot.home.company.service;
 import com.robot.home.common.PageResult;
 import com.robot.home.company.vo.CompanyDetailVO;
 import com.robot.home.company.vo.CompanyListVO;
+import com.robot.home.company.vo.CompanyPageVO;
 import com.robot.home.robot.vo.RobotSummaryVO;
 
 import java.util.List;
@@ -24,4 +25,9 @@ public interface CompanyService {
     List<String> regions();
 
     List<CompanyListVO> hot(int limit);
+
+    /**
+     * Phase9: 企业主页聚合数据
+     */
+    CompanyPageVO companyPage(Long companyId, Long currentUserId);
 }

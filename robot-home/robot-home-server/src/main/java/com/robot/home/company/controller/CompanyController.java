@@ -2,9 +2,11 @@ package com.robot.home.company.controller;
 
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
+import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.company.service.CompanyService;
 import com.robot.home.company.vo.CompanyDetailVO;
 import com.robot.home.company.vo.CompanyListVO;
+import com.robot.home.company.vo.CompanyPageVO;
 import com.robot.home.robot.vo.RobotSummaryVO;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,5 +51,13 @@ public class CompanyController {
                                                      @RequestParam(defaultValue = "1") Integer pageNum,
                                                      @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.success(companyService.robots(id, pageNum, pageSize));
+    }
+
+    /**
+     * Phase9: 企业主页聚合数据
+     */
+    @GetMapping("/{id}/page")
+    public Result<CompanyPageVO> companyPage(@PathVariable Long id) {
+        return Result.success(companyService.companyPage(id, SecurityUtils.currentUserId()));
     }
 }

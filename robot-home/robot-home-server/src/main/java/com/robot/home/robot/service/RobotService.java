@@ -11,6 +11,7 @@ import com.robot.home.robot.vo.RobotDetailVO;
 import com.robot.home.robot.vo.RobotFilterVO;
 import com.robot.home.robot.vo.RobotListVO;
 import com.robot.home.robot.vo.RobotParamGroupVO;
+import com.robot.home.robot.vo.CategoryNodeVO;
 
 import java.util.List;
 
@@ -71,4 +72,9 @@ public interface RobotService {
      * 后台：按 id 查询原始数据
      */
     Robot getByIdOrNull(Long id);
+
+    /**
+     * 分类树（缓存）
+     */
+    List<CategoryNodeVO> categoryTree();
 }
