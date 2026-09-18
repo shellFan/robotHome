@@ -1,6 +1,7 @@
 package com.robot.home.recommend.controller;
 
 import com.robot.home.common.Result;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.recommend.service.RecommendService;
 import com.robot.home.recommend.service.RuleRecommendService;
@@ -28,6 +29,7 @@ public class RecommendController {
     private RuleRecommendService ruleRecommendService;
 
     @GetMapping("/{code}")
+    @RateLimit(action = "recommend_items", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     public Result<List<RecommendItemVO>> items(@PathVariable String code) {
         return Result.success(recommendService.items(code));
     }
@@ -36,6 +38,7 @@ public class RecommendController {
      * Phase9: 机器人相关推荐（规则型、可解释）
      */
     @GetMapping("/robots/{robotId}/related")
+    @RateLimit(action = "recommend_related", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     public Result<List<RuleRecommendVO>> relatedRobots(
             @PathVariable Long robotId,
             @RequestParam(defaultValue = "6") Integer limit) {

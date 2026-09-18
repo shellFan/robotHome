@@ -38,6 +38,7 @@ public class DiscoveryController {
     /**
      * 热门机器人
      */
+    @RateLimit(action = "discovery_hot", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     @GetMapping("/hot")
     public Result<List<RobotListVO>> hotRobots(
             @RequestParam(defaultValue = "10") Integer limit) {
@@ -47,6 +48,7 @@ public class DiscoveryController {
     /**
      * 近期热门（7天行为热度）
      */
+    @RateLimit(action = "discovery_trending", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     @GetMapping("/trending")
     public Result<List<RobotListVO>> trendingRobots(
             @RequestParam(defaultValue = "10") Integer limit) {
@@ -56,6 +58,7 @@ public class DiscoveryController {
     /**
      * 新品机器人
      */
+    @RateLimit(action = "discovery_new", windowSeconds = 60, maxRequests = 30, dimension = "IP")
     @GetMapping("/new")
     public Result<List<RobotListVO>> newRobots(
             @RequestParam(defaultValue = "10") Integer limit) {
