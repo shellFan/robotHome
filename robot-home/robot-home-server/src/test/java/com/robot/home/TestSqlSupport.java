@@ -56,9 +56,42 @@ public final class TestSqlSupport {
         // H2 的约束名在库级别唯一（MySQL 为表级别），这里按表名加前缀避免重名
         String currentTable = "";
         String alterTableName = null;
+        boolean inProcedure = false; // 跳过 CREATE PROCEDURE ... END$$ 块
         for (String line : sql.split("\n")) {
             String trimmed = line.trim();
             if (trimmed.startsWith("--") || trimmed.isEmpty()) {
+                continue;
+            }
+            // 跳过 DELIMITER 语句（H2 不支持）
+            if (trimmed.toUpperCase().startsWith("DELIMITER")) {
+                continue;
+            }
+            // 跳过 DROP PROCEDURE IF EXISTS
+            if (trimmed.toUpperCase().startsWith("DROP PROCEDURE")) {
+                continue;
+            }
+            // 跳过 CREATE PROCEDURE 块（从 CREATE PROCEDURE 到 END$$）
+            if (trimmed.toUpperCase().startsWith("CREATE PROCEDURE")) {
+                inProcedure = true;
+                continue;
+            }
+            if (inProcedure) {
+                if (trimmed.contains("END$$") || trimmed.equals("END")) {
+                    inProcedure = false;
+                }
+                continue;
+            }
+            // 处理 CALL p_add_column('table', 'column', 'definition')
+            // 转换为 ALTER TABLE `table` ADD COLUMN `column` definition
+            if (trimmed.toUpperCase().startsWith("CALL") && trimmed.contains("p_add_column")) {
+                String converted = convertAddColumnCall(trimmed);
+                if (converted != null) {
+                    out.add(converted);
+                }
+                continue;
+            }
+            // 跳过 CALL p_add_index（H2 不需要索引验证功能）
+            if (trimmed.toUpperCase().startsWith("CALL") && trimmed.contains("p_add_index")) {
                 continue;
             }
             if (trimmed.toUpperCase().startsWith("CREATE DATABASE") || trimmed.toUpperCase().startsWith("USE ")) {
@@ -169,5 +202,37 @@ public final class TestSqlSupport {
             colDef = colDef.substring(0, colDef.length() - 1).trim();
         }
         return colDef;
+    }
+
+    /**
+     * 将 CALL p_add_column('table', 'column', 'definition') 转换为 ALTER TABLE `table` ADD COLUMN `column` definition;
+     * 幂等SQL存储过程调用 → H2 兼容的 ALTER TABLE ADD COLUMN
+     */
+    private static String convertAddColumnCall(String callStmt) {
+        // CALL `p_add_column`('ranking_snapshot', 'prev_rank_no', 'INT DEFAULT NULL COMMENT ''上次排名'' AFTER `rank_no`');
+        // 匹配: CALL `p_add_column`('table', 'column', 'definition')
+        Pattern p = Pattern.compile("CALL\\s+`?p_add_column`?\\s*\\(\\s*'([^']+)'\\s*,\\s*'([^']+)'\\s*,\\s*'(.+)'\\s*\\)", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(callStmt);
+        if (m.find()) {
+            String table = m.group(1);
+            String column = m.group(2);
+            String definition = m.group(3);
+            // 移除尾部分号（在字符串内）
+            if (definition.endsWith("';")) {
+                definition = definition.substring(0, definition.length() - 2);
+            }
+            // 处理 MySQL 双单引号转义 → 单引号
+            definition = definition.replace("''", "'");
+            // 移除 AFTER 子句（H2 不支持）
+            definition = definition.replaceAll("(?i)\\s+AFTER\\s+`?\\w+`?", "");
+            // 移除字段级 COMMENT
+            definition = INLINE_COMMENT.matcher(definition).replaceAll("");
+            // 类型映射
+            definition = definition.replaceAll("(?i)\\bLONGTEXT\\b", "CLOB");
+            definition = definition.replaceAll("(?i)\\bTEXT\\b", "CLOB");
+            definition = definition.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
+            return "ALTER TABLE `" + table + "` ADD COLUMN `" + column + "` " + definition + ";";
+        }
+        return null;
     }
 }

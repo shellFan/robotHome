@@ -48,6 +48,43 @@ public final class Constants {
     public static final String CACHE_RANKING_WEIGHT_PREFIX = "robot:ranking:weight:";
     public static final String CACHE_RANKING_DECAY_PREFIX = "robot:ranking:decay:";
 
+    // Phase9 缓存前缀
+    public static final String CACHE_DISCOVERY_PREFIX = "robot:discovery:";
+    public static final String CACHE_FEED_PREFIX = "robot:feed:";
+    public static final String CACHE_GROWTH_PREFIX = "robot:growth:";
+    public static final String CACHE_USER_PROFILE_PREFIX = "robot:user:profile:";
+    public static final String CACHE_BRAND_DETAIL_PREFIX = "robot:brand:detail:";
+    public static final String CACHE_COMPANY_DETAIL_PREFIX = "robot:company:detail:";
+    public static final String CACHE_RECOMMEND_ROBOT_PREFIX = "robot:recommend:robot:";
+
+    // Phase9 上榜原因代码
+    public static final String REASON_HOT_RISE = "HOT_RISE";
+    public static final String REASON_NEW_ENTRY = "NEW_ENTRY";
+    public static final String REASON_SCORE_UP = "SCORE_UP";
+    public static final String REASON_FAVORITE_BOOST = "FAVORITE_BOOST";
+    public static final String REASON_DISCUSSION_ACTIVE = "DISCUSSION_ACTIVE";
+    public static final String REASON_REVIEW_POSITIVE = "REVIEW_POSITIVE";
+    public static final String REASON_FOLLOW_GROWTH = "FOLLOW_GROWTH";
+    public static final String REASON_NEW_PRODUCT = "NEW_PRODUCT";
+
+    // Phase9 推荐原因代码
+    public static final String REC_SAME_CATEGORY = "SAME_CATEGORY";
+    public static final String REC_SAME_BRAND = "SAME_BRAND";
+    public static final String REC_TRENDING = "TRENDING";
+    public static final String REC_FOLLOWED_ROBOT = "FOLLOWED_ROBOT";
+    public static final String REC_PEOPLE_ALSO_VIEWED = "PEOPLE_ALSO_VIEWED";
+    public static final String REC_POPULAR_ALTERNATIVE = "POPULAR_ALTERNATIVE";
+    public static final String REC_RELATED_BRAND = "RELATED_BRAND";
+
+    // Phase9 贡献分权重
+    public static final int CONTRIB_REVIEW_PUBLISH = 10;
+    public static final int CONTRIB_POST_PUBLISH = 5;
+    public static final int CONTRIB_QUESTION_CREATE = 3;
+    public static final int CONTRIB_ANSWER_CREATE = 5;
+    public static final int CONTRIB_ANSWER_ACCEPTED = 10;
+    public static final int CONTRIB_CORRECTION_ACCEPTED = 8;
+    public static final int CONTRIB_HELPFUL_RECEIVED = 2;
+
     // 登录 token 有效期（与 jwt.expiration 保持一致，单位秒）
     public static final long TOKEN_EXPIRE_SECONDS = 86400L;
 
@@ -82,6 +119,13 @@ public final class Constants {
     public static final String RANK_INDUSTRIAL = "industrial";
     public static final String RANK_FAMILY = "family";
     public static final String RANK_DEV = "dev";
+    // Phase9 新增榜单类型
+    public static final String RANK_FOLLOW = "follow";
+    public static final String RANK_FAVORITE = "favorite";
+    public static final String RANK_DISCUSSION = "discussion";
+    public static final String RANK_REVIEW = "review";
+    public static final String RANK_NEW_PRODUCT = "new_product";
+    public static final String RANK_COMPANY_ATTENTION = "company_attention";
 
     // 询价状态
     public static final int INQUIRY_PENDING = 1;     // 待处理

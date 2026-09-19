@@ -42,7 +42,9 @@ export const brandApi = {
   letters: () => get('/brands/letters'),
   hot: (limit = 12) => get('/brands/hot', { limit }),
   detail: (id) => get(`/brands/${id}`),
-  robots: (id, params) => get(`/brands/${id}/robots`, params)
+  robots: (id, params) => get(`/brands/${id}/robots`, params),
+  /** Phase9: 品牌页聚合数据 */
+  brandPage: (id) => get(`/brands/${id}/page`)
 }
 
 export const companyApi = {
@@ -50,7 +52,9 @@ export const companyApi = {
   regions: () => get('/companies/regions'),
   hot: (limit = 10) => get('/companies/hot', { limit }),
   detail: (id) => get(`/companies/${id}`),
-  robots: (id, params) => get(`/companies/${id}/robots`, params)
+  robots: (id, params) => get(`/companies/${id}/robots`, params),
+  /** Phase9: 企业页聚合数据 */
+  companyPage: (id) => get(`/companies/${id}/page`)
 }
 
 export const articleApi = {
@@ -132,7 +136,9 @@ export const searchApi = {
 
 export const rankingApi = {
   rank: (type = 'hot', limit = 20, timeRange = 'all') => get('/rankings', { type, limit, timeRange }),
-  types: () => get('/rankings/types')
+  types: () => get('/rankings/types'),
+  /** Phase9: 带排名变化的榜单快照 */
+  snapshot: (type = 'hot', limit = 20) => get('/rankings/snapshot', { type, limit })
 }
 
 export const inquiryApi = {
@@ -210,7 +216,19 @@ export const bannerApi = {
 }
 
 export const recommendApi = {
-  items: (code) => get(`/recommends/${code}`)
+  items: (code) => get(`/recommends/${code}`),
+  /** Phase9: 机器人相关推荐（规则型、可解释） */
+  relatedRobots: (robotId, limit = 6) => get(`/recommends/robots/${robotId}/related`, { limit })
+}
+
+/** Phase9: 关注动态Feed */
+export const feedApi = {
+  mine: (lastId, pageSize = 20) => get('/feed/mine', { lastId, pageSize })
+}
+
+/** Phase9: 发现页聚合 */
+export const discoveryApi = {
+  home: (position = 'pc') => get('/discovery/home', { position })
 }
 
 export const fileApi = {

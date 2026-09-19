@@ -1,6 +1,7 @@
 package com.robot.home.user.controller;
 
 import com.robot.home.comment.service.CommentService;
+import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.exception.BusinessException;
@@ -93,21 +94,62 @@ public class UserController {
     }
 
     /**
-     * 他人主页
+     * 他人主页（公开，脱敏）
      */
     @GetMapping("/{id}")
     public Result<UserProfileVO> profile(@PathVariable Long id) {
         User user = userService.getById(id);
-        if (user == null) {
+        if (user == null || !Integer.valueOf(1).equals(user.getStatus())) {
             throw new BusinessException("用户不存在");
         }
         UserProfileVO vo = new UserProfileVO();
-        BeanUtils.copyProperties(toVO(user, false), vo);
+        // 只填充公开字段，禁止暴露phone/email/openid/lastLoginIp等
+        vo.setId(user.getId());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setGender(user.getGender());
+        vo.setProvince(user.getProvince());
+        vo.setCity(user.getCity());
         vo.setIntro(user.getIntro());
         vo.setFansCount(user.getFansCount());
         vo.setFollowCount(user.getFollowCount());
         vo.setPostCount(user.getPostCount());
+        // Phase9: 贡献统计
+        vo.setContributionScore(user.getContributionScore());
+        vo.setReviewCount(user.getReviewCount());
+        vo.setQuestionCount(user.getQuestionCount());
+        vo.setAnswerCount(user.getAnswerCount());
+        // Phase9: 贡献等级
+        vo.setContributorLevel(calcContributorLevel(user.getContributionScore()));
+        // Phase9: 关注状态
+        Long currentUserId = SecurityUtils.currentUserId();
+        if (currentUserId != null && !currentUserId.equals(id)) {
+            try {
+                vo.setFollowed(followService.checkBatch(currentUserId, Constants.BIZ_TYPE_USER, java.util.Collections.singletonList(id)).contains(id));
+            } catch (Exception e) {
+                vo.setFollowed(false);
+            }
+        } else {
+            vo.setFollowed(false);
+        }
         return Result.success(vo);
+    }
+
+    /** Phase9: 计算贡献等级 */
+    private String calcContributorLevel(Integer score) {
+        if (score == null || score <= 0) {
+            return null;
+        }
+        if (score >= 500) {
+            return "资深贡献者";
+        }
+        if (score >= 200) {
+            return "活跃贡献者";
+        }
+        if (score >= 50) {
+            return "贡献者";
+        }
+        return "新手";
     }
 
     /**

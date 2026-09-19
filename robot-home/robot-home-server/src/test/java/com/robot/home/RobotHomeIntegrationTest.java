@@ -198,7 +198,7 @@ class RobotHomeIntegrationTest {
         assertTrue(f.path("priceRanges").size() == 5, "价格区间应为 5 档");
 
         JsonNode types = getJson("/api/rankings/types");
-        assertEquals(7, types.size(), "榜单类型应为 7 个");
+        assertEquals(13, types.size(), "榜单类型应为 13 个（Phase9新增6种）");
         JsonNode hot = getJson("/api/rankings?type=hot&limit=10");
         assertTrue(hot.size() > 0, "热门榜为空");
         JsonNode humanoid = getJson("/api/rankings?type=humanoid&limit=10");
@@ -383,6 +383,101 @@ class RobotHomeIntegrationTest {
         assertTrue(myPosts.path("total").asInt() > 0, "我的帖子为空");
     }
 
+    // ---------------- Phase9: 关注 / Feed / 发现 / 推荐 ----------------
+
+    @Test
+    @Order(14)
+    void test14_followApi() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 关注品牌
+        String r = exec(post("/api/follows").header("Authorization", auth)
+                .param("followType", "BRAND").param("followId", "1"));
+        assertEquals(200, objectMapper.readTree(r).path("code").asInt(), "关注品牌失败: " + r);
+
+        // 检查关注状态
+        JsonNode check = getJson2("/api/follows/check?followType=BRAND&followId=1", auth);
+        assertTrue(check.path("followed").asBoolean(), "关注状态应为true");
+
+        // 我的关注列表
+        JsonNode list = getJson2("/api/follows?pageSize=20", auth);
+        assertTrue(list.path("total").asInt() > 0, "关注列表为空");
+
+        // 取消关注
+        String del = exec(delete("/api/follows/BRAND/1").header("Authorization", auth));
+        assertEquals(200, objectMapper.readTree(del).path("code").asInt(), "取消关注失败");
+    }
+
+    @Test
+    @Order(15)
+    void test15_feedApi() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 关注动态（即使为空也应返回200）
+        String r = exec(get("/api/feed/mine?pageSize=20").header("Authorization", auth));
+        JsonNode root = objectMapper.readTree(r);
+        assertEquals(200, root.path("code").asInt(), "Feed接口异常: " + r);
+    }
+
+    @Test
+    @Order(16)
+    void test16_discoveryApi() throws Exception {
+        // 发现页聚合
+        JsonNode home = getJson("/api/discovery/home");
+        assertNotNull(home, "发现页home为null");
+
+        // 热门机器人
+        JsonNode hot = getJson("/api/discovery/hot?limit=5");
+        assertTrue(hot.isArray(), "热门机器人应返回数组");
+
+        // 近期热门
+        JsonNode trending = getJson("/api/discovery/trending?limit=5");
+        assertTrue(trending.isArray(), "近期热门应返回数组");
+
+        // 新品
+        JsonNode newRobots = getJson("/api/discovery/new?limit=5");
+        assertTrue(newRobots.isArray(), "新品机器人应返回数组");
+    }
+
+    @Test
+    @Order(17)
+    void test17_recommendRelatedApi() throws Exception {
+        // 机器人相关推荐
+        String r = exec(get("/api/recommends/robots/" + robotId + "/related?limit=6"));
+        JsonNode root = objectMapper.readTree(r);
+        assertEquals(200, root.path("code").asInt(), "相关推荐接口异常: " + r);
+    }
+
+    @Test
+    @Order(18)
+    void test18_rankingSnapshotAndBrandPage() throws Exception {
+        // 排行榜快照
+        String r = exec(get("/api/rankings/snapshot?type=hot"));
+        JsonNode root = objectMapper.readTree(r);
+        assertEquals(200, root.path("code").asInt(), "排行榜快照接口异常: " + r);
+
+        // 品牌详情页
+        JsonNode brandPage = getJson("/api/brands/1/page");
+        assertNotNull(brandPage.path("brand"), "品牌详情缺失");
+        assertTrue(brandPage.path("followCount").asInt() >= 0, "品牌关注数异常");
+        assertTrue(brandPage.path("hotRobots").isArray(), "热门机器人列表缺失");
+    }
+
+    @Test
+    @Order(19)
+    void test19_companyPageAndUserProfile() throws Exception {
+        // 企业详情页
+        JsonNode companyPage = getJson("/api/companies/1/page");
+        assertNotNull(companyPage.path("company"), "企业详情缺失");
+        assertTrue(companyPage.path("followCount").asInt() >= 0, "企业关注数异常");
+        assertTrue(companyPage.path("brands").isArray(), "品牌列表缺失");
+
+        // 用户公开主页（脱敏验证）— /api/users/{id} 为公开主页，不含phone/email
+        JsonNode profile = getJson("/api/users/1");
+        assertNotNull(profile.path("nickname").asText(), "用户昵称缺失");
+        // 公开主页不应包含phone字段（UserProfileVO不设置phone，NON_NULL序列化时省略）
+        assertTrue(profile.path("phone").asText("").isEmpty(),
+                "公开主页不应泄露手机号: phone=" + profile.path("phone").asText(""));
+    }
+
     // ---------------- 后台链路 ----------------
 
     @Test
@@ -525,6 +620,21 @@ class RobotHomeIntegrationTest {
         assertTrue(getJson2("/api/admin/community/circles", auth).size() > 0, "后台圈子为空");
         assertTrue(getJson2("/api/admin/robots/categories", auth).size() > 0, "后台分类为空");
         assertTrue(getJson2("/api/admin/robots/templates", auth).size() > 0, "参数模板为空");
+    }
+
+    @Test
+    @Order(26)
+    void test26_adminGrowthDashboard() throws Exception {
+        String auth = "Bearer " + adminToken;
+        // Admin增长Dashboard（需权限）
+        JsonNode dashboard = getJson2("/api/admin/growth/dashboard?days=7", auth);
+        assertNotNull(dashboard.path("today"), "增长Dashboard今日数据缺失");
+        assertNotNull(dashboard.path("trend7d"), "7天趋势数据缺失");
+        assertNotNull(dashboard.path("funnel"), "转化漏斗数据缺失");
+
+        // 未登录用户不能访问Growth Dashboard
+        String denied = exec(get("/api/admin/growth/dashboard"));
+        assertFalse(denied.contains("\"code\":200"), "未登录不应访问Growth Dashboard");
     }
 
     private JsonNode getJson2(String url, String authorization) throws Exception {

@@ -36,6 +36,18 @@ public class RankingSnapshot {
     /** 排名 */
     private Integer rankNo;
 
+    /** Phase9: 上期排名（用于计算排名变化） */
+    private Integer prevRankNo;
+
+    /** Phase9: 排名变化（正数上升，负数下降，0不变，null新上榜） */
+    private Integer rankChange;
+
+    /** Phase9: 上榜原因代码（如 HOT_RISE/NEW_ENTRY/SCORE_UP/FAVORITE_BOOST等） */
+    private String reasonCode;
+
+    /** Phase9: 上榜原因描述 */
+    private String reasonText;
+
     /** 创建时间 */
     private Date createTime;
 }

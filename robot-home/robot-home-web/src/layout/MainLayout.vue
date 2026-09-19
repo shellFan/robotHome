@@ -51,6 +51,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                    <el-dropdown-item command="feed">关注动态</el-dropdown-item>
                     <el-dropdown-item command="favorites">我的收藏</el-dropdown-item>
                     <el-dropdown-item command="history">浏览历史</el-dropdown-item>
                     <el-dropdown-item command="inquiries">我的询价</el-dropdown-item>
@@ -166,6 +167,7 @@ const navList = [
   { path: '/articles', name: '资讯' },
   { path: '/videos', name: '视频' },
   { path: '/community', name: '社区' },
+  { path: '/feed', name: '关注动态' },
   { path: '/tutorials', name: '教程' },
   { path: '/companies', name: '企业库' }
 ]
@@ -238,6 +240,10 @@ async function onCommand (cmd) {
   if (cmd === 'logout') {
     await userStore.logout()
     router.push('/')
+    return
+  }
+  if (cmd === 'feed') {
+    router.push('/feed')
     return
   }
   router.push(`/user/${cmd}`)

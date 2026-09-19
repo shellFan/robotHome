@@ -13,5 +13,9 @@
 .badge--gold{background:#fff3e0;color:#e6a23c}
 .badge--silver{background:#f0f0f0;color:#909399}
 .badge--bronze{background:#fdf2ec;color:#e6a23c}
+.rank-change{font-size:22rpx;padding:4rpx 12rpx;border-radius:8rpx;margin-left:12rpx;flex-shrink:0}
+.rank-up{background:#fff0f0;color:#e4393c}
+.rank-down{background:#f0fff0;color:#09bb07}
+.rank-new{background:#fff8e6;color:#ff9c00}
 .rh-empty{text-align:center;padding:80rpx 0;color:#999;font-size:28rpx}
 .rh-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

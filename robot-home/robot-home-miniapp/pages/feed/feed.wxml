@@ -1,0 +1,25 @@
+<view class="feed-page">
+  <block wx:if="{{list.length}}">
+    <view class="feed-list">
+      <view class="feed-item" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-item="{{item}}">
+        <image class="feed-item__cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+        <view class="feed-item__body">
+          <view class="feed-item__type">{{item.feedType}}</view>
+          <view class="feed-item__title">{{item.title || item.name}}</view>
+          <view class="feed-item__meta">
+            <text>{{item.dateText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+  <view class="feed-empty" wx:if="{{!loading && !list.length}}">
+    <text>暂无关注动态</text>
+  </view>
+  <view class="feed-loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+  <view class="feed-finished" wx:if="{{finished && list.length}}">
+    <text>没有更多了</text>
+  </view>
+</view>

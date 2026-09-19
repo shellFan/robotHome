@@ -4,8 +4,10 @@ import com.robot.home.brand.service.BrandService;
 import com.robot.home.brand.vo.BrandDetailVO;
 import com.robot.home.brand.vo.BrandLetterGroupVO;
 import com.robot.home.brand.vo.BrandListVO;
+import com.robot.home.brand.vo.BrandPageVO;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
+import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.robot.vo.RobotSummaryVO;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,5 +53,13 @@ public class BrandController {
                                                      @RequestParam(defaultValue = "1") Integer pageNum,
                                                      @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.success(brandService.robots(id, pageNum, pageSize));
+    }
+
+    /**
+     * Phase9: 品牌主页聚合数据
+     */
+    @GetMapping("/{id}/page")
+    public Result<BrandPageVO> brandPage(@PathVariable Long id) {
+        return Result.success(brandService.brandPage(id, SecurityUtils.currentUserId()));
     }
 }

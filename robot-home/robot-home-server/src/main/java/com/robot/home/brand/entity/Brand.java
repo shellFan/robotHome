@@ -43,4 +43,10 @@ public class Brand extends BaseEntity {
     private String detail;
     private Integer sort;
     private Integer status;
+    /** Phase9: 品牌关注数 */
+    private Integer followCount;
+    /** Phase9: 品牌文章数 */
+    private Integer articleCount;
+    /** Phase9: 品牌评测数 */
+    private Integer reviewCount;
 }

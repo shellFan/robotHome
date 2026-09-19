@@ -35,6 +35,8 @@ Page({
     } catch (e) {}
   },
   goLogin() { wx.navigateTo({ url: '/pages/login/login' }) },
+  goFollow() { this.needLogin('/pages/follow/follow') },
+  goFeed() { this.needLogin('/pages/feed/feed') },
   goFavorites() { this.needLogin('/pages/mine/favorites') },
   goHistory() { this.needLogin('/pages/mine/history') },
   goPosts() { this.needLogin('/pages/mine/posts') },

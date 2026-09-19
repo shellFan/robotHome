@@ -72,7 +72,11 @@ public class BizCounter {
         if (bizId == null || delta == 0) {
             return;
         }
-        String sql = field.getColumn() + " = " + field.getColumn() + " + (" + delta + ")";
+        String column = field.getColumn();
+        // 减少时使用GREATEST防负数
+        String sql = delta > 0
+                ? column + " = " + column + " + " + delta
+                : column + " = GREATEST(" + column + " + (" + delta + "), 0)";
         switch (bizType) {
             case "robot":
                 robotMapper.update(null, new LambdaUpdateWrapper<Robot>().eq(Robot::getId, bizId).setSql(sql));

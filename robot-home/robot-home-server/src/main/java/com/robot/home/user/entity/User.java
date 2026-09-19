@@ -43,6 +43,14 @@ public class User extends BaseEntity {
     private Integer followCount;
     /** 发帖数 */
     private Integer postCount;
+    /** Phase9: 贡献分 */
+    private Integer contributionScore;
+    /** Phase9: 评测数 */
+    private Integer reviewCount;
+    /** Phase9: 提问数 */
+    private Integer questionCount;
+    /** Phase9: 回答数 */
+    private Integer answerCount;
     /** 微信 openid */
     private String openid;
     /** 状态：0禁用 1正常 */

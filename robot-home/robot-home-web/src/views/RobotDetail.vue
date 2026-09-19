@@ -412,7 +412,7 @@ import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layout/MainLayout.vue'
 import CommentPanel from '@/components/CommentPanel.vue'
-import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, similarApi, correctionApi } from '@/api'
+import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, recommendApi, correctionApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { useCompareStore } from '@/store/compare'
 import { formatPrice, formatCount, imageOf, parseMainParams, formatDate } from '@/utils/format'
@@ -632,11 +632,11 @@ function formatScore (val) {
   return Number(val).toFixed(1)
 }
 
-// ========== Phase7: Similar Robots ==========
+// ========== Phase9: Related Robots (推荐) ==========
 async function loadSimilarRobots () {
   similarLoading.value = true
   try {
-    const data = await similarApi.list(id.value, 6)
+    const data = await recommendApi.relatedRobots(id.value, 6)
     similarRobots.value = data || []
   } catch (e) {
     similarRobots.value = []

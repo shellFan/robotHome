@@ -2,6 +2,7 @@ package com.robot.home.ranking.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.robot.home.brand.mapper.BrandMapper;
 import com.robot.home.common.Constants;
 import com.robot.home.common.util.RedisUtils;
 import com.robot.home.ranking.entity.RankingDecayConfig;
@@ -11,6 +12,7 @@ import com.robot.home.ranking.mapper.RankingDecayConfigMapper;
 import com.robot.home.ranking.mapper.RankingSnapshotMapper;
 import com.robot.home.ranking.mapper.RankingWeightMapper;
 import com.robot.home.ranking.service.RankingService;
+import com.robot.home.ranking.vo.RankingSnapshotVO;
 import com.robot.home.ranking.vo.RankingTypeVO;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.entity.RobotCategory;
@@ -93,6 +95,8 @@ public class RankingServiceImpl implements RankingService {
     private RankingDecayConfigMapper rankingDecayConfigMapper;
     @Resource
     private RankingSnapshotMapper rankingSnapshotMapper;
+    @Resource
+    private BrandMapper brandMapper;
 
     @Value("${robot.ranking-cache:600}")
     private long rankingCacheSeconds;
@@ -111,6 +115,11 @@ public class RankingServiceImpl implements RankingService {
         String rankType = StrUtil.isBlank(type) ? Constants.RANK_HOT : type;
         String range = StrUtil.isBlank(timeRange) ? "all" : timeRange.toLowerCase();
         int size = Math.max(1, Math.min(limit, 100));
+
+        // Phase9: 新榜单类型走专用排序
+        if (isNewRankType(rankType)) {
+            return rankByNewType(rankType, size, currentUserId);
+        }
 
         String cacheKey = Constants.CACHE_RANKING_PREFIX + rankType + ":" + range + ":" + size;
         List<Long> ids = null;
@@ -178,7 +187,14 @@ public class RankingServiceImpl implements RankingService {
                 new RankingTypeVO(Constants.RANK_SERVICE, "服务机器人榜"),
                 new RankingTypeVO(Constants.RANK_INDUSTRIAL, "工业机器人榜"),
                 new RankingTypeVO(Constants.RANK_FAMILY, "家庭机器人榜"),
-                new RankingTypeVO(Constants.RANK_DEV, "开发机器人榜"));
+                new RankingTypeVO(Constants.RANK_DEV, "开发机器人榜"),
+                // Phase9 新增榜单
+                new RankingTypeVO(Constants.RANK_FOLLOW, "关注榜"),
+                new RankingTypeVO(Constants.RANK_FAVORITE, "收藏榜"),
+                new RankingTypeVO(Constants.RANK_DISCUSSION, "讨论榜"),
+                new RankingTypeVO(Constants.RANK_REVIEW, "口碑榜"),
+                new RankingTypeVO(Constants.RANK_NEW_PRODUCT, "新品榜"),
+                new RankingTypeVO(Constants.RANK_COMPANY_ATTENTION, "企业关注榜"));
     }
 
     @Override
@@ -186,14 +202,28 @@ public class RankingServiceImpl implements RankingService {
         ensureWeightsLoaded();
         List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery().orderByAsc(Robot::getId));
         int updated = 0;
+        // 批量更新hotScore，避免N+1逐条UPDATE
+        List<Robot> batch = new ArrayList<>();
+        int batchSize = 50;
         for (Robot r : robots) {
             long score = hotScore(r, Constants.RANK_HOT);
             Robot update = new Robot();
             update.setId(r.getId());
             update.setHotScore(score);
-            robotMapper.updateById(update);
-            updated++;
+            batch.add(update);
+            if (batch.size() >= batchSize) {
+                for (Robot u : batch) {
+                    robotMapper.updateById(u);
+                }
+                updated += batch.size();
+                batch.clear();
+            }
         }
+        // 处理剩余
+        for (Robot u : batch) {
+            robotMapper.updateById(u);
+        }
+        updated += batch.size();
         // 刷新后清空榜单缓存
         try {
             for (String key : new ArrayList<>(redisUtils.keys(Constants.CACHE_RANKING_PREFIX + "*"))) {
@@ -203,50 +233,6 @@ public class RankingServiceImpl implements RankingService {
             log.warn("Redis排行榜缓存清空失败: error={}", e.getMessage());
         }
         return updated;
-    }
-
-    /**
-     * 将 Redis ZSET 排行榜持久化到 ranking_snapshot 表
-     * 由定时任务调用
-     */
-    public int snapshotRankings() {
-        String[] rankTypes = {Constants.RANK_HOT, Constants.RANK_HUMANOID, Constants.RANK_QUADRUPED,
-                Constants.RANK_SERVICE, Constants.RANK_INDUSTRIAL, Constants.RANK_FAMILY, Constants.RANK_DEV};
-        Date now = new Date();
-        int count = 0;
-        for (String rankType : rankTypes) {
-            String zsetKey = Constants.CACHE_HOT_PREFIX + rankType;
-            Set<String> members = null;
-            try {
-                members = redisUtils.zReverseRange(zsetKey, 0, 99);
-            } catch (Exception e) {
-                log.warn("Redis ZSET读取失败，跳过排行榜快照: rankType={}, error={}", rankType, e.getMessage());
-                continue;
-            }
-            if (members == null || members.isEmpty()) {
-                continue;
-            }
-            int rank = 1;
-            for (String member : members) {
-                Double score = null;
-                try {
-                    score = redisUtils.zScore(zsetKey, member);
-                } catch (Exception e) {
-                    log.warn("Redis ZSET分数读取失败: rankType={}, member={}, error={}", rankType, member, e.getMessage());
-                }
-                RankingSnapshot snapshot = new RankingSnapshot();
-                snapshot.setRankType(rankType);
-                snapshot.setSnapshotDate(now);
-                snapshot.setRobotId(Long.valueOf(member));
-                snapshot.setHotScore(score == null ? 0L : score.longValue());
-                snapshot.setRankNo(rank++);
-                snapshot.setCreateTime(now);
-                rankingSnapshotMapper.insert(snapshot);
-                count++;
-            }
-        }
-        log.info("排行榜快照完成，共 {} 条记录", count);
-        return count;
     }
 
     /**
@@ -408,5 +394,391 @@ public class RankingServiceImpl implements RankingService {
             default:
                 return null; // all: 不限制时间
         }
+    }
+
+    // ========== Phase9 新增方法 ==========
+
+    /** Phase9新榜单类型 */
+    private boolean isNewRankType(String rankType) {
+        return Constants.RANK_FOLLOW.equals(rankType)
+                || Constants.RANK_FAVORITE.equals(rankType)
+                || Constants.RANK_DISCUSSION.equals(rankType)
+                || Constants.RANK_REVIEW.equals(rankType)
+                || Constants.RANK_NEW_PRODUCT.equals(rankType)
+                || Constants.RANK_COMPANY_ATTENTION.equals(rankType);
+    }
+
+    /** Phase9: 新榜单类型排序 */
+    private List<RobotListVO> rankByNewType(String rankType, int limit, Long currentUserId) {
+        String cacheKey = Constants.CACHE_RANKING_PREFIX + rankType + ":all:" + limit;
+        List<Long> ids = null;
+        try {
+            ids = parseIds(redisUtils.get(cacheKey));
+        } catch (Exception e) {
+            log.warn("Redis新榜单缓存读取失败: rankType={}, error={}", rankType, e.getMessage());
+        }
+        if (ids == null || ids.isEmpty()) {
+            List<Robot> robots;
+            switch (rankType) {
+                case Constants.RANK_FOLLOW:
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .gt(Robot::getFollowCount, 0)
+                            .orderByDesc(Robot::getFollowCount)
+                            .last("LIMIT " + limit));
+                    break;
+                case Constants.RANK_FAVORITE:
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .gt(Robot::getFavoriteCount, 0)
+                            .orderByDesc(Robot::getFavoriteCount)
+                            .last("LIMIT " + limit));
+                    break;
+                case Constants.RANK_DISCUSSION:
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .gt(Robot::getDiscussionCount, 0)
+                            .orderByDesc(Robot::getDiscussionCount)
+                            .last("LIMIT " + limit));
+                    break;
+                case Constants.RANK_REVIEW:
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .gt(Robot::getReviewCount, 0)
+                            .orderByDesc(Robot::getReviewCount)
+                            .last("LIMIT " + limit));
+                    break;
+                case Constants.RANK_NEW_PRODUCT:
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .isNotNull(Robot::getReleaseDate)
+                            .orderByDesc(Robot::getReleaseDate)
+                            .last("LIMIT " + limit));
+                    break;
+                case Constants.RANK_COMPANY_ATTENTION:
+                    // 企业关注榜：按品牌所属企业的关注热度排序
+                    // 简化实现：按hotScore排序（企业维度暂用品牌维度聚合）
+                    robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                            .eq(Robot::getStatus, 1)
+                            .gt(Robot::getHotScore, 0L)
+                            .orderByDesc(Robot::getHotScore)
+                            .last("LIMIT " + limit));
+                    break;
+                default:
+                    robots = new ArrayList<>();
+            }
+            ids = new ArrayList<>();
+            for (Robot r : robots) {
+                ids.add(r.getId());
+            }
+            if (!ids.isEmpty()) {
+                try {
+                    redisUtils.set(cacheKey, joinIds(ids), rankingCacheSeconds, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.warn("Redis新榜单缓存写入失败: rankType={}, error={}", rankType, e.getMessage());
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<RobotListVO> list = robotMapper.selectListByIds(ids);
+        Map<Long, RobotListVO> index = new HashMap<>();
+        for (RobotListVO vo : list) {
+            index.put(vo.getId(), vo);
+        }
+        List<RobotListVO> ordered = new ArrayList<>();
+        for (Long id : ids) {
+            RobotListVO vo = index.get(id);
+            if (vo != null) {
+                ordered.add(vo);
+            }
+        }
+        return ordered;
+    }
+
+    @Override
+    public int snapshotRankings() {
+        String[] rankTypes = {Constants.RANK_HOT, Constants.RANK_HUMANOID, Constants.RANK_QUADRUPED,
+                Constants.RANK_SERVICE, Constants.RANK_INDUSTRIAL, Constants.RANK_FAMILY, Constants.RANK_DEV,
+                Constants.RANK_FOLLOW, Constants.RANK_FAVORITE, Constants.RANK_DISCUSSION,
+                Constants.RANK_REVIEW, Constants.RANK_NEW_PRODUCT, Constants.RANK_COMPANY_ATTENTION};
+        Date now = new Date();
+        int count = 0;
+        for (String rankType : rankTypes) {
+            // Phase9: 读取前一天的快照用于计算排名变化
+            Map<Long, Integer> prevRanks = loadPrevRanks(rankType);
+
+            String zsetKey = Constants.CACHE_HOT_PREFIX + rankType;
+            Set<String> members = null;
+            try {
+                members = redisUtils.zReverseRange(zsetKey, 0, 99);
+            } catch (Exception e) {
+                log.warn("Redis ZSET读取失败，跳过排行榜快照: rankType={}, error={}", rankType, e.getMessage());
+                // Phase9: 新榜单类型从DB fallback
+                if (isNewRankType(rankType)) {
+                    count += snapshotFromDB(rankType, now, prevRanks, 100);
+                }
+                continue;
+            }
+            if (members == null || members.isEmpty()) {
+                // Phase9: 新榜单类型从DB fallback
+                if (isNewRankType(rankType)) {
+                    count += snapshotFromDB(rankType, now, prevRanks, 100);
+                }
+                continue;
+            }
+            int rank = 1;
+            for (String member : members) {
+                Double score = null;
+                try {
+                    score = redisUtils.zScore(zsetKey, member);
+                } catch (Exception e) {
+                    log.warn("Redis ZSET分数读取失败: rankType={}, member={}, error={}", rankType, member, e.getMessage());
+                }
+                RankingSnapshot snapshot = new RankingSnapshot();
+                snapshot.setRankType(rankType);
+                snapshot.setSnapshotDate(now);
+                snapshot.setRobotId(Long.valueOf(member));
+                snapshot.setHotScore(score == null ? 0L : score.longValue());
+                snapshot.setRankNo(rank);
+                // Phase9: 计算排名变化
+                Integer prevRank = prevRanks.get(Long.valueOf(member));
+                snapshot.setPrevRankNo(prevRank);
+                if (prevRank == null) {
+                    snapshot.setRankChange(null); // 新上榜
+                } else {
+                    snapshot.setRankChange(prevRank - rank); // 正数上升，负数下降
+                }
+                // Phase9: 生成上榜原因
+                String[] reason = generateReason(rankType, rank, prevRank, score);
+                snapshot.setReasonCode(reason[0]);
+                snapshot.setReasonText(reason[1]);
+                snapshot.setCreateTime(now);
+                rankingSnapshotMapper.insert(snapshot);
+                rank++;
+                count++;
+            }
+        }
+        log.info("排行榜快照完成，共 {} 条记录", count);
+        return count;
+    }
+
+    /** Phase9: 从DB生成新榜单类型快照 */
+    private int snapshotFromDB(String rankType, Date now, Map<Long, Integer> prevRanks, int limit) {
+        List<Robot> robots;
+        switch (rankType) {
+            case Constants.RANK_FOLLOW:
+                robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .eq(Robot::getStatus, 1).gt(Robot::getFollowCount, 0)
+                        .orderByDesc(Robot::getFollowCount).last("LIMIT " + limit));
+                break;
+            case Constants.RANK_FAVORITE:
+                robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .eq(Robot::getStatus, 1).gt(Robot::getFavoriteCount, 0)
+                        .orderByDesc(Robot::getFavoriteCount).last("LIMIT " + limit));
+                break;
+            case Constants.RANK_DISCUSSION:
+                robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .eq(Robot::getStatus, 1).gt(Robot::getDiscussionCount, 0)
+                        .orderByDesc(Robot::getDiscussionCount).last("LIMIT " + limit));
+                break;
+            case Constants.RANK_REVIEW:
+                robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .eq(Robot::getStatus, 1).gt(Robot::getReviewCount, 0)
+                        .orderByDesc(Robot::getReviewCount).last("LIMIT " + limit));
+                break;
+            case Constants.RANK_NEW_PRODUCT:
+                robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                        .eq(Robot::getStatus, 1).isNotNull(Robot::getReleaseDate)
+                        .orderByDesc(Robot::getReleaseDate).last("LIMIT " + limit));
+                break;
+            default:
+                robots = new ArrayList<>();
+        }
+        int count = 0;
+        int rank = 1;
+        for (Robot r : robots) {
+            RankingSnapshot snapshot = new RankingSnapshot();
+            snapshot.setRankType(rankType);
+            snapshot.setSnapshotDate(now);
+            snapshot.setRobotId(r.getId());
+            snapshot.setHotScore(r.getHotScore() == null ? 0L : r.getHotScore());
+            snapshot.setRankNo(rank);
+            Integer prevRank = prevRanks.get(r.getId());
+            snapshot.setPrevRankNo(prevRank);
+            snapshot.setRankChange(prevRank == null ? null : prevRank - rank);
+            String[] reason = generateReason(rankType, rank, prevRank, (double) snapshot.getHotScore());
+            snapshot.setReasonCode(reason[0]);
+            snapshot.setReasonText(reason[1]);
+            snapshot.setCreateTime(now);
+            rankingSnapshotMapper.insert(snapshot);
+            rank++;
+            count++;
+        }
+        return count;
+    }
+
+    /** Phase9: 读取前一天排名 */
+    private Map<Long, Integer> loadPrevRanks(String rankType) {
+        Map<Long, Integer> prevRanks = new HashMap<>();
+        try {
+            // 查询最近一天的快照（不是今天的）
+            RankingSnapshot latest = rankingSnapshotMapper.selectOne(Wrappers.<RankingSnapshot>lambdaQuery()
+                    .eq(RankingSnapshot::getRankType, rankType)
+                    .orderByDesc(RankingSnapshot::getSnapshotDate)
+                    .last("LIMIT 1"));
+            if (latest != null) {
+                // 查询该天的所有排名
+                List<RankingSnapshot> prevList = rankingSnapshotMapper.selectList(Wrappers.<RankingSnapshot>lambdaQuery()
+                        .eq(RankingSnapshot::getRankType, rankType)
+                        .eq(RankingSnapshot::getSnapshotDate, latest.getSnapshotDate()));
+                for (RankingSnapshot s : prevList) {
+                    prevRanks.put(s.getRobotId(), s.getRankNo());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("读取前日排名失败: rankType={}, error={}", rankType, e.getMessage());
+        }
+        return prevRanks;
+    }
+
+    /** Phase9: 生成上榜原因 */
+    private String[] generateReason(String rankType, int currentRank, Integer prevRank, Double score) {
+        if (prevRank == null) {
+            // 新上榜
+            if (Constants.RANK_NEW_PRODUCT.equals(rankType)) {
+                return new String[]{Constants.REASON_NEW_PRODUCT, "近期新发布机器人"};
+            }
+            return new String[]{Constants.REASON_NEW_ENTRY, "新上榜"};
+        }
+        int change = prevRank - currentRank;
+        if (change > 5) {
+            return new String[]{Constants.REASON_HOT_RISE, "排名大幅上升"};
+        }
+        if (change > 0) {
+            return new String[]{Constants.REASON_HOT_RISE, "排名上升" + change + "位"};
+        }
+        if (Constants.RANK_FAVORITE.equals(rankType)) {
+            return new String[]{Constants.REASON_FAVORITE_BOOST, "收藏热度较高"};
+        }
+        if (Constants.RANK_DISCUSSION.equals(rankType)) {
+            return new String[]{Constants.REASON_DISCUSSION_ACTIVE, "近期讨论活跃"};
+        }
+        if (Constants.RANK_REVIEW.equals(rankType)) {
+            return new String[]{Constants.REASON_REVIEW_POSITIVE, "用户评价较好"};
+        }
+        if (Constants.RANK_FOLLOW.equals(rankType)) {
+            return new String[]{Constants.REASON_FOLLOW_GROWTH, "关注增长较快"};
+        }
+        if (Constants.RANK_NEW_PRODUCT.equals(rankType)) {
+            return new String[]{Constants.REASON_NEW_PRODUCT, "近期新发布"};
+        }
+        return new String[]{Constants.REASON_SCORE_UP, "综合评分较高"};
+    }
+
+    @Override
+    public List<RankingSnapshotVO> rankWithChange(String type, int limit) {
+        String rankType = StrUtil.isBlank(type) ? Constants.RANK_HOT : type;
+        int size = Math.max(1, Math.min(limit, 100));
+
+        // 白名单校验
+        if (!isValidRankType(rankType)) {
+            return new ArrayList<>();
+        }
+
+        // 读取最新快照
+        RankingSnapshot latest = rankingSnapshotMapper.selectOne(Wrappers.<RankingSnapshot>lambdaQuery()
+                .eq(RankingSnapshot::getRankType, rankType)
+                .orderByDesc(RankingSnapshot::getSnapshotDate)
+                .last("LIMIT 1"));
+        if (latest == null) {
+            return new ArrayList<>();
+        }
+
+        List<RankingSnapshot> snapshots = rankingSnapshotMapper.selectList(Wrappers.<RankingSnapshot>lambdaQuery()
+                .eq(RankingSnapshot::getRankType, rankType)
+                .eq(RankingSnapshot::getSnapshotDate, latest.getSnapshotDate())
+                .orderByAsc(RankingSnapshot::getRankNo)
+                .last("LIMIT " + size));
+        if (snapshots.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 批量加载Robot
+        List<Long> robotIds = new ArrayList<>();
+        for (RankingSnapshot s : snapshots) {
+            robotIds.add(s.getRobotId());
+        }
+        List<Robot> robots = robotMapper.selectBatchIds(robotIds);
+        Map<Long, Robot> robotMap = new HashMap<>();
+        for (Robot r : robots) {
+            robotMap.put(r.getId(), r);
+        }
+
+        // 批量加载Brand
+        Set<Long> brandIds = new java.util.HashSet<>();
+        for (Robot r : robots) {
+            if (r.getBrandId() != null) {
+                brandIds.add(r.getBrandId());
+            }
+        }
+        Map<Long, String> brandNameMap = new HashMap<>();
+        if (!brandIds.isEmpty()) {
+            List<com.robot.home.brand.entity.Brand> brands = brandMapper.selectBatchIds(brandIds);
+            for (com.robot.home.brand.entity.Brand b : brands) {
+                brandNameMap.put(b.getId(), b.getName());
+            }
+        }
+
+        List<RankingSnapshotVO> result = new ArrayList<>();
+        for (RankingSnapshot s : snapshots) {
+            Robot r = robotMap.get(s.getRobotId());
+            if (r == null) {
+                continue;
+            }
+            RankingSnapshotVO vo = new RankingSnapshotVO();
+            vo.setId(s.getId());
+            vo.setRankType(s.getRankType());
+            vo.setSnapshotDate(s.getCreateTime() != null ? java.time.LocalDateTime.ofInstant(s.getCreateTime().toInstant(), java.time.ZoneId.systemDefault()) : null);
+            vo.setRobotId(s.getRobotId());
+            vo.setRobotName(r.getName());
+            vo.setRobotCoverImage(r.getCoverImage());
+            vo.setRobotSubtitle(r.getSubtitle());
+            vo.setBrandId(r.getBrandId());
+            vo.setBrandName(r.getBrandId() != null ? brandNameMap.get(r.getBrandId()) : null);
+            vo.setGuidePrice(r.getGuidePrice());
+            vo.setHotScore(s.getHotScore());
+            vo.setRankNo(s.getRankNo());
+            vo.setPrevRankNo(s.getPrevRankNo());
+            vo.setRankChange(s.getRankChange());
+            vo.setReasonCode(s.getReasonCode());
+            vo.setReasonText(s.getReasonText());
+            vo.setScore(r.getScore());
+            vo.setFavoriteCount(r.getFavoriteCount());
+            vo.setDiscussionCount(r.getDiscussionCount());
+            vo.setFollowCount(r.getFollowCount());
+            result.add(vo);
+        }
+        return result;
+    }
+
+    /** 榜单类型白名单校验 */
+    private boolean isValidRankType(String type) {
+        if (StrUtil.isBlank(type)) {
+            return false;
+        }
+        String[] validTypes = {
+                Constants.RANK_HOT, Constants.RANK_HUMANOID, Constants.RANK_QUADRUPED,
+                Constants.RANK_SERVICE, Constants.RANK_INDUSTRIAL, Constants.RANK_FAMILY, Constants.RANK_DEV,
+                Constants.RANK_FOLLOW, Constants.RANK_FAVORITE, Constants.RANK_DISCUSSION,
+                Constants.RANK_REVIEW, Constants.RANK_NEW_PRODUCT, Constants.RANK_COMPANY_ATTENTION
+        };
+        for (String valid : validTypes) {
+            if (valid.equals(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -25,7 +25,8 @@ const brandApi = {
   letters: function () { return get('/brands/letters') },
   hot: function (limit) { return get('/brands/hot', { limit: limit || 12 }) },
   detail: function (id) { return get('/brands/' + id) },
-  robots: function (id, params) { return get('/brands/' + id + '/robots', params) }
+  robots: function (id, params) { return get('/brands/' + id + '/robots', params) },
+  brandPage: function (id) { return get('/brands/' + id + '/page') }
 }
 
 const companyApi = {
@@ -33,7 +34,8 @@ const companyApi = {
   regions: function () { return get('/companies/regions') },
   hot: function (limit) { return get('/companies/hot', { limit: limit || 10 }) },
   detail: function (id) { return get('/companies/' + id) },
-  robots: function (id, params) { return get('/companies/' + id + '/robots', params) }
+  robots: function (id, params) { return get('/companies/' + id + '/robots', params) },
+  companyPage: function (id) { return get('/companies/' + id + '/page') }
 }
 
 const articleApi = {
@@ -104,7 +106,8 @@ const rankingApi = {
     if (timeRange) params.timeRange = timeRange
     return get('/rankings', params)
   },
-  types: function () { return get('/rankings/types') }
+  types: function () { return get('/rankings/types') },
+  snapshot: function (type, limit) { return get('/rankings/snapshot', { type: type || 'hot', limit: limit || 20 }) }
 }
 
 const inquiryApi = {
@@ -171,10 +174,41 @@ const procurementApi = {
   hallDetail: function (id) { return get('/procurement/hall/' + id) }
 }
 
+// Phase9: Follow API
+const followApi = {
+  list: function (params) { return get('/follows', params) },
+  toggle: function (followType, followId) { return postForm('/follows', { followType: followType, followId: followId }) },
+  remove: function (followType, followId) { return del('/follows/' + followType + '/' + followId) },
+  check: function (followType, followId) { return get('/follows/check', { followType: followType, followId: followId }) }
+}
+
+// Phase9: Feed API
+const feedApi = {
+  mine: function (lastId, pageSize) {
+    var params = { pageSize: pageSize || 20 }
+    if (lastId) params.lastId = lastId
+    return get('/feed/mine', params)
+  }
+}
+
+// Phase9: Discovery API
+const discoveryApi = {
+  home: function (position) { return get('/discovery/home', { position: position || 'miniapp' }) },
+  hot: function (limit) { return get('/discovery/hot', { limit: limit || 10 }) },
+  trending: function (limit) { return get('/discovery/trending', { limit: limit || 10 }) },
+  newRobots: function (limit) { return get('/discovery/new', { limit: limit || 10 }) }
+}
+
+// Phase9: Recommend API (related robots)
+const recommendApi = {
+  related: function (robotId, limit) { return get('/recommends/robots/' + robotId + '/related', { limit: limit || 6 }) }
+}
+
 const userApi = {
   me: function () { return get('/users/me') },
   update: function (data) { return put('/users/me', data) },
   stats: function () { return get('/users/me/stats') },
+  profile: function (id) { return get('/users/' + id) },
   myPosts: function (params) { return get('/users/me/posts', params) },
   myFavorites: function (params) { return get('/users/me/favorites', params) },
   myHistory: function (params) { return get('/users/me/history', params) }
@@ -226,5 +260,9 @@ module.exports = {
   similarApi,
   qaApi,
   selectionApi,
-  procurementApi
+  procurementApi,
+  followApi,
+  feedApi,
+  discoveryApi,
+  recommendApi
 }
