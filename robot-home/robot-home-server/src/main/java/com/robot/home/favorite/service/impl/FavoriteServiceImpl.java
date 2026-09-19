@@ -26,6 +26,7 @@ import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,22 +88,28 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean toggle(Long userId, String bizType, Long bizId) {
-        Favorite exist = getOne(Wrappers.<Favorite>lambdaQuery()
+        // 先尝试删除（取消收藏）
+        int deleted = baseMapper.delete(Wrappers.<Favorite>lambdaQuery()
                 .eq(Favorite::getUserId, userId)
                 .eq(Favorite::getBizType, bizType)
-                .eq(Favorite::getBizId, bizId), false);
-        if (exist != null) {
-            removeById(exist.getId());
+                .eq(Favorite::getBizId, bizId));
+        if (deleted > 0) {
             bizCounter.decr(bizType, bizId, BizCounter.Field.FAVORITE);
             // 取消收藏触发UNFAVORITE行为事件（服务端受信）
             triggerFavoriteEvent(userId, bizType, bizId, "UNFAVORITE");
             return false;
         }
+        // 不存在则新增（收藏），利用唯一索引防重复
         Favorite favorite = new Favorite();
         favorite.setUserId(userId);
         favorite.setBizType(bizType);
         favorite.setBizId(bizId);
-        save(favorite);
+        try {
+            save(favorite);
+        } catch (DuplicateKeyException e) {
+            // 并发收藏，幂等返回
+            return true;
+        }
         bizCounter.incr(bizType, bizId, BizCounter.Field.FAVORITE);
         // 收藏触发FAVORITE行为事件（服务端受信）
         triggerFavoriteEvent(userId, bizType, bizId, "FAVORITE");

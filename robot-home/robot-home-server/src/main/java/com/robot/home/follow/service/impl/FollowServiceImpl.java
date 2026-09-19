@@ -21,6 +21,7 @@ import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,20 +74,26 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean toggle(Long userId, String followType, Long followId) {
-        Follow exist = getOne(Wrappers.<Follow>lambdaQuery()
+        // 先尝试删除（unfollow）
+        int deleted = baseMapper.delete(Wrappers.<Follow>lambdaQuery()
                 .eq(Follow::getUserId, userId)
                 .eq(Follow::getFollowType, followType)
-                .eq(Follow::getFollowId, followId), false);
-        if (exist != null) {
-            removeById(exist.getId());
+                .eq(Follow::getFollowId, followId));
+        if (deleted > 0) {
             decrFollowCount(followType, followId);
             return false;
         }
+        // 不存在则新增（follow），利用唯一索引防重复
         Follow follow = new Follow();
         follow.setUserId(userId);
         follow.setFollowType(followType);
         follow.setFollowId(followId);
-        save(follow);
+        try {
+            save(follow);
+        } catch (DuplicateKeyException e) {
+            // 并发关注，幂等返回
+            return true;
+        }
         incrFollowCount(followType, followId);
         return true;
     }
@@ -245,12 +252,22 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         if (myId == null) {
             return;
         }
-        userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, targetId)
-                .setSql("fans_count = fans_count + (" + delta + ")"));
-        userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, myId)
-                .setSql("follow_count = follow_count + (" + delta + ")"));
+        if (delta > 0) {
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, targetId)
+                    .setSql("fans_count = fans_count + " + delta));
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, myId)
+                    .setSql("follow_count = follow_count + " + delta));
+        } else {
+            // 减少时使用GREATEST防负数
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, targetId)
+                    .setSql("fans_count = GREATEST(fans_count + (" + delta + "), 0)"));
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, myId)
+                    .setSql("follow_count = GREATEST(follow_count + (" + delta + "), 0)"));
+        }
     }
 
 }
