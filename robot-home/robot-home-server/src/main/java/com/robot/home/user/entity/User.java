@@ -51,6 +51,10 @@ public class User extends BaseEntity {
     private Integer questionCount;
     /** Phase9: 回答数 */
     private Integer answerCount;
+    /** Phase10: 信誉分 */
+    private Integer reputationScore;
+    /** Phase10: 信誉等级 */
+    private String reputationLevel;
     /** 微信 openid */
     private String openid;
     /** 状态：0禁用 1正常 */

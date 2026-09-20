@@ -32,6 +32,8 @@ public class CommunityPost extends BaseEntity {
     private Integer viewCount;
     private Integer hotScore;
     private Integer isTop;
+    /** Phase10: 话题ID */
+    private Long topicId;
     /** 0待审 1正常 2下架 */
     private Integer status;
 }

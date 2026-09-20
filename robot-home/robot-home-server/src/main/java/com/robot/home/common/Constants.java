@@ -76,6 +76,122 @@ public final class Constants {
     public static final String REC_POPULAR_ALTERNATIVE = "POPULAR_ALTERNATIVE";
     public static final String REC_RELATED_BRAND = "RELATED_BRAND";
 
+    // Phase10 缓存前缀
+    public static final String CACHE_TRUST_PREFIX = "robot:trust:";
+    public static final String CACHE_SUBSCRIPTION_PREFIX = "robot:sub:";
+    public static final String CACHE_NOTIFICATION_UNREAD_PREFIX = "robot:notify:unread:";
+    public static final String CACHE_REPUTATION_PREFIX = "robot:reputation:";
+    public static final String CACHE_COLLECTION_PREFIX = "robot:collection:";
+
+    // Phase10 Trust等级
+    public static final String TRUST_VERIFIED = "VERIFIED";
+    public static final String TRUST_HIGH = "HIGH";
+    public static final String TRUST_NORMAL = "NORMAL";
+    public static final String TRUST_LOW = "LOW";
+
+    // Phase10 Trust来源类型
+    public static final String SOURCE_OFFICIAL = "OFFICIAL";
+    public static final String SOURCE_VENDOR_SITE = "VENDOR_SITE";
+    public static final String SOURCE_TRUSTED_MEDIA = "TRUSTED_MEDIA";
+    public static final String SOURCE_USER_CORRECTION = "USER_CORRECTION";
+    public static final String SOURCE_CRAWLER = "CRAWLER";
+    public static final String SOURCE_MANUAL = "MANUAL";
+
+    // Phase10 变更类型
+    public static final String CHANGE_PRICE = "PRICE";
+    public static final String CHANGE_PARAMETER = "PARAMETER";
+    public static final String CHANGE_VERSION = "VERSION";
+    public static final String CHANGE_STATUS = "STATUS";
+    public static final String CHANGE_BASIC_INFO = "BASIC_INFO";
+
+    // Phase10 订阅事件类型
+    public static final String SUB_EVENT_NEW_CONTENT = "NEW_CONTENT";
+    public static final String SUB_EVENT_PARAM_CHANGE = "PARAM_CHANGE";
+    public static final String SUB_EVENT_PRICE_CHANGE = "PRICE_CHANGE";
+    public static final String SUB_EVENT_NEW_REVIEW = "NEW_REVIEW";
+    public static final String SUB_EVENT_NEW_QA = "NEW_QA";
+    public static final String SUB_EVENT_PRODUCT_RELEASE = "PRODUCT_RELEASE";
+    public static final String SUB_EVENT_IMPORTANT_CHANGE = "IMPORTANT_CHANGE";
+
+    // Phase10 订阅目标类型
+    public static final String SUB_TARGET_ROBOT = "ROBOT";
+    public static final String SUB_TARGET_BRAND = "BRAND";
+    public static final String SUB_TARGET_COMPANY = "COMPANY";
+
+    // Phase10 通知类型
+    public static final String NOTIFY_SYSTEM = "SYSTEM";
+    public static final String NOTIFY_FOLLOW_UPDATE = "FOLLOW_UPDATE";
+    public static final String NOTIFY_PARAM_CHANGE = "PARAM_CHANGE";
+    public static final String NOTIFY_PRICE_CHANGE = "PRICE_CHANGE";
+    public static final String NOTIFY_QUESTION_ANSWER = "QUESTION_ANSWER";
+    public static final String NOTIFY_ANSWER_ACCEPTED = "ANSWER_ACCEPTED";
+    public static final String NOTIFY_REVIEW_INTERACTION = "REVIEW_INTERACTION";
+    public static final String NOTIFY_POST_INTERACTION = "POST_INTERACTION";
+    public static final String NOTIFY_PROCUREMENT_RESPONSE = "PROCUREMENT_RESPONSE";
+
+    // Phase10 Pipeline状态
+    public static final String PIPELINE_NEW = "NEW";
+    public static final String PIPELINE_CONTACTED = "CONTACTED";
+    public static final String PIPELINE_QUALIFIED = "QUALIFIED";
+    public static final String PIPELINE_MATCHING = "MATCHING";
+    public static final String PIPELINE_RESPONDED = "RESPONDED";
+    public static final String PIPELINE_NEGOTIATING = "NEGOTIATING";
+    public static final String PIPELINE_WON = "WON";
+    public static final String PIPELINE_LOST = "LOST";
+    public static final String PIPELINE_CLOSED = "CLOSED";
+
+    // Phase10 响应状态
+    public static final String RESPONSE_SUBMITTED = "SUBMITTED";
+    public static final String RESPONSE_VIEWED = "VIEWED";
+    public static final String RESPONSE_CONTACTED = "CONTACTED";
+    public static final String RESPONSE_ACCEPTED = "ACCEPTED";
+    public static final String RESPONSE_REJECTED = "REJECTED";
+    public static final String RESPONSE_WITHDRAWN = "WITHDRAWN";
+
+    // Phase10 信誉等级
+    public static final String REP_NEW = "NEW";
+    public static final String REP_CONTRIBUTOR = "CONTRIBUTOR";
+    public static final String REP_ACTIVE = "ACTIVE";
+    public static final String REP_TRUSTED = "TRUSTED";
+    public static final String REP_EXPERT = "EXPERT";
+
+    // Phase10 信誉事件类型
+    public static final String REP_EVENT_CORRECTION_ACCEPTED = "CORRECTION_ACCEPTED";
+    public static final String REP_EVENT_ANSWER_ACCEPTED = "ANSWER_ACCEPTED";
+    public static final String REP_EVENT_REVIEW_HELPFUL = "REVIEW_HELPFUL";
+    public static final String REP_EVENT_POST_QUALITY = "POST_QUALITY";
+    public static final String REP_EVENT_QUESTION_ANSWERED = "QUESTION_ANSWERED";
+    public static final String REP_EVENT_ABUSE_PENALTY = "ABUSE_PENALTY";
+    public static final String REP_EVENT_SPAM_REJECTED = "SPAM_REJECTED";
+
+    // Phase10 信誉分权重
+    public static final int REP_SCORE_CORRECTION_ACCEPTED = 15;
+    public static final int REP_SCORE_ANSWER_ACCEPTED = 12;
+    public static final int REP_SCORE_REVIEW_HELPFUL = 5;
+    public static final int REP_SCORE_POST_QUALITY = 8;
+    public static final int REP_SCORE_QUESTION_ANSWERED = 3;
+    public static final int REP_SCORE_ABUSE_PENALTY = -20;
+    public static final int REP_SCORE_SPAM_REJECTED = -10;
+
+    // Phase10 信誉等级阈值
+    public static final int REP_THRESHOLD_CONTRIBUTOR = 30;
+    public static final int REP_THRESHOLD_ACTIVE = 100;
+    public static final int REP_THRESHOLD_TRUSTED = 300;
+    public static final int REP_THRESHOLD_EXPERT = 800;
+
+    // Phase10 CRM跟进操作
+    public static final String CRM_ACTION_STATUS_CHANGE = "STATUS_CHANGE";
+    public static final String CRM_ACTION_FOLLOW_UP = "FOLLOW_UP";
+    public static final String CRM_ACTION_CALL = "CALL";
+    public static final String CRM_ACTION_EMAIL = "EMAIL";
+    public static final String CRM_ACTION_MEETING = "MEETING";
+    public static final String CRM_ACTION_NOTE = "NOTE";
+    public static final String CRM_ACTION_ASSIGN = "ASSIGN";
+
+    // Phase10 可见性
+    public static final String VIS_PRIVATE = "PRIVATE";
+    public static final String VIS_PUBLIC = "PUBLIC";
+
     // Phase9 贡献分权重
     public static final int CONTRIB_REVIEW_PUBLISH = 10;
     public static final int CONTRIB_POST_PUBLISH = 5;

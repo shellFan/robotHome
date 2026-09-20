@@ -66,6 +66,21 @@ public class Inquiry extends BaseEntity {
     /** 优先级理由 */
     private String leadReason;
 
+    /** Phase10: CRM流水线状态 */
+    private String pipelineStatus;
+    /** Phase10: CRM负责人 */
+    private Long crmOwner;
+    /** Phase10: CRM优先级 */
+    private Integer crmPriority;
+    /** Phase10: 下次跟进时间 */
+    private java.time.LocalDateTime nextFollowTime;
+    /** Phase10: 最后跟进时间 */
+    private java.time.LocalDateTime lastFollowTime;
+    /** Phase10: CRM来源 */
+    private String crmSource;
+    /** Phase10: CRM备注 */
+    private String crmRemark;
+
     @Override
     public String toString() {
         return "Inquiry{id=" + getId() + ", name=" + name + ", phone=" + phone + ", status=" + status + "}";
