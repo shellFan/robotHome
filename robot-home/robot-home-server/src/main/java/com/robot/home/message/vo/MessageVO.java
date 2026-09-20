@@ -28,4 +28,6 @@ public class MessageVO {
     private Long targetId;
     /** Phase10: 通知摘要 */
     private String summary;
+    /** Phase10: 是否已点击(CTR追踪) */
+    private Integer clicked;
 }

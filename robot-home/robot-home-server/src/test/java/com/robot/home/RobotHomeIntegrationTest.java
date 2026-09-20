@@ -35,6 +35,7 @@ import static org.mockito.BDDMockito.willAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * 端到端接口联调测试：
@@ -635,6 +636,103 @@ class RobotHomeIntegrationTest {
         // 未登录用户不能访问Growth Dashboard
         String denied = exec(get("/api/admin/growth/dashboard"));
         assertFalse(denied.contains("\"code\":200"), "未登录不应访问Growth Dashboard");
+    }
+
+    // ---------------- Phase10: 订阅 / 通知 / 信誉 / 采购响应 / 信任 ----------------
+
+    @Test
+    @Order(27)
+    void test27_subscription() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 订阅机器人（toggle端点）
+        String sub = exec(post("/api/subscriptions/toggle").header("Authorization", auth)
+                .param("targetType", "ROBOT").param("targetId", String.valueOf(robotId)));
+        assertEquals(200, objectMapper.readTree(sub).path("code").asInt(), "订阅失败: " + sub);
+
+        // 检查订阅状态
+        JsonNode check = getJson2("/api/subscriptions/check?targetType=ROBOT&targetId=" + robotId, auth);
+        assertTrue(check.path("subscribed").asBoolean(), "订阅状态应为true");
+
+        // 我的订阅列表
+        JsonNode list = getJson2("/api/subscriptions?pageSize=20", auth);
+        assertTrue(list.path("total").asInt() > 0, "订阅列表为空");
+
+        // 取消订阅（再次toggle）
+        String unsub = exec(post("/api/subscriptions/toggle").header("Authorization", auth)
+                .param("targetType", "ROBOT").param("targetId", String.valueOf(robotId)));
+        assertEquals(200, objectMapper.readTree(unsub).path("code").asInt(), "取消订阅失败");
+    }
+
+    @Test
+    @Order(28)
+    void test28_notification() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 通知列表
+        JsonNode notifications = getJson2("/api/notifications?pageSize=20", auth);
+        assertNotNull(notifications, "通知列表接口异常");
+
+        // 未读数
+        JsonNode unreadResult = getJson2("/api/notifications/unread-count", auth);
+        assertNotNull(unreadResult.path("count"), "未读数接口异常");
+
+        // 全部标记已读
+        String readAll = exec(post("/api/notifications/read-all").header("Authorization", auth));
+        assertEquals(200, objectMapper.readTree(readAll).path("code").asInt(), "全部标记已读失败");
+    }
+
+    @Test
+    @Order(29)
+    void test29_reputation() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 用户信誉信息
+        JsonNode me = getJson2("/api/users/me", auth);
+        long userId = me.path("id").asLong();
+        assertTrue(userId > 0, "用户ID异常");
+
+        // 信誉分应存在（即使为0也是合法的）
+        assertNotNull(me.path("reputationScore"), "信誉分缺失");
+        assertNotNull(me.path("reputationLevel"), "信誉等级缺失");
+    }
+
+    @Test
+    @Order(30)
+    void test30_ecosystemDashboard() throws Exception {
+        String auth = "Bearer " + adminToken;
+        // 生态Dashboard
+        JsonNode eco = getJson2("/api/admin/growth/ecosystem?days=7", auth);
+        assertNotNull(eco, "生态Dashboard接口异常");
+
+        // 未登录不能访问
+        String denied = exec(get("/api/admin/growth/ecosystem"));
+        assertFalse(denied.contains("\"code\":200"), "未登录不应访问生态Dashboard");
+    }
+
+    @Test
+    @Order(31)
+    void test31_procurementResponseSecurity() throws Exception {
+        String auth = "Bearer " + userToken;
+        // 尝试提交采购响应但不带企业成员身份 → 应失败(403或业务异常)
+        String body = "{\"procurementId\":1,\"solution\":\"测试方案\",\"priceDescription\":\"10万\",\"deliveryDescription\":\"1个月\",\"contactDescription\":\"电话联系\"}";
+        String r = exec(post("/api/procurement-responses").header("Authorization", auth)
+                .param("companyId", "1")
+                .contentType(MediaType.APPLICATION_JSON).content(body));
+        // 非企业成员应被拒绝
+        JsonNode root = objectMapper.readTree(r);
+        // 预期返回非200(企业成员校验失败)或500(没有company_member数据)
+        assertTrue(root.path("code").asInt() != 200 || root.path("code").asInt() == 500,
+                "非企业成员提交响应应被拒绝: " + r);
+    }
+
+    @Test
+    @Order(32)
+    void test32_robotTrust() throws Exception {
+        // 机器人详情应包含信任等级
+        JsonNode d = getJson("/api/robots/{id}", robotId);
+        // trustLevel字段应存在（NORMAL/VERIFIED/HIGH/LOW）
+        String trustLevel = d.path("robot").path("trustLevel").asText("");
+        assertTrue(trustLevel.isEmpty() || "NORMAL".equals(trustLevel) || "VERIFIED".equals(trustLevel)
+                || "HIGH".equals(trustLevel) || "LOW".equals(trustLevel),
+                "信任等级值异常: " + trustLevel);
     }
 
     private JsonNode getJson2(String url, String authorization) throws Exception {

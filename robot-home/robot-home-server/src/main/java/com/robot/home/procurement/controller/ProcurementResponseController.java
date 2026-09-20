@@ -3,6 +3,7 @@ package com.robot.home.procurement.controller;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.util.SecurityUtils;
+import com.robot.home.company.service.CompanyMemberService;
 import com.robot.home.procurement.dto.ProcurementResponseDTO;
 import com.robot.home.procurement.service.ProcurementResponseService;
 import com.robot.home.procurement.vo.ProcurementResponseVO;
@@ -16,6 +17,9 @@ import javax.validation.constraints.NotBlank;
  * 采购需求响应接口（用户端/企业端）
  * <p>
  * 企业提交响应、查看响应列表、更新状态、撤回
+ * <p>
+ * 安全：所有涉及companyId的接口均通过CompanyMemberService校验企业成员身份，
+ * 防止用户冒充其他企业提交响应
  */
 @RestController
 @RequestMapping("/api/procurement-responses")
@@ -23,16 +27,23 @@ public class ProcurementResponseController {
 
     @Resource
     private ProcurementResponseService procurementResponseService;
+    @Resource
+    private CompanyMemberService companyMemberService;
 
     /**
      * 提交响应
      * POST /api/procurement-responses
+     * <p>
+     * 安全修复：companyId仍由前端传入（支持多企业用户选择），
+     * 但通过CompanyMemberService校验当前用户是否属于该企业
      */
     @PostMapping
     public Result<ProcurementResponseVO> submitResponse(
             @RequestBody @Valid ProcurementResponseDTO dto,
             @RequestParam Long companyId) {
         Long userId = SecurityUtils.requireUserId();
+        // 安全校验：验证当前用户是否属于该企业
+        companyMemberService.requireActiveMember(userId, companyId);
         return Result.success(procurementResponseService.submitResponse(userId, companyId, dto));
     }
 
@@ -52,13 +63,21 @@ public class ProcurementResponseController {
     /**
      * 我的响应列表
      * GET /api/procurement-responses/my
+     * <p>
+     * 安全修复：companyId必须经过企业成员校验；
+     * 若不传companyId，则返回用户所有所属企业的响应
      */
     @GetMapping("/my")
     public Result<PageResult<ProcurementResponseVO>> myResponses(
-            @RequestParam Long companyId,
+            @RequestParam(required = false) Long companyId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.success(procurementResponseService.listByCompany(companyId, pageNum, pageSize));
+        Long userId = SecurityUtils.requireUserId();
+        if (companyId != null) {
+            // 安全校验：验证当前用户是否属于该企业
+            companyMemberService.requireActiveMember(userId, companyId);
+        }
+        return Result.success(procurementResponseService.listMyResponses(userId, companyId, pageNum, pageSize));
     }
 
     /**

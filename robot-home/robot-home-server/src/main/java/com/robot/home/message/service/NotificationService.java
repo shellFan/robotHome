@@ -63,4 +63,10 @@ public interface NotificationService {
      * 按类型标记已读
      */
     void markReadByType(Long userId, String notificationType);
+
+    /**
+     * 点击通知（CTR追踪）
+     * 标记通知为已点击，用于统计通知点击率
+     */
+    void clickNotification(Long userId, Long id);
 }

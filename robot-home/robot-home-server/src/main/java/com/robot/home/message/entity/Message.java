@@ -42,6 +42,9 @@ public class Message extends IdEntity {
     @TableLogic
     private Integer deleted;
 
+    /** Phase10: 点击追踪(CTR) 0未点击 1已点击 */
+    private Integer clicked;
+
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

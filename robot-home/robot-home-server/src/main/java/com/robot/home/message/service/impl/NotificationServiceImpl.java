@@ -243,6 +243,22 @@ public class NotificationServiceImpl implements NotificationService {
         invalidateUnreadCache(userId);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void clickNotification(Long userId, Long id) {
+        if (userId == null || id == null) {
+            return;
+        }
+        // 标记为已点击，同时标记为已读
+        messageMapper.update(null, Wrappers.<Message>lambdaUpdate()
+                .eq(Message::getId, id)
+                .eq(Message::getUserId, userId)
+                .eq(Message::getDeleted, 0)
+                .set(Message::getClicked, 1)
+                .set(Message::getIsRead, 1));
+        invalidateUnreadCache(userId);
+    }
+
     /**
      * 清除未读数缓存
      */
@@ -271,6 +287,7 @@ public class NotificationServiceImpl implements NotificationService {
         vo.setTargetType(m.getTargetType());
         vo.setTargetId(m.getTargetId());
         vo.setSummary(m.getSummary());
+        vo.setClicked(m.getClicked());
         return vo;
     }
 

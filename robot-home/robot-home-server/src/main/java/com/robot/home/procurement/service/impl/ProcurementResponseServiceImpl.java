@@ -12,6 +12,7 @@ import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.XssUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
+import com.robot.home.company.service.CompanyMemberService;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
 import com.robot.home.procurement.dto.ProcurementResponseDTO;
@@ -19,6 +20,7 @@ import com.robot.home.procurement.entity.ProcurementResponse;
 import com.robot.home.procurement.mapper.ProcurementResponseMapper;
 import com.robot.home.procurement.service.ProcurementResponseService;
 import com.robot.home.procurement.vo.ProcurementResponseVO;
+import com.robot.home.message.service.NotificationService;
 import com.robot.home.security.UserContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -59,6 +61,10 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
     private InquiryMapper inquiryMapper;
     @Resource
     private CompanyMapper companyMapper;
+    @Resource
+    private NotificationService notificationService;
+    @Resource
+    private CompanyMemberService companyMemberService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -111,7 +117,22 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
 
         log.info("企业提交采购响应: procurementId={}, companyId={}, userId={}", dto.getProcurementId(), companyId, userId);
 
-        // 7. 返回VO
+        // 7. 通知采购需求发布者
+        try {
+            if (inquiry.getUserId() != null) {
+                notificationService.sendNotification(
+                        inquiry.getUserId(),
+                        Constants.NOTIFY_PROCUREMENT_RESPONSE,
+                        "企业响应了您的采购需求",
+                        company.getName() + "对您的采购需求提交了方案",
+                        "PROCUREMENT", dto.getProcurementId(),
+                        "procurement_response:" + response.getId());
+            }
+        } catch (Exception e) {
+            log.warn("采购响应通知失败(不影响响应提交): procurementId={}, error={}", dto.getProcurementId(), e.getMessage());
+        }
+
+        // 8. 返回VO
         ProcurementResponseVO vo = toResponseVO(response, true);
         vo.setCompanyName(company.getName());
         vo.setCompanyLogo(company.getLogo());
@@ -174,6 +195,42 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
                         .eq(ProcurementResponse::getCompanyId, companyId)
                         .ne(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
                         .orderByDesc(ProcurementResponse::getCreateTime));
+
+        List<ProcurementResponseVO> voList = result.getRecords().stream()
+                .map(r -> toResponseVO(r, true))
+                .collect(Collectors.toList());
+
+        return PageResult.of(pn, ps, result.getTotal(), voList);
+    }
+
+    @Override
+    public PageResult<ProcurementResponseVO> listMyResponses(Long userId, Long companyId, Integer pageNum, Integer pageSize) {
+        int pn = PageUtils.normalizePageNum(pageNum);
+        int ps = PageUtils.normalizePageSize(pageSize);
+        Page<ProcurementResponse> page = new Page<>(pn, ps);
+
+        IPage<ProcurementResponse> result;
+        if (companyId != null) {
+            // 查指定企业的响应（Controller已校验企业成员身份）
+            result = responseMapper.selectPage(page,
+                    Wrappers.<ProcurementResponse>lambdaQuery()
+                            .eq(ProcurementResponse::getCompanyId, companyId)
+                            .ne(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
+                            .orderByDesc(ProcurementResponse::getCreateTime));
+        } else {
+            // 查用户所有所属企业的响应
+            List<Long> myCompanyIds = companyMemberService.listActiveByUserId(userId).stream()
+                    .map(com.robot.home.company.entity.CompanyMember::getCompanyId)
+                    .collect(Collectors.toList());
+            if (myCompanyIds.isEmpty()) {
+                return PageResult.of(pn, ps, 0, new java.util.ArrayList<>());
+            }
+            result = responseMapper.selectPage(page,
+                    Wrappers.<ProcurementResponse>lambdaQuery()
+                            .in(ProcurementResponse::getCompanyId, myCompanyIds)
+                            .ne(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
+                            .orderByDesc(ProcurementResponse::getCreateTime));
+        }
 
         List<ProcurementResponseVO> voList = result.getRecords().stream()
                 .map(r -> toResponseVO(r, true))

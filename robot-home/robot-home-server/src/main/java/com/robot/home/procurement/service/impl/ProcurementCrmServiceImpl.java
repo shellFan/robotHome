@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -120,6 +121,14 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
                 Wrappers.<ProcurementResponse>lambdaQuery()
                         .eq(ProcurementResponse::getProcurementId, procurementId)
                         .orderByDesc(ProcurementResponse::getCreateTime));
+
+        // 批量查询企业信息（避免N+1）
+        Set<Long> companyIds = responses.stream()
+                .map(ProcurementResponse::getCompanyId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, Company> companyMap = batchQueryCompanies(companyIds);
+
         vo.setResponses(responses.stream().map(r -> {
             ProcurementResponseVO rvo = new ProcurementResponseVO();
             rvo.setId(r.getId());
@@ -135,13 +144,11 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
             rvo.setCreateTime(r.getCreateTime());
             rvo.setUpdateTime(r.getUpdateTime());
             rvo.setCanViewDetail(true);
-            // 批量填充企业名（避免N+1，此处响应量通常较少）
-            if (r.getCompanyId() != null) {
-                Company company = companyMapper.selectById(r.getCompanyId());
-                if (company != null) {
-                    rvo.setCompanyName(company.getName());
-                    rvo.setCompanyLogo(company.getLogo());
-                }
+            // 从批量Map中获取企业名
+            Company company = companyMap.get(r.getCompanyId());
+            if (company != null) {
+                rvo.setCompanyName(company.getName());
+                rvo.setCompanyLogo(company.getLogo());
             }
             return rvo;
         }).collect(Collectors.toList()));
@@ -301,5 +308,16 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
         vo.setCreateTime(inquiry.getCreateTime());
         vo.setUpdateTime(inquiry.getUpdateTime());
         return vo;
+    }
+
+    /**
+     * 批量查询企业信息（避免N+1）
+     */
+    private Map<Long, Company> batchQueryCompanies(Set<Long> companyIds) {
+        if (companyIds == null || companyIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<Company> companies = companyMapper.selectBatchIds(companyIds);
+        return companies.stream().collect(Collectors.toMap(Company::getId, c -> c));
     }
 }

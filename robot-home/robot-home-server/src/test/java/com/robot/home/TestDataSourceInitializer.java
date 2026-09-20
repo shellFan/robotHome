@@ -65,15 +65,19 @@ public class TestDataSourceInitializer implements PriorityOrdered {
         run(TestSqlSupport.load("13_phase9_product_growth.sql"));
         // 7. Phase9 H2测试数据（含H2兼容建表兜底 + 测试数据INSERT）
         runClasspath("sql/13_phase9_product_growth.sql");
-        // 8. 验证关键表
+        // 8. Phase10: 生态增长与信任
+        run(TestSqlSupport.load("14_phase10_ecosystem_growth.sql"));
+        // 9. Phase10 H2测试数据（含H2兼容建表兜底 + 测试数据INSERT）
+        runClasspath("sql/14_phase10_ecosystem_growth.sql");
+        // 10. 验证关键表
         verifyTables();
         initialized = true;
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9）");
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10）");
     }
 
     private void verifyTables() {
         try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
-            for (String table : Arrays.asList("ranking_weight", "growth_daily_stat", "user_contribution_stat", "behavior_event", "ranking_snapshot")) {
+            for (String table : Arrays.asList("ranking_weight", "growth_daily_stat", "user_contribution_stat", "behavior_event", "ranking_snapshot", "company_member", "user_subscription", "user_reputation")) {
                 try (java.sql.ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + table)) {
                     if (rs.next()) {
                         log.info("H2 验证: {} 表存在, {} 行", table, rs.getInt(1));

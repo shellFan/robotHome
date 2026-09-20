@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `robot_data_source` (
   `verified_time` DATETIME DEFAULT NULL COMMENT '验证时间',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   KEY `idx_robot_id` (`robot_id`),
   KEY `idx_source_type` (`source_type`)
@@ -102,6 +103,8 @@ CREATE TABLE IF NOT EXISTS `robot_change_record` (
   `event_key` CHAR(64) DEFAULT NULL COMMENT '事件唯一键(SHA-256)防重复',
   `change_time` DATETIME NOT NULL COMMENT '变更时间',
   `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_event_key` (`event_key`),
   KEY `idx_robot_change_type` (`robot_id`, `change_type`),
@@ -123,6 +126,7 @@ CREATE TABLE IF NOT EXISTS `user_subscription` (
   `enabled` TINYINT NOT NULL DEFAULT 1 COMMENT '0停用 1启用',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_target` (`user_id`, `target_type`, `target_id`),
   KEY `idx_target` (`target_type`, `target_id`),
@@ -145,6 +149,10 @@ CALL `p_add_index`('message', 'idx_user_read_deleted', '`user_id`, `is_read`, `d
 CALL `p_add_index`('message', 'idx_notification_type', '`notification_type`');
 CALL `p_add_index`('message', 'idx_event_key', '`event_key`');
 CALL `p_add_index`('message', 'idx_target', '`target_type`, `target_id`');
+
+-- Phase10补: message表增加clicked字段(CTR追踪)
+CALL `p_add_column`('message', 'clicked', 'TINYINT NOT NULL DEFAULT 0 COMMENT ''0未点击 1已点击'' AFTER `deleted`');
+CALL `p_add_index`('message', 'idx_clicked', '`clicked`');
 
 -- ============================================================
 -- P0-5 Procurement CRM / 采购线索运营
@@ -186,7 +194,22 @@ CREATE TABLE IF NOT EXISTS `procurement_follow_record` (
 -- P0-6 Enterprise Response / 企业响应采购需求
 -- ============================================================
 
--- 6a. procurement_response: 企业响应
+-- 6a. company_member: 企业成员关系（安全修复：企业身份校验）
+CREATE TABLE IF NOT EXISTS `company_member` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `company_id` BIGINT NOT NULL COMMENT '企业ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `role` VARCHAR(16) NOT NULL DEFAULT 'MEMBER' COMMENT '角色: OWNER/ADMIN/MEMBER',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '0禁用 1正常',
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_company_user` (`company_id`, `user_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='企业成员关系';
+
+-- 6b. procurement_response: 企业响应
 CREATE TABLE IF NOT EXISTS `procurement_response` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `procurement_id` BIGINT NOT NULL COMMENT '采购需求ID(inquiry.id)',
@@ -201,6 +224,7 @@ CREATE TABLE IF NOT EXISTS `procurement_response` (
   `event_key` CHAR(64) DEFAULT NULL COMMENT '幂等键',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_procurement_company` (`procurement_id`, `company_id`),
   KEY `idx_company_id` (`company_id`),
@@ -284,6 +308,7 @@ CREATE TABLE IF NOT EXISTS `user_collection` (
   `robot_count` INT NOT NULL DEFAULT 0 COMMENT '机器人数',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_visibility` (`visibility`)
@@ -316,6 +341,7 @@ CREATE TABLE IF NOT EXISTS `topic` (
   `post_count` INT NOT NULL DEFAULT 0 COMMENT '帖子数',
   `create_time` DATETIME DEFAULT NULL,
   `update_time` DATETIME DEFAULT NULL,
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_name` (`name`),
   KEY `idx_status_sort` (`status`, `sort_order`)

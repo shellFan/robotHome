@@ -48,6 +48,17 @@ public interface ProcurementResponseService {
     PageResult<ProcurementResponseVO> listByCompany(Long companyId, Integer pageNum, Integer pageSize);
 
     /**
+     * 我的响应列表（安全修复：按用户所属企业查询）
+     *
+     * @param userId    当前登录用户ID
+     * @param companyId 企业ID（可选，null则查所有所属企业）
+     * @param pageNum   页码
+     * @param pageSize  每页条数
+     * @return 响应分页列表
+     */
+    PageResult<ProcurementResponseVO> listMyResponses(Long userId, Long companyId, Integer pageNum, Integer pageSize);
+
+    /**
      * 更新响应状态
      *
      * @param responseId 响应ID

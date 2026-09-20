@@ -83,4 +83,15 @@ public class NotificationController {
         notificationService.deleteNotification(userId, id);
         return Result.success();
     }
+
+    /**
+     * 点击通知（CTR追踪）
+     * POST /api/notifications/{id}/click
+     */
+    @PostMapping("/{id}/click")
+    public Result<Void> click(@PathVariable Long id) {
+        Long userId = SecurityUtils.requireUserId();
+        notificationService.clickNotification(userId, id);
+        return Result.success();
+    }
 }
