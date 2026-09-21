@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS search_zero_result (
     suggested_action VARCHAR(32) DEFAULT NULL COMMENT '建议操作: ADD_ALIAS/ADD_ROBOT/ADD_BRAND/IGNORE',
     create_time DATETIME DEFAULT NULL,
     update_time DATETIME DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
     UNIQUE KEY uk_keyword (normalized_keyword),
     INDEX idx_search_count (search_count)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='零结果搜索';
@@ -128,6 +129,7 @@ CREATE TABLE IF NOT EXISTS robot_quality_score (
     review_score INT DEFAULT 0 COMMENT '评价分(0-10)',
     create_time DATETIME DEFAULT NULL,
     update_time DATETIME DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
     UNIQUE KEY uk_robot_id (robot_id),
     INDEX idx_total_score (total_score)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='机器人数据质量评分';
@@ -142,6 +144,7 @@ CREATE TABLE IF NOT EXISTS robot_quality_issue (
     status TINYINT NOT NULL DEFAULT 0 COMMENT '0未处理 1已处理 2忽略',
     create_time DATETIME DEFAULT NULL,
     update_time DATETIME DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
     INDEX idx_robot_id (robot_id),
     INDEX idx_issue_type (issue_type),
     INDEX idx_status (status)
