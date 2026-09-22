@@ -74,4 +74,23 @@ public class GrowthDailyStat {
 
     /** 创建时间 */
     private java.time.LocalDateTime createTime;
+
+    /** Phase10: 回访用户数 */
+    private Integer returningUsers;
+    /** Phase10: 订阅数 */
+    private Integer subscriptionCount;
+    /** Phase10: 通知发送数 */
+    private Integer notificationSent;
+    /** Phase10: 通知点击数 */
+    private Integer notificationClicked;
+    /** Phase10: 贡献用户数 */
+    private Integer contributionUsers;
+    /** Phase10: 被采纳纠错数 */
+    private Integer acceptedCorrections;
+    /** Phase10: 采购线索数 */
+    private Integer procurementLeads;
+    /** Phase10: 企业响应数 */
+    private Integer enterpriseResponses;
+    /** Phase10: 跟进转化数 */
+    private Integer followConversions;
 }

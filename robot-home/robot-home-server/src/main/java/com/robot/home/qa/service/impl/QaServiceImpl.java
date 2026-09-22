@@ -24,8 +24,11 @@ import com.robot.home.qa.mapper.RobotQuestionMapper;
 import com.robot.home.qa.service.QaService;
 import com.robot.home.qa.vo.AnswerVO;
 import com.robot.home.qa.vo.QuestionVO;
+import com.robot.home.common.Constants;
+import com.robot.home.reputation.service.ReputationService;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
+import com.robot.home.message.service.NotificationService;
 import com.robot.home.user.entity.User;
 import com.robot.home.user.mapper.UserMapper;
 import org.slf4j.Logger;
@@ -63,6 +66,10 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
     private UserMapper userMapper;
     @Resource
     private BizCounter bizCounter;
+    @Resource
+    private ReputationService reputationService;
+    @Resource
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -238,6 +245,36 @@ public class QaServiceImpl extends ServiceImpl<RobotQuestionMapper, RobotQuestio
         update(Wrappers.<RobotQuestion>lambdaUpdate()
                 .eq(RobotQuestion::getId, a.getQuestionId())
                 .set(RobotQuestion::getHasAccepted, 1));
+        // 信誉: 回答被采纳 +12分
+        try {
+            reputationService.recordEvent(a.getUserId(),
+                    Constants.REP_EVENT_ANSWER_ACCEPTED,
+                    "answer:" + answerId,
+                    "ANSWER", answerId);
+        } catch (Exception e) {
+            log.warn("信誉事件记录失败(不影响回答采纳): answerId={}, error={}", answerId, e.getMessage());
+        }
+        // 通知: 回答被采纳 → 通知回答作者
+        try {
+            String questionTitle = q != null ? q.getTitle() : "您关注的问题";
+            notificationService.sendNotification(a.getUserId(),
+                    Constants.NOTIFY_ANSWER_ACCEPTED,
+                    "您的回答被采纳",
+                    questionTitle + " — 您的回答已被采纳",
+                    "question", a.getQuestionId(),
+                    "answer_accepted:" + answerId);
+        } catch (Exception e) {
+            log.warn("回答采纳通知失败(不影响回答采纳): answerId={}, error={}", answerId, e.getMessage());
+        }
+        // 通知: 通知问题关注者有新回答被采纳
+        try {
+            notificationService.notifySubscribers("question", a.getQuestionId(),
+                    Constants.NOTIFY_QUESTION_ANSWER,
+                    "问题有新回答被采纳",
+                    "您关注的问题有回答被采纳");
+        } catch (Exception e) {
+            log.warn("问题关注者通知失败(不影响回答采纳): questionId={}, error={}", a.getQuestionId(), e.getMessage());
+        }
     }
 
     @Override

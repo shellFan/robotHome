@@ -10,11 +10,14 @@ import com.robot.home.common.Constants;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.XssUtils;
+import com.robot.home.common.Constants;
 import com.robot.home.correction.dto.ParamCorrectionDTO;
 import com.robot.home.correction.entity.RobotParamCorrection;
 import com.robot.home.correction.mapper.RobotParamCorrectionMapper;
 import com.robot.home.correction.service.RobotParamCorrectionService;
 import com.robot.home.correction.vo.ParamCorrectionVO;
+import com.robot.home.reputation.service.ReputationService;
+import com.robot.home.message.service.NotificationService;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.entity.RobotParamDef;
 import com.robot.home.robot.entity.RobotParamValue;
@@ -53,6 +56,10 @@ public class RobotParamCorrectionServiceImpl extends ServiceImpl<RobotParamCorre
     private RobotParamValueMapper paramValueMapper;
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private ReputationService reputationService;
+    @Resource
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -158,9 +165,28 @@ public class RobotParamCorrectionServiceImpl extends ServiceImpl<RobotParamCorre
                 .set(RobotParamCorrection::getReviewNote, StrUtil.isNotBlank(reviewNote) ? XssUtils.escapeText(reviewNote) : null)
                 .set(RobotParamCorrection::getReviewTime, java.time.LocalDateTime.now()));
 
-        // 采纳时自动更新RobotParamValue
+        // 采纳时自动更新RobotParamValue + 信誉事件 + 通知订阅者
         if (status == STATUS_ACCEPTED) {
             applyCorrection(correction);
+            // 信誉: 纠错被采纳 +15分
+            try {
+                reputationService.recordEvent(correction.getUserId(),
+                        Constants.REP_EVENT_CORRECTION_ACCEPTED,
+                        "correction:" + correction.getId(),
+                        "CORRECTION", correction.getId());
+            } catch (Exception e) {
+                log.warn("信誉事件记录失败(不影响纠错采纳): correctionId={}, error={}", correctionId, e.getMessage());
+            }
+            // 通知订阅了该机器人参数变更的用户
+            try {
+                notificationService.notifySubscribers(
+                        "ROBOT", correction.getRobotId(),
+                        Constants.NOTIFY_PARAM_CHANGE,
+                        "参数变更通知",
+                        "您关注的机器人参数已更新");
+            } catch (Exception e) {
+                log.warn("参数变更通知失败(不影响纠错采纳): robotId={}, error={}", correction.getRobotId(), e.getMessage());
+            }
         }
     }
 

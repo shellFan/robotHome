@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS search_zero_result (
     suggested_action VARCHAR(32) DEFAULT NULL,
     create_time TIMESTAMP DEFAULT NULL,
     update_time TIMESTAMP DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
     CONSTRAINT uk_szr_keyword UNIQUE (normalized_keyword)
 );
 CREATE INDEX IF NOT EXISTS idx_szr_search_count ON search_zero_result(search_count);
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS robot_quality_score (
     review_score INT DEFAULT 0,
     create_time TIMESTAMP DEFAULT NULL,
     update_time TIMESTAMP DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
     CONSTRAINT uk_rqs_robot_id UNIQUE (robot_id)
 );
 CREATE INDEX IF NOT EXISTS idx_rqs_total_score ON robot_quality_score(total_score);
@@ -138,7 +140,8 @@ CREATE TABLE IF NOT EXISTS robot_quality_issue (
     severity INT NOT NULL DEFAULT 3,
     status TINYINT NOT NULL DEFAULT 0,
     create_time TIMESTAMP DEFAULT NULL,
-    update_time TIMESTAMP DEFAULT NULL
+    update_time TIMESTAMP DEFAULT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_rqi_robot_id ON robot_quality_issue(robot_id);
 CREATE INDEX IF NOT EXISTS idx_rqi_issue_type ON robot_quality_issue(issue_type);

@@ -65,6 +65,21 @@ mvn spring-boot:run  # 需要 CRAWLER_API_KEY 环境变量（或 dev-mode）
 | Mapper 扫描 | 移除重复 @MapperScan，仅保留 MybatisPlusConfig 声明 |
 | Docker Compose | CRAWLER_API_KEY 非空默认值；增加 CRAWLER_DEV_MODE=false |
 
+## 开发约束规则
+
+### BaseEntity Schema 规则（Phase10 根因固化）
+
+> **规则：** When an Entity extends BaseEntity, its physical table schema must include all persistence fields required by BaseEntity, including the globally configured logic-delete column `deleted` and applicable timestamp columns.
+
+**背景：** Phase10 多次因新增表遗漏 `deleted` 列导致 MyBatis-Plus 全局 `@TableLogic` 查询自动添加 `WHERE deleted=0`，但 DDL 中无此列，引发 500 错误。
+
+**强制要求：**
+1. 任何继承 `BaseEntity` 的 Entity，其对应 DDL 必须包含：`id`, `create_time`, `update_time`, `deleted TINYINT NOT NULL DEFAULT 0`
+2. 继承 `IdEntity` 的 Entity（无逻辑删除），DDL 仅需 `id`
+3. 每次新增 migration 必须对照 BaseEntity 校验，Schema Contract Test 会自动检测
+
+**自动防护：** `SchemaContractTest` 在 CI 中运行，验证 BaseEntity 子类数量与字段完整性。
+
 ## 待验证
 
 - [x] `mvn clean package` 后端构建

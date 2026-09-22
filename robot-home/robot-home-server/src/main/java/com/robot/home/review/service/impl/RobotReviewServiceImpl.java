@@ -19,6 +19,9 @@ import com.robot.home.review.mapper.RobotReviewMapper;
 import com.robot.home.review.mapper.RobotReviewSummaryMapper;
 import com.robot.home.review.service.RobotReviewService;
 import com.robot.home.review.vo.ReviewSummaryVO;
+import com.robot.home.common.Constants;
+import com.robot.home.reputation.service.ReputationService;
+import com.robot.home.message.service.NotificationService;
 import com.robot.home.review.vo.ReviewUserVO;
 import com.robot.home.review.vo.ReviewVO;
 import com.robot.home.robot.entity.Robot;
@@ -53,6 +56,10 @@ public class RobotReviewServiceImpl extends ServiceImpl<RobotReviewMapper, Robot
     private RobotMapper robotMapper;
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private ReputationService reputationService;
+    @Resource
+    private NotificationService notificationService;
 
     // ---- 评价状态常量 ----
     private static final int STATUS_PENDING = 0;
@@ -192,6 +199,26 @@ public class RobotReviewServiceImpl extends ServiceImpl<RobotReviewMapper, Robot
         update(Wrappers.<RobotReview>lambdaUpdate()
                 .eq(RobotReview::getId, reviewId)
                 .setSql("helpful_count = helpful_count + 1"));
+        // 信誉: 评测有帮助 +5分（给评测作者）
+        try {
+            reputationService.recordEvent(review.getUserId(),
+                    Constants.REP_EVENT_REVIEW_HELPFUL,
+                    "review_helpful:" + reviewId + ":by:" + userId,
+                    "REVIEW", reviewId);
+        } catch (Exception e) {
+            log.warn("信誉事件记录失败(不影响helpful): reviewId={}, error={}", reviewId, e.getMessage());
+        }
+        // 通知: 评测被标记有帮助 → 通知评测作者
+        try {
+            notificationService.sendNotification(review.getUserId(),
+                    Constants.NOTIFY_REVIEW_INTERACTION,
+                    "您的评测获得认可",
+                    "有人觉得您的评测很有帮助",
+                    "review", reviewId,
+                    "review_helpful:" + reviewId + ":by:" + userId);
+        } catch (Exception e) {
+            log.warn("评测帮助通知失败(不影响helpful): reviewId={}, error={}", reviewId, e.getMessage());
+        }
     }
 
     @Override

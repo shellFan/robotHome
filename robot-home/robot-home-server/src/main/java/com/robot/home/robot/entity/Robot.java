@@ -78,6 +78,13 @@ public class Robot extends BaseEntity {
     /** Phase9: 关注数 */
     private Integer followCount;
 
+    /** Phase10: 信任等级 */
+    private String trustLevel;
+    /** Phase10: 信任分 */
+    private Integer trustScore;
+    /** Phase10: 待处理纠错数 */
+    private Integer pendingCorrectionCount;
+
     // --- 别名方法(兼容旧接口) ---
     public BigDecimal getPrice() { return guidePrice; }
     public String getImageUrl() { return coverImage; }
