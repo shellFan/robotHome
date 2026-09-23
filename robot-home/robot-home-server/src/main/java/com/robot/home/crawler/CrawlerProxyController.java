@@ -153,7 +153,6 @@ public class CrawlerProxyController {
     @GetMapping("/health")
     public Result<Map<String, Object>> health() {
         Map<String, Object> status = new LinkedHashMap<>();
-        status.put("collectorUrl", collectorUrl);
         status.put("apiKeyConfigured", collectorApiKey != null && !collectorApiKey.isEmpty());
 
         // 尝试连接Collector
