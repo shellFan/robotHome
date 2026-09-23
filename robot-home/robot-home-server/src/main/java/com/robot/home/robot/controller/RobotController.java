@@ -3,6 +3,7 @@ package com.robot.home.robot.controller;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.Result;
 import com.robot.home.common.util.SecurityUtils;
+import com.robot.home.ratelimit.annotation.RateLimit;
 import com.robot.home.robot.dto.RobotQuery;
 import com.robot.home.robot.entity.RobotImage;
 import com.robot.home.robot.entity.RobotVideo;
@@ -97,6 +98,7 @@ public class RobotController {
      * 参数对比，最多 4 台：/api/robots/compare?ids=1,2,3
      */
     @GetMapping("/compare")
+    @RateLimit(action = "compare", windowSeconds = 60, maxRequests = 30)
     public Result<CompareVO> compare(@RequestParam String ids) {
         List<Long> idList = new ArrayList<>();
         for (String part : ids.split(",")) {

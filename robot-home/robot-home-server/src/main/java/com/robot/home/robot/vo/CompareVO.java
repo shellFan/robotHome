@@ -14,4 +14,10 @@ public class CompareVO {
     private List<CompareRobotVO> robots;
     /** 参数分组（含每行取值） */
     private List<CompareGroupVO> groups;
+    /** Phase11: 总参数行数 */
+    private int totalParams;
+    /** Phase11: 差异参数行数 */
+    private int diffParams;
+    /** Phase11: 相同参数行数 */
+    private int sameParams;
 }

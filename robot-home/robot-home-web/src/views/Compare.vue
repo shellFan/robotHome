@@ -59,8 +59,14 @@
         <div v-if="!result" class="rh-empty">请选择至少 2 台机器人开始对比</div>
 
         <div v-else class="compare-table-wrap">
+          <!-- Phase11: 对比摘要栏 -->
+          <div class="compare-summary">
+            <span>共 {{ result.totalParams }} 项参数</span>
+            <span class="compare-summary__diff">{{ result.diffParams }} 项差异</span>
+            <span class="compare-summary__same">{{ result.sameParams }} 项相同</span>
+          </div>
           <div v-for="group in visibleGroups" :key="group.groupName" class="compare-group">
-            <div class="compare-group__title">{{ group.groupName }}</div>
+            <div class="compare-group__title">{{ group.groupName }} <span v-if="group.diffCount" class="compare-group__diff-count">{{ group.diffCount }}项差异</span></div>
             <table class="compare-table">
               <thead>
                 <tr>
@@ -94,7 +100,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus, Trophy } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -226,6 +232,25 @@ onMounted(async () => {
   }
 })
 
+// Phase11: 路由watch - 处理浏览器前进/后退导航
+watch(
+  () => route.query.ids,
+  (newIds) => {
+    if (!newIds || typeof newIds !== 'string') return
+    const urlIds = newIds.split(',').map(Number).filter(Boolean)
+    const storeIds = ids.value
+    // 仅当URL与store不同时才同步（避免循环触发）
+    if (urlIds.length !== storeIds.length || urlIds.some((id, i) => id !== storeIds[i])) {
+      compareStore.clear()
+      urlIds.forEach((id) => compareStore.toggle(id))
+      syncIds()
+      loadRobots().then(() => {
+        if (ids.value.length >= 2) doCompare()
+      })
+    }
+  }
+)
+
 </script>
 
 <style scoped lang="scss">
@@ -293,6 +318,27 @@ onMounted(async () => {
   margin-bottom: 10px;
 }
 
+// Phase11: 对比摘要栏
+.compare-summary {
+  display: flex;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--rh-surface-sub, #f5f7fa);
+  border-radius: var(--rh-radius, 8px);
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--rh-text, #333);
+}
+
+.compare-summary__diff {
+  color: #b06c00;
+  font-weight: 600;
+}
+
+.compare-summary__same {
+  color: var(--rh-text-sub, #909399);
+}
+
 .compare-group {
   margin-bottom: 24px;
 }
@@ -303,6 +349,14 @@ onMounted(async () => {
   margin-bottom: 8px;
   padding-left: 8px;
   border-left: 3px solid var(--rh-primary);
+}
+
+// Phase11: 分组差异计数
+.compare-group__diff-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: #b06c00;
+  margin-left: 6px;
 }
 
 .compare-table {

@@ -521,10 +521,27 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                     rows.add(row);
                 }
                 gvo.setRows(rows);
+                // Phase11: 分组统计
+                int groupDiff = 0;
+                for (CompareRowVO r : rows) {
+                    if (r.isDifferent()) groupDiff++;
+                }
+                gvo.setDiffCount(groupDiff);
+                gvo.setTotalCount(rows.size());
                 groups.add(gvo);
             }
         }
         vo.setGroups(groups);
+        // Phase11: 全局统计
+        int totalParams = 0;
+        int diffParams = 0;
+        for (CompareGroupVO g : groups) {
+            totalParams += g.getTotalCount();
+            diffParams += g.getDiffCount();
+        }
+        vo.setTotalParams(totalParams);
+        vo.setDiffParams(diffParams);
+        vo.setSameParams(totalParams - diffParams);
         return vo;
     }
 
