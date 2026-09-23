@@ -10,11 +10,13 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 发现页聚合数据
+ * 发现页聚合数据 (Discovery 3.0)
  */
 @Data
 public class DiscoveryHomeVO {
 
+    /** 精选推荐（大图Banner） */
+    private List<RobotListVO> featuredRobots;
     /** 热门机器人 */
     private List<RobotListVO> hotRobots;
     /** 近期热门机器人 */
@@ -37,4 +39,10 @@ public class DiscoveryHomeVO {
     private List<PostVO> hotPosts;
     /** 热门问答 */
     private List<QuestionVO> hotQuestions;
+    /** 热门话题 */
+    private List<TopicVO> hotTopics;
+    /** 平台统计摘要 */
+    private DiscoveryStatsVO stats;
+    /** 个性化推荐（登录用户） */
+    private List<RobotListVO> recommendedRobots;
 }
