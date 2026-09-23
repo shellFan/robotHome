@@ -324,18 +324,20 @@
                 :to="'/robot/' + sr.robotId"
                 class="similar-item"
               >
-                <img :src="sr.imageUrl" :alt="sr.robotName" loading="lazy" />
+                <img :src="imageOf(sr.coverImage)" :alt="sr.name" loading="lazy" />
                 <div class="similar-item__info">
-                  <div class="similar-item__name">{{ sr.robotName }}</div>
+                  <div class="similar-item__name">{{ sr.name }}</div>
                   <div class="similar-item__meta">
-                    <span v-if="sr.categoryName" class="rh-text-light">{{ sr.categoryName }}</span>
-                    <span v-if="sr.brandName" class="rh-text-light">· {{ sr.brandName }}</span>
+                    <span v-if="sr.brandName" class="rh-text-light">{{ sr.brandName }}</span>
                   </div>
                   <div class="similar-item__bottom">
-                    <span class="similar-item__price">{{ formatPrice(sr.price) }}</span>
-                    <span v-if="sr.totalScore" class="similar-item__score">{{ formatScore(sr.totalScore) }}分</span>
+                    <span class="similar-item__price">{{ formatPrice(sr.guidePrice) }}</span>
+                    <span v-if="sr.score" class="similar-item__score">{{ formatScore(sr.score) }}分</span>
                   </div>
-                  <div v-if="sr.reason" class="similar-item__reason">{{ sr.reason }}</div>
+                  <!-- Phase11: 推荐原因badge -->
+                  <div v-if="sr.reasonCode" class="similar-item__reason">
+                    <span class="reason-badge" :class="'reason--' + sr.reasonCode.toLowerCase()">{{ sr.reasonText }}</span>
+                  </div>
                 </div>
               </router-link>
             </div>
@@ -1346,6 +1348,23 @@ onMounted(load)
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+// Phase11: 推荐原因badge
+.reason-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-weight: 500;
+}
+
+.reason-badge.reason--same_category { background: #e3f2fd; color: #1565c0; }
+.reason-badge.reason--same_brand { background: #f3e5f5; color: #7b1fa2; }
+.reason-badge.reason--trending { background: #fff3e0; color: #e65100; }
+.reason-badge.reason--followed_robot { background: #e0f7fa; color: #00838f; }
+.reason-badge.reason--popular_alternative { background: #e8f5e9; color: #2e7d32; }
 
 /* Phase7: Correction Entry */
 .detail-correction-entry {

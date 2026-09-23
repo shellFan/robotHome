@@ -187,6 +187,14 @@ public class RuleRecommendServiceImpl implements RuleRecommendService {
         vo.setHotScore(r.getHotScore());
         vo.setReasonCode(reasonCode);
         vo.setReasonText(reasonText);
+        // Phase11: 匹配条件明细
+        List<RuleRecommendVO.MatchedCondition> conditions = new ArrayList<>();
+        RuleRecommendVO.MatchedCondition cond = new RuleRecommendVO.MatchedCondition();
+        cond.setCode(reasonCode);
+        cond.setText(reasonText);
+        cond.setScore(0);
+        conditions.add(cond);
+        vo.setMatchedConditions(conditions);
         return vo;
     }
 

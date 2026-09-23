@@ -3,6 +3,7 @@ package com.robot.home.recommend.vo;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Phase9: 规则推荐项（可解释）
@@ -24,4 +25,14 @@ public class RuleRecommendVO {
     private String reasonCode;
     /** 推荐原因描述 */
     private String reasonText;
+    /** Phase11: 匹配条件明细（可解释推荐） */
+    private List<MatchedCondition> matchedConditions;
+
+    /** Phase11: 单个匹配条件 */
+    @Data
+    public static class MatchedCondition {
+        private String code;
+        private String text;
+        private int score;
+    }
 }

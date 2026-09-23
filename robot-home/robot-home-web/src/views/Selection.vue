@@ -61,12 +61,19 @@
                   <div class="selection-result__name">{{ r.robotName }}</div>
                   <div class="selection-result__brand rh-text-light">{{ r.brandName }}</div>
                   <div class="selection-result__score">
-                    <span>匹配度: <strong>{{ r.totalScore }}</strong>分</span>
+                    <span>匹配度: <strong>{{ r.matchScore }}</strong>分</span>
                   </div>
-                  <div v-if="r.matchDetails" class="selection-result__details rh-text-light">
-                    <span v-for="(val, key) in r.matchDetails" :key="key" class="selection-result__tag">
-                      {{ key }}: {{ val }}
-                    </span>
+                  <!-- Phase11: 匹配条件badge -->
+                  <div v-if="r.matchedConditions && r.matchedConditions.length" class="selection-result__conditions">
+                    <span
+                      v-for="mc in r.matchedConditions"
+                      :key="mc.code"
+                      class="selection-result__condition"
+                      :class="'condition--' + mc.code.toLowerCase()"
+                    >{{ mc.text }} +{{ mc.score }}</span>
+                  </div>
+                  <div v-if="r.matchReason && !r.matchedConditions" class="selection-result__details rh-text-light">
+                    {{ r.matchReason }}
                   </div>
                 </div>
               </router-link>
@@ -180,4 +187,28 @@ onMounted(loadFilters)
 .selection-result__score strong { color: #409eff; font-size: 18px; }
 .selection-result__details { display: flex; gap: 8px; flex-wrap: wrap; }
 .selection-result__tag { font-size: 12px; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; }
+
+/* Phase11: 匹配条件badge */
+.selection-result__conditions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.selection-result__condition {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.selection-result__condition.condition--category_match { background: #e3f2fd; color: #1565c0; }
+.selection-result__condition.condition--budget_match { background: #fff3e0; color: #e65100; }
+.selection-result__condition.condition--brand_match { background: #f3e5f5; color: #7b1fa2; }
+.selection-result__condition.condition--usage_match { background: #e0f7fa; color: #00838f; }
+.selection-result__condition.condition--filter_match { background: #e8f5e9; color: #2e7d32; }
+.selection-result__condition.condition--filter_partial { background: #fff8e1; color: #f57f17; }
 </style>
