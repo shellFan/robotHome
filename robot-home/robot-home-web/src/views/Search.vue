@@ -7,18 +7,30 @@
       </el-breadcrumb>
 
       <div class="rh-card search-box-card">
-        <el-input
-          v-model="keyword"
-          size="large"
-          clearable
-          placeholder="搜索机器人、品牌、企业、资讯、视频、教程、帖子…"
-          @keyup.enter="doSearch"
-          @clear="onClear"
-        >
-          <template #append>
-            <el-button type="primary" @click="doSearch">搜索</el-button>
-          </template>
-        </el-input>
+        <div class="search-input-wrap">
+          <el-input
+            v-model="keyword"
+            size="large"
+            clearable
+            placeholder="搜索机器人、品牌、企业、资讯、视频、教程、问答、帖子…"
+            @keyup.enter="doSearch"
+            @clear="onClear"
+            @input="onInput"
+          >
+            <template #append>
+              <el-button type="primary" @click="doSearch">搜索</el-button>
+            </template>
+          </el-input>
+          <!-- Phase11: 搜索建议下拉 -->
+          <div v-if="showSuggest && suggestList.length" class="suggest-dropdown">
+            <div
+              v-for="s in suggestList"
+              :key="s"
+              class="suggest-item"
+              @mousedown.prevent="goKeyword(s)"
+            >{{ s }}</div>
+          </div>
+        </div>
 
         <div v-if="!keyword && (hotList.length || historyList.length)" class="search-hints">
           <div v-if="hotList.length" class="search-hints__block">
@@ -64,7 +76,29 @@
         </el-tabs>
 
         <div v-if="loading" class="rh-empty">搜索中…</div>
-        <div v-else-if="!items.length" class="rh-empty">没有找到「{{ keyword }}」相关结果</div>
+        <div v-else-if="!items.length" class="search-empty">
+          <div class="search-empty__text">没有找到「{{ keyword }}」相关结果</div>
+          <!-- Phase11: 零结果页面增强 -->
+          <div v-if="hotList.length" class="search-empty__section">
+            <div class="search-empty__title">热门搜索</div>
+            <div class="search-hints__tags">
+              <span v-for="item in hotList" :key="item.keyword" class="chip" @click="goKeyword(item.keyword)">{{ item.keyword }}</span>
+            </div>
+          </div>
+          <div class="search-empty__section">
+            <div class="search-empty__title">热门分类</div>
+            <div class="search-hints__tags">
+              <span class="chip" @click="goType('robot')">机器人</span>
+              <span class="chip" @click="goType('brand')">品牌</span>
+              <span class="chip" @click="goType('company')">企业</span>
+              <span class="chip" @click="goType('article')">资讯</span>
+              <span class="chip" @click="goType('video')">视频</span>
+              <span class="chip" @click="goType('tutorial')">教程</span>
+              <span class="chip" @click="goType('question')">问答</span>
+              <span class="chip" @click="goType('post')">帖子</span>
+            </div>
+          </div>
+        </div>
         <div v-else class="result-list">
           <router-link
             v-for="item in items"
@@ -72,7 +106,10 @@
             :to="item.url || typePath(item)"
             class="result-item"
           >
-            <img :src="imageOf(item.image)" :alt="item.title" loading="lazy" />
+            <img v-if="item.image" :src="imageOf(item.image)" :alt="item.title" loading="lazy" />
+            <div v-else class="result-item__icon">
+              <el-icon :size="32"><Search /></el-icon>
+            </div>
             <div class="result-item__body">
               <div class="result-item__type">{{ typeName(item.type) }}</div>
               <div class="result-item__title rh-ellipsis">{{ item.title }}</div>
@@ -99,6 +136,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import MainLayout from '@/layout/MainLayout.vue'
 import { searchApi } from '@/api'
 import { useUserStore } from '@/store/user'
@@ -117,6 +155,7 @@ const typeTabs = [
   { value: 'article', label: '资讯' },
   { value: 'video', label: '视频' },
   { value: 'tutorial', label: '教程' },
+  { value: 'question', label: '问答' },
   { value: 'post', label: '帖子' }
 ]
 
@@ -130,6 +169,10 @@ const historyList = ref([])
 const pageNum = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+// Phase11: 搜索建议
+const suggestList = ref([])
+const showSuggest = ref(false)
+let suggestTimer = null
 
 function resolveKeywordFromRoute () {
   return String(route.query.q || route.query.keyword || '').trim()
@@ -149,6 +192,7 @@ function typeName (type) {
     article: '资讯',
     video: '视频',
     tutorial: '教程',
+    question: '问答',
     post: '帖子'
   }
   return map[type] || type
@@ -162,6 +206,7 @@ function typePath (item) {
     article: '/article/',
     video: '/video/',
     tutorial: '/tutorial/',
+    question: '/qa/',
     post: '/community/'
   }
   return (map[item.type] || '/') + item.id
@@ -194,7 +239,7 @@ async function load () {
       const data = await searchApi.search(kw, 8)
       counts.value = (data && data.counts) || {}
       const merged = []
-      ;['robots', 'brands', 'companies', 'articles', 'videos', 'tutorials', 'posts'].forEach((key) => {
+      ;['robots', 'brands', 'companies', 'articles', 'videos', 'tutorials', 'questions', 'posts'].forEach((key) => {
         ;(data[key] || []).forEach((item) => merged.push(item))
       })
       items.value = merged
@@ -229,6 +274,7 @@ function syncRoute () {
 
 function doSearch () {
   pageNum.value = 1
+  showSuggest.value = false
   syncRoute()
   load()
   setPageMeta({
@@ -246,6 +292,32 @@ function goKeyword (kw) {
   keyword.value = kw
   activeType.value = 'all'
   doSearch()
+}
+
+// Phase11: 切换到指定类型浏览
+function goType (type) {
+  activeType.value = type
+  pageNum.value = 1
+  syncRoute()
+  load()
+}
+
+// Phase11: 搜索建议 - 防抖输入
+function onInput () {
+  showSuggest.value = false
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const kw = keyword.value.trim()
+  if (!kw || kw.length > 100) return
+  suggestTimer = setTimeout(async () => {
+    try {
+      const list = await searchApi.suggest(kw, 8)
+      suggestList.value = list || []
+      showSuggest.value = suggestList.value.length > 0
+    } catch (e) {
+      suggestList.value = []
+      showSuggest.value = false
+    }
+  }, 300)
 }
 
 function onTypeChange () {
@@ -290,6 +362,37 @@ onMounted(async () => {
 
 .search-box-card {
   margin-bottom: 16px;
+}
+
+// Phase11: 搜索建议下拉
+.search-input-wrap {
+  position: relative;
+}
+
+.suggest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--rh-surface, #fff);
+  border: 1px solid var(--rh-border-light, #e4e7ed);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.suggest-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--rh-text, #333);
+  &:hover {
+    background: var(--rh-primary-light, #ecf5ff);
+    color: var(--rh-primary, #409eff);
+  }
 }
 
 .search-hints {
@@ -375,5 +478,41 @@ onMounted(async () => {
 .result-item__summary {
   font-size: 13px;
   margin-top: 4px;
+}
+
+// Phase11: 零结果页面
+.search-empty {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.search-empty__text {
+  font-size: 16px;
+  color: var(--rh-text-sub, #909399);
+  margin-bottom: 24px;
+}
+
+.search-empty__section {
+  margin-bottom: 20px;
+}
+
+.search-empty__title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: var(--rh-text, #333);
+}
+
+// Phase11: 无图片结果图标占位
+.result-item__icon {
+  width: 120px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rh-surface-sub, #f5f7fa);
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: var(--rh-text-sub, #c0c4cc);
 }
 </style>

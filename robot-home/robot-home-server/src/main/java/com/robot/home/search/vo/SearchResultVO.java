@@ -19,6 +19,8 @@ public class SearchResultVO {
     private List<SearchItemVO> videos;
     private List<SearchItemVO> tutorials;
     private List<SearchItemVO> posts;
+    /** Phase11: 问答搜索结果 */
+    private List<SearchItemVO> questions;
     /** 各类型命中数量 */
     private Map<String, Long> counts;
     /** 别名扩展关键词（搜索词通过别名映射到的目标词） */

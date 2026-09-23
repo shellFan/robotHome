@@ -23,6 +23,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/search")
 public class SearchController {
 
+    /** Phase11: 搜索关键词最大长度 */
+    private static final int MAX_KEYWORD_LENGTH = 100;
+    /** Phase11: pageSize上限 */
+    private static final int MAX_PAGE_SIZE = 50;
+
     @Resource
     private SearchService searchService;
 
@@ -36,6 +41,10 @@ public class SearchController {
     @RateLimit(action = "search", windowSeconds = 60, maxRequests = 30)
     public Result<SearchResultVO> search(@RequestParam String keyword,
                                          @RequestParam(defaultValue = "5") Integer limit) {
+        // Phase11: 关键词长度安全限制
+        if (keyword != null && keyword.length() > MAX_KEYWORD_LENGTH) {
+            keyword = keyword.substring(0, MAX_KEYWORD_LENGTH);
+        }
         Long userId = SecurityUtils.currentUserId();
         SearchResultVO result = searchService.search(keyword, limit);
         searchService.record(keyword, userId);
@@ -48,17 +57,31 @@ public class SearchController {
      * 指定类型分页搜索
      */
     @GetMapping("/{type}")
+    @RateLimit(action = "searchByType", windowSeconds = 60, maxRequests = 60)
     public Result<PageResult<SearchItemVO>> searchByType(@PathVariable String type,
                                                          @RequestParam String keyword,
                                                          @RequestParam(defaultValue = "1") Integer pageNum,
                                                          @RequestParam(defaultValue = "20") Integer pageSize) {
+        // Phase11: 关键词长度安全限制
+        if (keyword != null && keyword.length() > MAX_KEYWORD_LENGTH) {
+            keyword = keyword.substring(0, MAX_KEYWORD_LENGTH);
+        }
+        // Phase11: pageSize上限限制
+        if (pageSize != null && pageSize > MAX_PAGE_SIZE) {
+            pageSize = MAX_PAGE_SIZE;
+        }
         return Result.success(searchService.searchByType(type, keyword, pageNum, pageSize));
     }
 
     @GetMapping("/suggest")
+    @RateLimit(action = "searchSuggest", windowSeconds = 60, maxRequests = 120)
     public Result<List<String>> suggest(@RequestParam String keyword,
                                         @RequestParam(required = false) String type,
                                         @RequestParam(defaultValue = "10") Integer limit) {
+        // Phase11: 关键词长度安全限制
+        if (keyword != null && keyword.length() > MAX_KEYWORD_LENGTH) {
+            keyword = keyword.substring(0, MAX_KEYWORD_LENGTH);
+        }
         // 优先从搜索建议表获取（权重排序），补充原有机器人名称建议
         List<SearchSuggestion> suggestions = searchSuggestionService.suggest(keyword, type, limit);
         List<String> result = suggestions.stream()
