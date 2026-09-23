@@ -1,6 +1,7 @@
 package com.robot.home.quality.controller;
 
 import com.robot.home.common.PageResult;
+import com.robot.home.common.Result;
 import com.robot.home.quality.entity.RobotQualityIssue;
 import com.robot.home.quality.entity.RobotQualityScore;
 import com.robot.home.quality.service.RobotQualityService;
@@ -31,10 +32,17 @@ public class RobotQualityController {
         return qualityService.getIssues(robotId);
     }
 
-    /** 管理端: 计算并更新质量评分 */
+    /** 管理端: 计算并更新单个机器人质量评分 */
     @PostMapping("/admin/compute/{robotId}")
     public RobotQualityScore compute(@PathVariable Long robotId) {
         return qualityService.computeAndSave(robotId);
+    }
+
+    /** Phase11: 管理端: 批量计算所有机器人质量评分 */
+    @PostMapping("/admin/compute-all")
+    public Result<Integer> computeAll() {
+        int count = qualityService.computeAll();
+        return Result.success(count);
     }
 
     /** 管理端: 分页查询质量评分 */

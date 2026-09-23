@@ -1,8 +1,15 @@
 import request from '@/utils/request'
 
 /** 质量评分管理 */
-export function computeQuality() {
-  return request({ url: '/quality/admin/compute', method: 'post' })
+
+/** Phase11: 批量计算所有机器人质量评分 */
+export function computeAllQuality() {
+  return request({ url: '/quality/admin/compute-all', method: 'post' })
+}
+
+/** 计算单个机器人质量评分 */
+export function computeQuality(robotId) {
+  return request({ url: `/quality/admin/compute/${robotId}`, method: 'post' })
 }
 
 export function getScorePage(params) {

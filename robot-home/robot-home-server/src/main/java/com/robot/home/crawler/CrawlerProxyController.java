@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -40,7 +42,7 @@ public class CrawlerProxyController {
 
     /** 允许代理的模块白名单，防止万能代理 */
     private static final Set<String> ALLOWED_MODULES = new HashSet<>(
-            Arrays.asList("source", "task", "content", "publish"));
+            Arrays.asList("source", "task", "content", "publish", "health"));
 
     private final RestTemplate restTemplate;
 
@@ -145,5 +147,38 @@ public class CrawlerProxyController {
         String method = request.getMethod();
         return "POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)
                 || "PATCH".equalsIgnoreCase(method);
+    }
+
+    /** Phase11: 采集器健康检查端点 - Admin可直接查看Collector状态 */
+    @GetMapping("/health")
+    public Result<Map<String, Object>> health() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        status.put("collectorUrl", collectorUrl);
+        status.put("apiKeyConfigured", collectorApiKey != null && !collectorApiKey.isEmpty());
+
+        // 尝试连接Collector
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            if (collectorApiKey != null && !collectorApiKey.isEmpty()) {
+                headers.set("X-API-Key", collectorApiKey);
+            }
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Object> response = restTemplate.exchange(
+                    URI.create(collectorUrl + "/api/crawler/health"),
+                    HttpMethod.GET, entity, Object.class);
+
+            status.put("collectorAvailable", true);
+            status.put("collectorResponse", response.getBody());
+            status.put("httpStatus", response.getStatusCodeValue());
+        } catch (ResourceAccessException e) {
+            status.put("collectorAvailable", false);
+            status.put("error", "连接失败: " + e.getMessage());
+        } catch (Exception e) {
+            status.put("collectorAvailable", false);
+            status.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+
+        return Result.success(status);
     }
 }

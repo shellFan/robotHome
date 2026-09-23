@@ -28,4 +28,7 @@ public interface RobotQualityService {
 
     /** 管理端: 更新问题状态 */
     void updateIssueStatus(Long id, Integer status);
+
+    /** Phase11: 管理端: 批量计算所有机器人质量评分 */
+    int computeAll();
 }

@@ -181,6 +181,23 @@ public class RobotQualityServiceImpl implements RobotQualityService {
                 .set(RobotQualityIssue::getUpdateTime, LocalDateTime.now()));
     }
 
+    /** Phase11: 批量计算所有机器人质量评分 */
+    @Override
+    public int computeAll() {
+        List<Robot> robots = robotMapper.selectList(null);
+        int count = 0;
+        for (Robot robot : robots) {
+            try {
+                computeAndSave(robot.getId());
+                count++;
+            } catch (Exception e) {
+                log.warn("质量评分计算失败 robotId={}: {}", robot.getId(), e.getMessage());
+            }
+        }
+        log.info("批量质量评分计算完成: {}/{}", count, robots.size());
+        return count;
+    }
+
     // ---- 评分维度 ----
 
     private int computeBasicInfo(Robot r) {
