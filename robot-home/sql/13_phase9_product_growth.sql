@@ -187,8 +187,9 @@ CALL `p_add_column`('robot', 'follow_count', 'INT NOT NULL DEFAULT 0 COMMENT ''�
 CALL `p_add_index`('community_post', 'idx_robot_id_status', '`robot_id`, `status`');
 
 -- ============================================================
--- 12. article表增加索引（P0-3/P0-4关联查询）— 幂等
+-- 12. article表增加company_id列和索引（P0-3/P0-4关联查询）— 幂等
 -- ============================================================
+CALL `p_add_column`('article', 'company_id', 'BIGINT DEFAULT NULL COMMENT ''关联企业ID'' AFTER `brand_id`');
 CALL `p_add_index`('article', 'idx_company_id', '`company_id`');
 CALL `p_add_index`('article', 'idx_status_publish', '`status`, `publish_time`');
 

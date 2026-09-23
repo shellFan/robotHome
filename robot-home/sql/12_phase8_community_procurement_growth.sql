@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS robot_selection_log (
     category VARCHAR(64) DEFAULT NULL COMMENT '分类',
     budget_min DECIMAL(12,2) DEFAULT NULL,
     budget_max DECIMAL(12,2) DEFAULT NULL,
-    usage VARCHAR(64) DEFAULT NULL COMMENT '使用场景',
+    `usage` VARCHAR(64) DEFAULT NULL COMMENT '使用场景',
     result_count INT DEFAULT 0 COMMENT '结果数',
     create_time DATETIME DEFAULT NULL,
     INDEX idx_category (category),

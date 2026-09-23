@@ -28,6 +28,10 @@ uploads/
 # 环境与密钥
 .env
 .env.*
+
+# 数据库备份
+*.sql.backup
+robot_home_before_*.sql
 !.env.example
 application-local.yml
 application-local.yaml

@@ -6,6 +6,16 @@
 USE robot_home;
 
 -- ============================================================
+-- 采集源扩展字段（兼容MySQL 5.6，幂等添加）
+-- ============================================================
+ALTER TABLE `crawler_source` ADD COLUMN `rss_url` VARCHAR(512) DEFAULT NULL COMMENT 'RSS URL' AFTER `sitemap_url`;
+ALTER TABLE `crawler_source` ADD COLUMN `language` VARCHAR(16) DEFAULT 'zh' COMMENT '语言: zh/en/ja' AFTER `follow_external`;
+ALTER TABLE `crawler_source` ADD COLUMN `region` VARCHAR(16) DEFAULT 'CN' COMMENT '地区: CN/US/JP/EU' AFTER `language`;
+ALTER TABLE `crawler_source` ADD COLUMN `priority` INT DEFAULT 5 COMMENT '优先级: 1-10' AFTER `region`;
+ALTER TABLE `crawler_source` ADD COLUMN `tags` VARCHAR(512) DEFAULT NULL COMMENT '标签(逗号分隔)' AFTER `priority`;
+ALTER TABLE `crawler_source` ADD COLUMN `health_status` VARCHAR(32) DEFAULT 'UNKNOWN' COMMENT '健康状态: UNKNOWN/HEALTHY/DEGRADED/DOWN' AFTER `tags`;
+
+-- ============================================================
 -- 中国人形机器人企业官网（10个）
 -- ============================================================
 
