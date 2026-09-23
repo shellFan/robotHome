@@ -62,6 +62,7 @@
                   <div class="selection-result__brand rh-text-light">{{ r.brandName }}</div>
                   <div class="selection-result__score">
                     <span>匹配度: <strong>{{ r.matchScore }}</strong>分</span>
+                    <span v-if="r.confidence != null" class="selection-result__confidence">置信度 {{ r.confidence }}%</span>
                   </div>
                   <!-- Phase11: 匹配条件badge -->
                   <div v-if="r.matchedConditions && r.matchedConditions.length" class="selection-result__conditions">
@@ -185,6 +186,7 @@ onMounted(loadFilters)
 .selection-result__brand { font-size: 13px; margin-bottom: 6px; }
 .selection-result__score { font-size: 14px; margin-bottom: 6px; }
 .selection-result__score strong { color: #409eff; font-size: 18px; }
+.selection-result__confidence { font-size: 12px; color: #67c23a; margin-left: 8px; }
 .selection-result__details { display: flex; gap: 8px; flex-wrap: wrap; }
 .selection-result__tag { font-size: 12px; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; }
 

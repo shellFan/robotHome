@@ -134,6 +134,9 @@
             <span v-if="detail.pendingCorrectionCount && detail.pendingCorrectionCount > 0" class="rh-text-light">
               · {{ detail.pendingCorrectionCount }} 条纠错待审
             </span>
+            <router-link v-if="detail.trustLevel" :to="'/robot/' + id + '/trust'" class="detail-head__trust-link">
+              查看信任详情 ›
+            </router-link>
           </div>
 
           <div v-if="detail.prices && detail.prices.length" class="detail-head__channels">
@@ -1410,6 +1413,17 @@ onMounted(load)
 }
 
 .detail-head__source-link:hover {
+  text-decoration: underline;
+}
+
+/* Phase11: 信任详情链接 */
+.detail-head__trust-link {
+  color: var(--rh-primary);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.detail-head__trust-link:hover {
   text-decoration: underline;
 }
 

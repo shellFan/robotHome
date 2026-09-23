@@ -44,6 +44,7 @@ import com.robot.home.robot.mapper.RobotTagMapper;
 import com.robot.home.robot.mapper.RobotVideoMapper;
 import com.robot.home.robot.vo.ParamTemplateDetailVO;
 import com.robot.home.security.RequirePermission;
+import com.robot.home.trust.service.TrustService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -90,6 +91,8 @@ public class AdminRobotController {
     private RobotTagMapper tagMapper;
     @Resource
     private RedisUtils redisUtils;
+    @Resource
+    private TrustService trustService;
 
     /** 清空机器人相关缓存（筛选器+分类树） */
     private void clearRobotCache() {
@@ -166,6 +169,8 @@ public class AdminRobotController {
                 throw new BusinessException("机器人不存在");
             }
             robotMapper.updateById(robot);
+            // Phase11: 变更检测闭环 - 更新后异步触发信任重算
+            try { trustService.recalculateTrust(robot.getId()); } catch (Exception e) { log.warn("信任重算失败 robotId={}", robot.getId(), e); }
         }
         // 附带保存图片 / 视频 / 价格
         if (dto.getImagesList() != null && !dto.getImagesList().isEmpty()) {

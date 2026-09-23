@@ -214,6 +214,10 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             vo.setKeyParams(keyParams);
             // Phase11: 设置匹配条件明细
             vo.setMatchedConditions(matchedConditions);
+            // Phase11: 计算匹配置信度(0-100), 基于匹配条件数/最大可能条件数(6)
+            int maxConditions = 6; // CATEGORY+BUDGET+BRAND+USAGE+FILTER+FILTER_PARTIAL
+            int matchedCount = matchedConditions.size();
+            vo.setConfidence(Math.min(100, (matchedCount * 100 / maxConditions)));
 
             results.add(vo);
         }

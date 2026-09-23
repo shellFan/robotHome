@@ -19,6 +19,8 @@ public class SelectionResultVO {
     private String brandName;
     private Integer matchScore;
     private String matchReason;
+    /** Phase11: 匹配置信度(0-100), 基于匹配条件数/总条件数 */
+    private Integer confidence;
     /** 关键参数摘要 */
     private List<ParamItem> keyParams;
     /** Phase11: 匹配条件明细（可解释推荐） */
