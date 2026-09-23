@@ -198,6 +198,26 @@ public class RobotQualityServiceImpl implements RobotQualityService {
         return count;
     }
 
+    /** Phase11: 统计已评分机器人数 */
+    @Override
+    public int countScoredRobots() {
+        return Math.toIntExact(scoreMapper.selectCount(null));
+    }
+
+    /** Phase11: 统计低分机器人数 */
+    @Override
+    public int countLowScoreRobots(int threshold) {
+        return Math.toIntExact(scoreMapper.selectCount(
+                new LambdaQueryWrapper<RobotQualityScore>().lt(RobotQualityScore::getTotalScore, threshold)));
+    }
+
+    /** Phase11: 统计未处理问题数 */
+    @Override
+    public int countPendingIssues() {
+        return Math.toIntExact(issueMapper.selectCount(
+                new LambdaQueryWrapper<RobotQualityIssue>().eq(RobotQualityIssue::getStatus, 0)));
+    }
+
     // ---- 评分维度 ----
 
     private int computeBasicInfo(Robot r) {

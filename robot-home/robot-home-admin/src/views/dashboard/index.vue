@@ -11,6 +11,41 @@
       </el-col>
     </el-row>
 
+    <!-- Phase11: 采集器健康 & 数据质量概览 -->
+    <el-row :gutter="16" style="margin-top: 0">
+      <el-col :xs="24" :sm="12" :md="8" class="dashboard__col">
+        <div class="stat-card" style="cursor: pointer" @click="$router.push('/crawler/source')">
+          <div class="stat-card__label">
+            <span class="stat-card__accent" :style="{ background: crawlerHealth.collectorAvailable ? '#2ba471' : '#d93026' }"></span>采集器状态
+          </div>
+          <div class="stat-card__value">
+            <el-tag :type="crawlerHealth.collectorAvailable ? 'success' : 'danger'" size="small">
+              {{ crawlerHealth.collectorAvailable ? '在线' : '离线' }}
+            </el-tag>
+            <span v-if="crawlerHealth.collectorAvailable && crawlerHealth.httpStatus" style="margin-left: 8px; font-size: 12px; color: #999">
+              HTTP {{ crawlerHealth.httpStatus }}
+            </span>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="8" class="dashboard__col">
+        <div class="stat-card" style="cursor: pointer" @click="$router.push('/quality')">
+          <div class="stat-card__label">
+            <span class="stat-card__accent" :style="{ background: qualitySummary.pendingIssues > 0 ? '#d93026' : '#2ba471' }"></span>数据质量
+          </div>
+          <div class="stat-card__value">
+            <span>已评 {{ qualitySummary.totalScored }}</span>
+            <el-tag v-if="qualitySummary.lowScoreCount > 0" type="warning" size="small" style="margin-left: 8px">
+              低分 {{ qualitySummary.lowScoreCount }}
+            </el-tag>
+            <el-tag v-if="qualitySummary.pendingIssues > 0" type="danger" size="small" style="margin-left: 4px">
+              待处理 {{ qualitySummary.pendingIssues }}
+            </el-tag>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
     <div class="page-card dashboard__chart-card">
       <div class="page-header">
         <span class="page-title">近 {{ days }} 天趋势</span>
@@ -28,11 +63,15 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { getStats, getTrend } from '@/api/dashboard'
+import { getStats, getTrend, getCrawlerHealth, getQualitySummary } from '@/api/dashboard'
 
 const days = ref(7)
 const chartRef = ref(null)
 let chart = null
+
+/* Phase11: 采集器健康 & 数据质量 */
+const crawlerHealth = reactive({ collectorAvailable: false, httpStatus: null, error: null })
+const qualitySummary = reactive({ totalScored: 0, lowScoreCount: 0, pendingIssues: 0 })
 
 const stats = reactive({
   userCount: 0,
@@ -91,6 +130,33 @@ async function loadTrend() {
   renderChart(list)
 }
 
+/** Phase11: 加载采集器健康状态 */
+async function loadCrawlerHealth() {
+  try {
+    const res = await getCrawlerHealth()
+    const data = res.data || {}
+    crawlerHealth.collectorAvailable = data.collectorAvailable || false
+    crawlerHealth.httpStatus = data.httpStatus || null
+    crawlerHealth.error = data.error || null
+  } catch (e) {
+    crawlerHealth.collectorAvailable = false
+    crawlerHealth.error = '请求失败'
+  }
+}
+
+/** Phase11: 加载数据质量概览 */
+async function loadQualitySummary() {
+  try {
+    const res = await getQualitySummary()
+    const data = res.data || {}
+    qualitySummary.totalScored = data.totalScored || 0
+    qualitySummary.lowScoreCount = data.lowScoreCount || 0
+    qualitySummary.pendingIssues = data.pendingIssues || 0
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 function renderChart(list) {
   if (!chartRef.value) return
   if (!chart) {
@@ -135,6 +201,8 @@ onMounted(async () => {
   await loadStats()
   await nextTick()
   await loadTrend()
+  loadCrawlerHealth()
+  loadQualitySummary()
 })
 
 onBeforeUnmount(() => {
