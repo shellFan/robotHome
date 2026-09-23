@@ -38,6 +38,11 @@
             <span v-if="detail.companyName" class="rh-text-light">
               · {{ detail.companyName }}
             </span>
+            <!-- Phase11: 信任标识 -->
+            <span v-if="trustBadge" class="trust-badge" :class="'trust-badge--' + trustBadge.level">
+              <span class="trust-badge__icon">{{ trustBadge.icon }}</span>
+              {{ trustBadge.label }}
+            </span>
           </div>
           <h1 class="detail-head__name">{{ detail.robot.name }}</h1>
           <div v-if="detail.robot.model || detail.robot.releaseDate || detail.robot.status" class="detail-head__meta">
@@ -46,6 +51,17 @@
             <el-tag v-if="statusTag" :type="statusTag.type" size="small">{{ statusTag.label }}</el-tag>
           </div>
           <p v-if="detail.robot.subtitle" class="detail-head__subtitle">{{ detail.robot.subtitle }}</p>
+
+          <!-- Phase11: 评分概览 -->
+          <div v-if="detail.score && Number(detail.score) > 0" class="detail-head__score-row">
+            <div class="detail-head__score-big">
+              <span class="detail-head__score-num">{{ formatScore(detail.score) }}</span>
+              <el-rate :model-value="Number(detail.score)" disabled size="small" text-color="#ff9900" score-template="{value}" />
+            </div>
+            <span class="rh-text-light">{{ detail.reviewCount || 0 }} 条评价</span>
+            <span v-if="detail.discussionCount" class="rh-text-light">· {{ detail.discussionCount }} 讨论</span>
+            <span v-if="detail.questionCount" class="rh-text-light">· {{ detail.questionCount }} 问答</span>
+          </div>
 
           <div class="detail-head__price">
             <span class="detail-head__price-label">指导价</span>
@@ -76,6 +92,9 @@
             <span>收藏 {{ formatCount(detail.robot.favoriteCount) }}</span>
             <span>对比 {{ formatCount(detail.robot.compareCount) }}</span>
             <span>询价 {{ formatCount(detail.robot.inquiryCount) }}</span>
+            <span v-if="detail.discussionCount">讨论 {{ formatCount(detail.discussionCount) }}</span>
+            <span v-if="detail.questionCount">问答 {{ formatCount(detail.questionCount) }}</span>
+            <span v-if="detail.followCount">关注 {{ formatCount(detail.followCount) }}</span>
           </div>
 
           <div class="detail-head__actions">
@@ -102,11 +121,18 @@
           </div>
 
           <!-- 来源可信度 -->
-          <div v-if="detail.robot.dataSource || detail.robot.sourceName" class="detail-head__source">
+          <div v-if="detail.robot.dataSource || detail.sourceName" class="detail-head__source">
             <el-icon><InfoFilled /></el-icon>
-            <span>数据来源：{{ detail.robot.sourceName || dataSourceLabel }}</span>
-            <span v-if="detail.robot.lastVerifiedTime" class="rh-text-light">
-              · 验证于 {{ formatDate(detail.robot.lastVerifiedTime, 'YYYY-MM-DD') }}
+            <span>数据来源：</span>
+            <a v-if="detail.sourceUrl" :href="detail.sourceUrl" target="_blank" rel="noopener" class="detail-head__source-link">
+              {{ detail.sourceName || dataSourceLabel }}
+            </a>
+            <span v-else>{{ detail.sourceName || dataSourceLabel }}</span>
+            <span v-if="detail.lastVerifiedTime" class="rh-text-light">
+              · 验证于 {{ formatDate(detail.lastVerifiedTime) }}
+            </span>
+            <span v-if="detail.pendingCorrectionCount && detail.pendingCorrectionCount > 0" class="rh-text-light">
+              · {{ detail.pendingCorrectionCount }} 条纠错待审
             </span>
           </div>
 
@@ -120,13 +146,19 @@
         </div>
       </section>
 
-      <!-- 子页面导航（首页 / 参数 / 图片 / 视频 / 口碑） -->
+      <!-- 子页面导航（首页 / 参数 / 图片 / 视频 / 口碑 / 问答 / 讨论） -->
       <el-tabs :model-value="'home'" class="detail-tabs" @tab-click="onTab">
         <el-tab-pane label="首页" name="home" />
         <el-tab-pane label="参数配置" name="params" />
         <el-tab-pane label="图片" name="images" />
         <el-tab-pane label="视频" name="videos" />
         <el-tab-pane label="口碑" name="reviews" />
+        <el-tab-pane name="qa">
+          <template #label>问答<el-badge v-if="detail.questionCount" :value="detail.questionCount" :max="99" class="tab-badge" /></template>
+        </el-tab-pane>
+        <el-tab-pane name="discuss">
+          <template #label>讨论<el-badge v-if="detail.discussionCount" :value="detail.discussionCount" :max="99" class="tab-badge" /></template>
+        </el-tab-pane>
       </el-tabs>
 
       <div class="rh-grid rh-grid--2 detail-body">
@@ -181,6 +213,42 @@
 
           <section class="rh-card rh-section">
             <CommentPanel biz-type="robot" :biz-id="id" />
+          </section>
+
+          <!-- Phase11: 问答聚合 -->
+          <section class="rh-card rh-section">
+            <h2 class="rh-section__title">相关问答</h2>
+            <div v-if="qaLoading" class="rh-empty">加载中…</div>
+            <div v-else-if="qaList.length" class="qa-list">
+              <div v-for="q in qaList" :key="q.id" class="qa-item" @click="$router.push('/qa/' + q.id)">
+                <div class="qa-item__title">{{ q.title }}</div>
+                <div class="qa-item__meta">
+                  <span v-if="q.answerCount" class="rh-text-light">{{ q.answerCount }} 回答</span>
+                  <span v-if="q.followCount" class="rh-text-light">{{ q.followCount }} 关注</span>
+                  <span class="rh-text-light">{{ formatDate(q.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="rh-empty">暂无问答</div>
+            <router-link v-if="qaList.length" :to="'/qa?robotId=' + id" class="detail-more">查看全部问答 ›</router-link>
+          </section>
+
+          <!-- Phase11: 讨论聚合 -->
+          <section class="rh-card rh-section">
+            <h2 class="rh-section__title">相关讨论</h2>
+            <div v-if="discussLoading" class="rh-empty">加载中…</div>
+            <div v-else-if="discussList.length" class="discuss-list">
+              <div v-for="p in discussList" :key="p.id" class="discuss-item" @click="$router.push('/community/posts/' + p.id)">
+                <div class="discuss-item__title">{{ p.title }}</div>
+                <div class="discuss-item__meta">
+                  <span v-if="p.likeCount" class="rh-text-light">{{ p.likeCount }} 赞</span>
+                  <span v-if="p.commentCount" class="rh-text-light">{{ p.commentCount }} 评论</span>
+                  <span class="rh-text-light">{{ formatDate(p.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="rh-empty">暂无讨论</div>
+            <router-link v-if="discussList.length" :to="'/community?robotId=' + id" class="detail-more">查看全部讨论 ›</router-link>
           </section>
 
           <!-- Phase7: 用户口碑 -->
@@ -412,7 +480,7 @@ import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layout/MainLayout.vue'
 import CommentPanel from '@/components/CommentPanel.vue'
-import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, recommendApi, correctionApi } from '@/api'
+import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, recommendApi, correctionApi, qaApi, communityApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { useCompareStore } from '@/store/compare'
 import { formatPrice, formatCount, imageOf, parseMainParams, formatDate } from '@/utils/format'
@@ -438,6 +506,12 @@ const reviewLoading = ref(false)
 // Phase7: Similar Robots
 const similarRobots = ref([])
 const similarLoading = ref(false)
+
+// Phase11: Q&A and Discussion aggregation
+const qaList = ref([])
+const qaLoading = ref(false)
+const discussList = ref([])
+const discussLoading = ref(false)
 
 // Phase7: Correction Dialog
 const correctionVisible = ref(false)
@@ -531,6 +605,20 @@ const dataSourceLabel = computed(() => {
   return ds ? map[ds] || ds : ''
 })
 
+/** Phase11: 信任标识 */
+
+/** Phase11: 信任标识 */
+const trustBadge = computed(() => {
+  const level = detail.value && detail.value.trustLevel
+  const score = detail.value && detail.value.trustScore
+  if (level === 'OFFICIAL') return { level: 'official', icon: '✔', label: '官方认证' }
+  if (level === 'VERIFIED') return { level: 'verified', icon: '✓', label: '已验证' }
+  if (level === 'COMMUNITY') return { level: 'community', icon: '★', label: '社区维护' }
+  if (score != null && score >= 60) return { level: 'community', icon: '★', label: '社区维护' }
+  if (level === 'UNVERIFIED') return { level: 'unverified', icon: '?', label: '未验证' }
+  return null
+})
+
 async function load () {
   const data = await robotApi.detail(id.value)
   // 图文详情由后台发布，仍做一次基础清洗以防历史脏数据
@@ -552,6 +640,9 @@ async function load () {
   // Phase7: 加载Review Summary和Similar Robots
   loadReviewSummary()
   loadSimilarRobots()
+  // Phase11: 加载问答和讨论
+  loadQaList()
+  loadDiscussList()
 }
 
 async function loadLikeState () {
@@ -642,6 +733,31 @@ async function loadSimilarRobots () {
     similarRobots.value = []
   } finally {
     similarLoading.value = false
+  }
+}
+
+// ========== Phase11: Q&A and Discussion ==========
+async function loadQaList () {
+  qaLoading.value = true
+  try {
+    const data = await qaApi.questions({ robotId: id.value, pageNum: 1, pageSize: 5 })
+    qaList.value = (data && data.records) || []
+  } catch (e) {
+    qaList.value = []
+  } finally {
+    qaLoading.value = false
+  }
+}
+
+async function loadDiscussList () {
+  discussLoading.value = true
+  try {
+    const data = await communityApi.posts({ robotId: id.value, pageNum: 1, pageSize: 5 })
+    discussList.value = (data && data.records) || []
+  } catch (e) {
+    discussList.value = []
+  } finally {
+    discussLoading.value = false
   }
 }
 
@@ -1237,6 +1353,172 @@ onMounted(load)
   text-align: right;
 }
 
+/* Phase11: Trust Badge */
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+.trust-badge__icon {
+  font-size: 12px;
+}
+
+.trust-badge--official {
+  background: #ecf5ff;
+  color: #409eff;
+  border: 1px solid #b3d8ff;
+}
+
+.trust-badge--verified {
+  background: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+}
+
+.trust-badge--community {
+  background: #fdf6ec;
+  color: #e6a23c;
+  border: 1px solid #f5dab1;
+}
+
+.trust-badge--unverified {
+  background: #f4f4f5;
+  color: #909399;
+  border: 1px solid #d3d4d6;
+}
+
+/* Phase11: Score Row */
+.detail-head__score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #fff8f0, #fff5f5);
+  border-radius: var(--rh-radius);
+}
+
+.detail-head__score-big {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-head__score-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ff9900;
+  line-height: 1;
+}
+
+/* Phase11: Source Link */
+.detail-head__source-link {
+  color: var(--rh-primary);
+  text-decoration: none;
+}
+
+.detail-head__source-link:hover {
+  text-decoration: underline;
+}
+
+/* Phase11: Tab Badge */
+.tab-badge {
+  margin-left: 4px;
+}
+
+.tab-badge :deep(.el-badge__content) {
+  font-size: 10px;
+}
+
+/* Phase11: Q&A List */
+.qa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.qa-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rh-border-light);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.qa-item:last-child {
+  border-bottom: none;
+}
+
+.qa-item:hover {
+  background: var(--rh-surface-sub);
+  margin: 0 -12px;
+  padding: 12px;
+  border-radius: var(--rh-radius);
+}
+
+.qa-item__title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.qa-item__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+/* Phase11: Discussion List */
+.discuss-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.discuss-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rh-border-light);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.discuss-item:last-child {
+  border-bottom: none;
+}
+
+.discuss-item:hover {
+  background: var(--rh-surface-sub);
+  margin: 0 -12px;
+  padding: 12px;
+  border-radius: var(--rh-radius);
+}
+
+.discuss-item__title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.discuss-item__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
 @media (max-width: 768px) {
   .detail-head {
     grid-template-columns: 1fr;
@@ -1255,6 +1537,9 @@ onMounted(load)
   }
   .review-summary__dims {
     flex-direction: column;
+  }
+  .detail-head__score-row {
+    flex-wrap: wrap;
   }
 }
 </style>

@@ -34,9 +34,13 @@ public class CommunityController {
     public Result<PageResult<PostVO>> posts(@RequestParam(required = false) Long circleId,
                                             @RequestParam(required = false) String topic,
                                             @RequestParam(required = false) String keyword,
+                                            @RequestParam(required = false) Long robotId,
                                             @RequestParam(defaultValue = "latest") String sort,
                                             @RequestParam(defaultValue = "1") Integer pageNum,
                                             @RequestParam(defaultValue = "20") Integer pageSize) {
+        if (robotId != null) {
+            return Result.success(communityService.postsByTarget("robot", robotId, pageNum, pageSize));
+        }
         return Result.success(communityService.posts(circleId, topic, keyword, sort,
                 SecurityUtils.currentUserId(), pageNum, pageSize));
     }

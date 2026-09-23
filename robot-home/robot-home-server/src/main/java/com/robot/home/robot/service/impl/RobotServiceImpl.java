@@ -328,6 +328,19 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         }).collect(Collectors.toList());
         vo.setRelatedVideos(relatedVideoVOs);
 
+        // ===== Phase11: 信任与评分聚合字段 =====
+        vo.setTrustLevel(robot.getTrustLevel());
+        vo.setTrustScore(robot.getTrustScore());
+        vo.setScore(robot.getScore());
+        vo.setReviewCount(robot.getReviewCount());
+        vo.setDiscussionCount(robot.getDiscussionCount());
+        vo.setQuestionCount(robot.getQuestionCount());
+        vo.setFollowCount(robot.getFollowCount());
+        vo.setPendingCorrectionCount(robot.getPendingCorrectionCount());
+        vo.setSourceUrl(robot.getSourceUrl());
+        vo.setSourceName(robot.getSourceName());
+        vo.setLastVerifiedTime(robot.getLastVerifiedTime());
+
         recordView(id, currentUserId);
         return vo;
     }
