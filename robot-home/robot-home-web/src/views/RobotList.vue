@@ -140,14 +140,20 @@
             {{ s.label }}
           </span>
         </div>
-        <el-checkbox v-model="onlyCompared" class="list-toolbar__compare" @change="load">
-          只看可比参数
-        </el-checkbox>
+        <div class="list-toolbar__right">
+          <el-checkbox v-model="onlyCompared" class="list-toolbar__compare" @change="load">
+            只看可比参数
+          </el-checkbox>
+          <div class="view-toggle">
+            <span class="view-toggle__btn" :class="{ 'view-toggle__btn--active': viewMode === 'grid' }" @click="viewMode = 'grid'">网格</span>
+            <span class="view-toggle__btn" :class="{ 'view-toggle__btn--active': viewMode === 'list' }" @click="viewMode = 'list'">列表</span>
+          </div>
+        </div>
       </div>
 
       <div v-if="loading" class="rh-empty">加载中…</div>
       <div v-else-if="!page.list.length" class="rh-empty">没有符合条件的机器人，试试调整筛选条件</div>
-      <div v-else class="rh-grid rh-grid--5">
+      <div v-else :class="viewMode === 'list' ? 'robot-list-view' : 'rh-grid rh-grid--5'">
         <RobotCard v-for="robot in page.list" :key="robot.id" :robot="robot" />
       </div>
 
@@ -179,6 +185,7 @@ const router = useRouter()
 const loading = ref(false)
 const onlyCompared = ref(false)
 const activeRange = ref(null)
+const viewMode = ref('grid')
 
 const filters = reactive({ categories: [], brands: [], scenes: [], devs: [], ais: [], priceRanges: [] })
 const selected = reactive({ scenes: [], devs: [], ais: [] })
@@ -240,12 +247,14 @@ async function load () {
 function setCategory (id) {
   query.categoryId = id
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
 function setBrand (id) {
   query.brandId = id
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
@@ -261,6 +270,7 @@ function setRange (idx) {
     query.maxPrice = range.max
   }
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
@@ -273,12 +283,14 @@ function toggle (key, value) {
     list.push(value)
   }
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
 function setSort (value) {
   query.sort = value
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
@@ -293,12 +305,30 @@ function resetFilter () {
   selected.devs = []
   selected.ais = []
   page.pageNum = 1
+  pushUrl()
   load()
 }
 
 function changePage (p) {
   page.pageNum = p
+  pushUrl()
   load()
+}
+
+/** 将当前筛选条件推送到URL（支持分享/书签） */
+function pushUrl () {
+  const q = {}
+  if (query.categoryId) q.categoryId = query.categoryId
+  if (query.brandId) q.brandId = query.brandId
+  if (query.minPrice !== null) q.minPrice = query.minPrice
+  if (query.maxPrice !== null) q.maxPrice = query.maxPrice
+  if (query.sort && query.sort !== 'comprehensive') q.sort = query.sort
+  if (page.pageNum > 1) q.pageNum = page.pageNum
+  if (selected.scenes.length) q.scenes = selected.scenes.join(',')
+  if (selected.devs.length) q.devs = selected.devs.join(',')
+  if (selected.ais.length) q.ais = selected.ais.join(',')
+  if (viewMode.value !== 'grid') q.view = viewMode.value
+  router.replace({ path: '/robots', query: q })
 }
 
 /** 从 URL 同步筛选条件，支持 /robots?categoryId=1 直接访问 */
@@ -308,6 +338,12 @@ function syncFromRoute () {
   query.brandId = q.brandId ? Number(q.brandId) : null
   query.sort = q.sort || 'comprehensive'
   page.pageNum = Number(q.pageNum) || 1
+  query.minPrice = q.minPrice ? Number(q.minPrice) : null
+  query.maxPrice = q.maxPrice ? Number(q.maxPrice) : null
+  if (q.scenes) selected.scenes = q.scenes.split(',')
+  if (q.devs) selected.devs = q.devs.split(',')
+  if (q.ais) selected.ais = q.ais.split(',')
+  if (q.view) viewMode.value = q.view
 }
 
 onMounted(async () => {
@@ -434,5 +470,60 @@ watch(onlyCompared, () => {
   background: var(--rh-primary-light);
   color: var(--rh-primary);
   font-weight: 600;
+}
+
+.list-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--rh-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.view-toggle__btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--rh-text-sub);
+  transition: all 0.15s ease;
+}
+
+.view-toggle__btn:hover {
+  color: var(--rh-primary);
+}
+
+.view-toggle__btn--active {
+  background: var(--rh-primary);
+  color: #fff;
+}
+
+.robot-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.robot-list-view :deep(.robot-card) {
+  display: flex;
+  flex-direction: row;
+}
+
+.robot-list-view :deep(.robot-card__cover) {
+  width: 200px;
+  height: auto;
+  min-height: 140px;
+  flex-shrink: 0;
+}
+
+.robot-list-view :deep(.robot-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 </style>
