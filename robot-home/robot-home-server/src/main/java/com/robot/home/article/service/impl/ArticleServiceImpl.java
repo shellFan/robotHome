@@ -69,13 +69,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private static final int CACHE_SECONDS = 600;
 
     @Override
-    public PageResult<ArticleListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize) {
+    public PageResult<ArticleListVO> page(Long categoryId, Long robotId, String keyword, Integer pageNum, Integer pageSize) {
         int pn = PageUtils.normalizePageNum(pageNum);
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Article> page = new Page<>(pn, ps);
         IPage<Article> result = page(page, Wrappers.<Article>lambdaQuery()
                 .eq(Article::getStatus, 1)
                 .eq(categoryId != null, Article::getCategoryId, categoryId)
+                .eq(robotId != null, Article::getRobotId, robotId)
                 .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Article::getTitle, keyword).or().like(Article::getSummary, keyword))
                 .orderByDesc(Article::getIsTop)
                 .orderByDesc(Article::getPublishTime));

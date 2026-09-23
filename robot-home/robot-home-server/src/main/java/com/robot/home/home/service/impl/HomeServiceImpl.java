@@ -90,8 +90,8 @@ public class HomeServiceImpl implements HomeService {
         vo.setHotRobots(robotService.hot(8, userId));
         vo.setNewRobots(robotService.newest(8, userId));
         vo.setHotBrands(brandService.hot(12));
-        vo.setArticles(articleService.page(null, null, 1, 8).getList());
-        vo.setVideos(videoService.page(null, null, 1, 6).getList());
+        vo.setArticles(articleService.page(null, null, null, 1, 8).getList());
+        vo.setVideos(videoService.page(null, null, null, 1, 6).getList());
         vo.setCompanies(companyService.hot(8));
 
         PageResult<PostVO> posts = communityService.posts(null, null, null, "hot", userId, 1, 6);

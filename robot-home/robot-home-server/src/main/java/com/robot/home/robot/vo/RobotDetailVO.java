@@ -86,4 +86,11 @@ public class RobotDetailVO {
     private String sourceName;
     /** 最后验证时间 */
     private java.time.LocalDateTime lastVerifiedTime;
+
+    // ===== Phase11: 内容聚合预览字段 =====
+
+    /** 相关问答预览(首页展示用) */
+    private List<RelatedQuestionVO> relatedQuestions;
+    /** 相关讨论预览(首页展示用) */
+    private List<RelatedPostVO> relatedPosts;
 }

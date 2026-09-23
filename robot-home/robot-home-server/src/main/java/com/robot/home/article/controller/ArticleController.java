@@ -24,10 +24,11 @@ public class ArticleController {
 
     @GetMapping
     public Result<PageResult<ArticleListVO>> page(@RequestParam(required = false) Long categoryId,
+                                                  @RequestParam(required = false) Long robotId,
                                                   @RequestParam(required = false) String keyword,
                                                   @RequestParam(defaultValue = "1") Integer pageNum,
                                                   @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.success(articleService.page(categoryId, keyword, pageNum, pageSize));
+        return Result.success(articleService.page(categoryId, robotId, keyword, pageNum, pageSize));
     }
 
     @GetMapping("/categories")

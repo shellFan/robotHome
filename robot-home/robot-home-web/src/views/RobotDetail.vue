@@ -218,9 +218,8 @@
           <!-- Phase11: 问答聚合 -->
           <section class="rh-card rh-section">
             <h2 class="rh-section__title">相关问答</h2>
-            <div v-if="qaLoading" class="rh-empty">加载中…</div>
-            <div v-else-if="qaList.length" class="qa-list">
-              <div v-for="q in qaList" :key="q.id" class="qa-item" @click="$router.push('/qa/' + q.id)">
+            <div v-if="detail.relatedQuestions && detail.relatedQuestions.length" class="qa-list">
+              <div v-for="q in detail.relatedQuestions" :key="q.id" class="qa-item" @click="$router.push('/qa/' + q.id)">
                 <div class="qa-item__title">{{ q.title }}</div>
                 <div class="qa-item__meta">
                   <span v-if="q.answerCount" class="rh-text-light">{{ q.answerCount }} 回答</span>
@@ -230,15 +229,14 @@
               </div>
             </div>
             <div v-else class="rh-empty">暂无问答</div>
-            <router-link v-if="qaList.length" :to="'/qa?robotId=' + id" class="detail-more">查看全部问答 ›</router-link>
+            <router-link v-if="detail.relatedQuestions && detail.relatedQuestions.length" :to="'/qa?robotId=' + id" class="detail-more">查看全部问答 ›</router-link>
           </section>
 
           <!-- Phase11: 讨论聚合 -->
           <section class="rh-card rh-section">
             <h2 class="rh-section__title">相关讨论</h2>
-            <div v-if="discussLoading" class="rh-empty">加载中…</div>
-            <div v-else-if="discussList.length" class="discuss-list">
-              <div v-for="p in discussList" :key="p.id" class="discuss-item" @click="$router.push('/community/posts/' + p.id)">
+            <div v-if="detail.relatedPosts && detail.relatedPosts.length" class="discuss-list">
+              <div v-for="p in detail.relatedPosts" :key="p.id" class="discuss-item" @click="$router.push('/community/posts/' + p.id)">
                 <div class="discuss-item__title">{{ p.title }}</div>
                 <div class="discuss-item__meta">
                   <span v-if="p.likeCount" class="rh-text-light">{{ p.likeCount }} 赞</span>
@@ -248,7 +246,7 @@
               </div>
             </div>
             <div v-else class="rh-empty">暂无讨论</div>
-            <router-link v-if="discussList.length" :to="'/community?robotId=' + id" class="detail-more">查看全部讨论 ›</router-link>
+            <router-link v-if="detail.relatedPosts && detail.relatedPosts.length" :to="'/community?robotId=' + id" class="detail-more">查看全部讨论 ›</router-link>
           </section>
 
           <!-- Phase7: 用户口碑 -->
@@ -368,6 +366,7 @@
               <img :src="imageOf(rv.cover)" :alt="rv.title" loading="lazy" />
               <span class="rh-clamp-2">{{ rv.title }}</span>
             </router-link>
+            <router-link :to="'/videos?robotId=' + id" class="detail-more">查看更多视频 ›</router-link>
           </section>
 
           <section v-if="detail.articles && detail.articles.length" class="rh-card rh-section">
@@ -381,6 +380,7 @@
               <img :src="imageOf(article.cover)" :alt="article.title" loading="lazy" />
               <span class="rh-clamp-2">{{ article.title }}</span>
             </router-link>
+            <router-link :to="'/articles?robotId=' + id" class="detail-more">查看更多资讯 ›</router-link>
           </section>
 
           <section v-if="detail.brandId" class="rh-card rh-section">
@@ -482,7 +482,7 @@ import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layout/MainLayout.vue'
 import CommentPanel from '@/components/CommentPanel.vue'
-import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, recommendApi, correctionApi, qaApi, communityApi } from '@/api'
+import { robotApi, favoriteApi, likeApi, behaviorApi, inquiryApi, reviewApi, recommendApi, correctionApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { useCompareStore } from '@/store/compare'
 import { formatPrice, formatCount, imageOf, parseMainParams, formatDate } from '@/utils/format'
@@ -505,15 +505,9 @@ const activeIdx = ref(0)
 const reviewSummary = ref(null)
 const reviewLoading = ref(false)
 
-// Phase7: Similar Robots
+// Phase11: Similar Robots
 const similarRobots = ref([])
 const similarLoading = ref(false)
-
-// Phase11: Q&A and Discussion aggregation
-const qaList = ref([])
-const qaLoading = ref(false)
-const discussList = ref([])
-const discussLoading = ref(false)
 
 // Phase7: Correction Dialog
 const correctionVisible = ref(false)
@@ -642,9 +636,6 @@ async function load () {
   // Phase7: 加载Review Summary和Similar Robots
   loadReviewSummary()
   loadSimilarRobots()
-  // Phase11: 加载问答和讨论
-  loadQaList()
-  loadDiscussList()
 }
 
 async function loadLikeState () {
@@ -735,31 +726,6 @@ async function loadSimilarRobots () {
     similarRobots.value = []
   } finally {
     similarLoading.value = false
-  }
-}
-
-// ========== Phase11: Q&A and Discussion ==========
-async function loadQaList () {
-  qaLoading.value = true
-  try {
-    const data = await qaApi.questions({ robotId: id.value, pageNum: 1, pageSize: 5 })
-    qaList.value = (data && data.records) || []
-  } catch (e) {
-    qaList.value = []
-  } finally {
-    qaLoading.value = false
-  }
-}
-
-async function loadDiscussList () {
-  discussLoading.value = true
-  try {
-    const data = await communityApi.posts({ robotId: id.value, pageNum: 1, pageSize: 5 })
-    discussList.value = (data && data.records) || []
-  } catch (e) {
-    discussList.value = []
-  } finally {
-    discussLoading.value = false
   }
 }
 
