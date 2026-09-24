@@ -61,4 +61,36 @@ public class RobotDetailVO {
     private List<RelatedRobotVO> sameBrandRobots;
     /** 相关视频 */
     private List<RelatedArticleVO> relatedVideos;
+
+    // ===== Phase11: 信任与评分聚合字段 =====
+
+    /** 信任等级: VERIFIED/OFFICIAL/COMMUNITY/UNVERIFIED */
+    private String trustLevel;
+    /** 信任分(0-100) */
+    private Integer trustScore;
+    /** 综合评分(1-5) */
+    private BigDecimal score;
+    /** 评价数 */
+    private Integer reviewCount;
+    /** 讨论数 */
+    private Integer discussionCount;
+    /** 提问数 */
+    private Integer questionCount;
+    /** 关注数 */
+    private Integer followCount;
+    /** 待处理纠错数 */
+    private Integer pendingCorrectionCount;
+    /** 来源URL */
+    private String sourceUrl;
+    /** 来源名称 */
+    private String sourceName;
+    /** 最后验证时间 */
+    private java.time.LocalDateTime lastVerifiedTime;
+
+    // ===== Phase11: 内容聚合预览字段 =====
+
+    /** 相关问答预览(首页展示用) */
+    private List<RelatedQuestionVO> relatedQuestions;
+    /** 相关讨论预览(首页展示用) */
+    private List<RelatedPostVO> relatedPosts;
 }

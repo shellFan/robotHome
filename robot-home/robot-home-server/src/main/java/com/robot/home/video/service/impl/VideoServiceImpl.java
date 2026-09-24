@@ -69,13 +69,14 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, Video> implements
     private RedisUtils redisUtils;
 
     @Override
-    public PageResult<VideoListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize) {
+    public PageResult<VideoListVO> page(Long categoryId, Long robotId, String keyword, Integer pageNum, Integer pageSize) {
         int pn = PageUtils.normalizePageNum(pageNum);
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<Video> page = new Page<>(pn, ps);
         IPage<Video> result = page(page, Wrappers.<Video>lambdaQuery()
                 .eq(Video::getStatus, 1)
                 .eq(categoryId != null, Video::getCategoryId, categoryId)
+                .eq(robotId != null, Video::getRobotId, robotId)
                 .and(StrUtil.isNotBlank(keyword), w -> w.likeRight(Video::getTitle, keyword).or().like(Video::getSummary, keyword))
                 .orderByDesc(Video::getPublishTime));
         List<VideoListVO> vos = result.getRecords().stream().map(this::toListVO).collect(Collectors.toList());

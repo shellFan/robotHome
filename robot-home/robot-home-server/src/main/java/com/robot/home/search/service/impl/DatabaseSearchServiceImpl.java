@@ -14,6 +14,8 @@ import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.community.entity.CommunityPost;
 import com.robot.home.community.mapper.CommunityPostMapper;
+import com.robot.home.qa.entity.RobotQuestion;
+import com.robot.home.qa.mapper.RobotQuestionMapper;
 import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.search.entity.HotSearch;
@@ -52,6 +54,8 @@ import java.util.stream.Collectors;
 public class DatabaseSearchServiceImpl implements SearchService {
 
     private static final int MAX_LIMIT_PER_TYPE = 20;
+    /** Phase11: 搜索关键词最大长度 */
+    private static final int MAX_KEYWORD_LENGTH = 100;
 
     @Resource
     private RobotMapper robotMapper;
@@ -68,6 +72,8 @@ public class DatabaseSearchServiceImpl implements SearchService {
     @Resource
     private CommunityPostMapper postMapper;
     @Resource
+    private RobotQuestionMapper questionMapper;
+    @Resource
     private HotSearchMapper hotSearchMapper;
     @Resource
     private SearchHistoryMapper searchHistoryMapper;
@@ -81,7 +87,9 @@ public class DatabaseSearchServiceImpl implements SearchService {
         if (StrUtil.isBlank(keyword)) {
             throw new com.robot.home.common.exception.BusinessException("搜索关键词不能为空");
         }
-        String kw = StrUtil.trim(keyword);
+        String kwRaw = StrUtil.trim(keyword);
+        // Phase11: 关键词长度限制(单次赋值保持effectively final)
+        String kw = kwRaw.length() > MAX_KEYWORD_LENGTH ? kwRaw.substring(0, MAX_KEYWORD_LENGTH) : kwRaw;
         int limit = limitPerType == null ? 5 : Math.max(1, Math.min(limitPerType, MAX_LIMIT_PER_TYPE));
 
         // 别名扩展: 查找别名映射，获取目标关键词
@@ -108,6 +116,8 @@ public class DatabaseSearchServiceImpl implements SearchService {
         vo.setVideos(searchVideos(kw, limit));
         vo.setTutorials(searchTutorials(kw, limit));
         vo.setPosts(searchPosts(kw, limit));
+        // Phase11: 问答搜索
+        vo.setQuestions(searchQuestions(kw, limit));
 
         // 别名扩展搜索: 对每个别名目标词也搜索并合并结果（去重）
         for (String aliasKw : aliasKeywords) {
@@ -118,6 +128,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             mergeResults(vo.getVideos(), searchVideos(aliasKw, limit), limit);
             mergeResults(vo.getTutorials(), searchTutorials(aliasKw, limit), limit);
             mergeResults(vo.getPosts(), searchPosts(aliasKw, limit), limit);
+            mergeResults(vo.getQuestions(), searchQuestions(aliasKw, limit), limit);
         }
 
         Map<String, Long> counts = new LinkedHashMap<>();
@@ -128,6 +139,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
         counts.put("video", countVideos(kw));
         counts.put("tutorial", countTutorials(kw));
         counts.put("post", countPosts(kw));
+        counts.put("question", countQuestions(kw));
         // 别名扩展的计数也加入
         for (String aliasKw : aliasKeywords) {
             counts.put("robot", counts.get("robot") + countRobots(aliasKw));
@@ -137,6 +149,7 @@ public class DatabaseSearchServiceImpl implements SearchService {
             counts.put("video", counts.get("video") + countVideos(aliasKw));
             counts.put("tutorial", counts.get("tutorial") + countTutorials(aliasKw));
             counts.put("post", counts.get("post") + countPosts(aliasKw));
+            counts.put("question", counts.get("question") + countQuestions(aliasKw));
         }
         vo.setCounts(counts);
 
@@ -158,7 +171,9 @@ public class DatabaseSearchServiceImpl implements SearchService {
         if (StrUtil.isBlank(keyword)) {
             return PageResult.of(1, PageUtils.normalizePageSize(pageSize), 0, new ArrayList<>());
         }
-        String kw = StrUtil.trim(keyword);
+        String kwRaw = StrUtil.trim(keyword);
+        // Phase11: 关键词长度限制(单次赋值保持effectively final)
+        String kw = kwRaw.length() > MAX_KEYWORD_LENGTH ? kwRaw.substring(0, MAX_KEYWORD_LENGTH) : kwRaw;
         int pn = PageUtils.normalizePageNum(pageNum);
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<?> page = new Page<>(pn, ps);
@@ -226,6 +241,16 @@ public class DatabaseSearchServiceImpl implements SearchService {
                 result = p;
                 break;
             }
+            // Phase11: 问答类型搜索
+            case "question": {
+                IPage<RobotQuestion> p = questionMapper.selectPage((Page<RobotQuestion>) page, Wrappers.<RobotQuestion>lambdaQuery()
+                        .eq(RobotQuestion::getStatus, 1)
+                        .and(w -> w.likeRight(RobotQuestion::getTitle, kw).or().like(RobotQuestion::getContent, kw))
+                        .orderByDesc(RobotQuestion::getCreateTime));
+                items = p.getRecords().stream().map(this::questionItem).collect(Collectors.toList());
+                result = p;
+                break;
+            }
             default:
                 throw new com.robot.home.common.exception.BusinessException("不支持的搜索类型: " + type);
         }
@@ -245,7 +270,9 @@ public class DatabaseSearchServiceImpl implements SearchService {
         if (StrUtil.isBlank(keyword)) {
             return new ArrayList<>();
         }
-        String kw = StrUtil.trim(keyword);
+        String kwRaw = StrUtil.trim(keyword);
+        // Phase11: 关键词长度限制(单次赋值保持effectively final)
+        String kw = kwRaw.length() > MAX_KEYWORD_LENGTH ? kwRaw.substring(0, MAX_KEYWORD_LENGTH) : kwRaw;
         int size = Math.max(1, Math.min(limit, 20));
         // 搜索建议使用前缀匹配（LIKE 'kw%'），可利用 idx_name 前缀索引
         List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
@@ -417,6 +444,16 @@ public class DatabaseSearchServiceImpl implements SearchService {
                 .stream().map(this::postItem).collect(Collectors.toList());
     }
 
+    // Phase11: 问答搜索
+    private List<SearchItemVO> searchQuestions(String kw, int limit) {
+        return questionMapper.selectList(Wrappers.<RobotQuestion>lambdaQuery()
+                .eq(RobotQuestion::getStatus, 1)
+                .and(w -> w.likeRight(RobotQuestion::getTitle, kw).or().like(RobotQuestion::getContent, kw))
+                .orderByDesc(RobotQuestion::getCreateTime)
+                .last("LIMIT " + limit))
+                .stream().map(this::questionItem).collect(Collectors.toList());
+    }
+
     private long countRobots(String kw) {
         return robotMapper.selectCount(Wrappers.<Robot>lambdaQuery()
                 .and(w -> w.likeRight(Robot::getName, kw).or().like(Robot::getModel, kw).or().like(Robot::getSubtitle, kw)));
@@ -453,6 +490,13 @@ public class DatabaseSearchServiceImpl implements SearchService {
         return postMapper.selectCount(Wrappers.<CommunityPost>lambdaQuery()
                 .eq(CommunityPost::getStatus, 1)
                 .and(w -> w.likeRight(CommunityPost::getTitle, kw).or().like(CommunityPost::getContent, kw)));
+    }
+
+    // Phase11: 问答计数
+    private long countQuestions(String kw) {
+        return questionMapper.selectCount(Wrappers.<RobotQuestion>lambdaQuery()
+                .eq(RobotQuestion::getStatus, 1)
+                .and(w -> w.likeRight(RobotQuestion::getTitle, kw).or().like(RobotQuestion::getContent, kw)));
     }
 
     // ---------- 结果项转换 ----------
@@ -531,6 +575,18 @@ public class DatabaseSearchServiceImpl implements SearchService {
         vo.setTitle(StrUtil.isNotBlank(p.getTitle()) ? p.getTitle() : excerpt(p.getContent()));
         vo.setSummary(excerpt(p.getContent()));
         vo.setUrl("/community/" + p.getId());
+        return vo;
+    }
+
+    // Phase11: 问答搜索结果项
+    private SearchItemVO questionItem(RobotQuestion q) {
+        SearchItemVO vo = new SearchItemVO();
+        vo.setType("question");
+        vo.setId(q.getId());
+        vo.setTitle(q.getTitle());
+        vo.setSummary(excerpt(q.getContent()));
+        vo.setUrl("/qa/" + q.getId());
+        vo.setExtra(q.getAnswerCount() != null ? q.getAnswerCount() + " 个回答" : null);
         return vo;
     }
 

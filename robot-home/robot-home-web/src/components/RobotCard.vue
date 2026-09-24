@@ -16,7 +16,10 @@
         </div>
         <div class="robot-card__foot">
           <span class="rh-price">{{ formatPrice(robot.guidePrice) }}</span>
-          <span class="rh-text-light">{{ formatCount(robot.viewCount) }} 浏览</span>
+          <div class="robot-card__meta">
+            <span v-if="robot.score" class="robot-card__score">{{ robot.score }}分</span>
+            <span class="rh-text-light">{{ formatCount(robot.viewCount) }} 浏览</span>
+          </div>
         </div>
       </div>
     </router-link>
@@ -175,6 +178,18 @@ function toggleCompare () {
   justify-content: space-between;
   margin-top: 10px;
   font-size: 13px;
+}
+
+.robot-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.robot-card__score {
+  color: #f59e0b;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .robot-card__actions {

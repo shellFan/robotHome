@@ -56,8 +56,14 @@ import com.robot.home.robot.vo.RobotFilterVO;
 import com.robot.home.robot.vo.RobotListVO;
 import com.robot.home.robot.vo.RobotParamDefVO;
 import com.robot.home.robot.vo.RobotParamGroupVO;
+import com.robot.home.robot.vo.RelatedQuestionVO;
+import com.robot.home.robot.vo.RelatedPostVO;
 import com.robot.home.video.entity.Video;
 import com.robot.home.video.mapper.VideoMapper;
+import com.robot.home.qa.entity.RobotQuestion;
+import com.robot.home.qa.mapper.RobotQuestionMapper;
+import com.robot.home.community.entity.CommunityPost;
+import com.robot.home.community.mapper.CommunityPostMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -125,6 +131,10 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
     private UnitConversionService unitConversionService;
     @Resource
     private VideoMapper videoMapper;
+    @Resource
+    private RobotQuestionMapper questionMapper;
+    @Resource
+    private CommunityPostMapper postMapper;
 
     @Override
     public PageResult<RobotListVO> page(RobotQuery query, Long currentUserId) {
@@ -328,6 +338,54 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         }).collect(Collectors.toList());
         vo.setRelatedVideos(relatedVideoVOs);
 
+        // ===== Phase11: 信任与评分聚合字段 =====
+        vo.setTrustLevel(robot.getTrustLevel());
+        vo.setTrustScore(robot.getTrustScore());
+        vo.setScore(robot.getScore());
+        vo.setReviewCount(robot.getReviewCount());
+        vo.setDiscussionCount(robot.getDiscussionCount());
+        vo.setQuestionCount(robot.getQuestionCount());
+        vo.setFollowCount(robot.getFollowCount());
+        vo.setPendingCorrectionCount(robot.getPendingCorrectionCount());
+        vo.setSourceUrl(robot.getSourceUrl());
+        vo.setSourceName(robot.getSourceName());
+        vo.setLastVerifiedTime(robot.getLastVerifiedTime());
+
+        // ===== Phase11: 内容聚合预览 =====
+        // 相关问答(最多5条)
+        List<RobotQuestion> questions = questionMapper.selectList(Wrappers.<RobotQuestion>lambdaQuery()
+                .eq(RobotQuestion::getRobotId, id)
+                .eq(RobotQuestion::getStatus, 1)
+                .orderByDesc(RobotQuestion::getCreateTime)
+                .last("LIMIT 5"));
+        List<RelatedQuestionVO> questionVOs = questions.stream().map(q -> {
+            RelatedQuestionVO qvo = new RelatedQuestionVO();
+            qvo.setId(q.getId());
+            qvo.setTitle(q.getTitle());
+            qvo.setAnswerCount(q.getAnswerCount());
+            qvo.setFollowCount(q.getFollowCount());
+            qvo.setCreateTime(q.getCreateTime());
+            return qvo;
+        }).collect(Collectors.toList());
+        vo.setRelatedQuestions(questionVOs);
+
+        // 相关讨论(最多5条)
+        List<CommunityPost> posts = postMapper.selectList(Wrappers.<CommunityPost>lambdaQuery()
+                .eq(CommunityPost::getRobotId, id)
+                .eq(CommunityPost::getStatus, 1)
+                .orderByDesc(CommunityPost::getCreateTime)
+                .last("LIMIT 5"));
+        List<RelatedPostVO> postVOs = posts.stream().map(p -> {
+            RelatedPostVO pvo = new RelatedPostVO();
+            pvo.setId(p.getId());
+            pvo.setTitle(p.getTitle());
+            pvo.setLikeCount(p.getLikeCount());
+            pvo.setCommentCount(p.getCommentCount());
+            pvo.setCreateTime(p.getCreateTime());
+            return pvo;
+        }).collect(Collectors.toList());
+        vo.setRelatedPosts(postVOs);
+
         recordView(id, currentUserId);
         return vo;
     }
@@ -508,10 +566,27 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
                     rows.add(row);
                 }
                 gvo.setRows(rows);
+                // Phase11: 分组统计
+                int groupDiff = 0;
+                for (CompareRowVO r : rows) {
+                    if (r.isDifferent()) groupDiff++;
+                }
+                gvo.setDiffCount(groupDiff);
+                gvo.setTotalCount(rows.size());
                 groups.add(gvo);
             }
         }
         vo.setGroups(groups);
+        // Phase11: 全局统计
+        int totalParams = 0;
+        int diffParams = 0;
+        for (CompareGroupVO g : groups) {
+            totalParams += g.getTotalCount();
+            diffParams += g.getDiffCount();
+        }
+        vo.setTotalParams(totalParams);
+        vo.setDiffParams(diffParams);
+        vo.setSameParams(totalParams - diffParams);
         return vo;
     }
 

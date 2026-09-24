@@ -181,6 +181,52 @@ public class RobotQualityServiceImpl implements RobotQualityService {
                 .set(RobotQualityIssue::getUpdateTime, LocalDateTime.now()));
     }
 
+    /** Phase11: 批量计算所有机器人质量评分（分批处理，避免OOM） */
+    @Override
+    public int computeAll() {
+        int count = 0;
+        int pageNum = 1;
+        int batchSize = 100;
+        List<Robot> batch;
+        do {
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<Robot> page = robotMapper.selectPage(
+                    new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageNum, batchSize),
+                    new LambdaQueryWrapper<Robot>().select(Robot::getId));
+            batch = page.getRecords();
+            for (Robot robot : batch) {
+                try {
+                    computeAndSave(robot.getId());
+                    count++;
+                } catch (Exception e) {
+                    log.warn("质量评分计算失败 robotId={}: {}", robot.getId(), e.getMessage());
+                }
+            }
+            pageNum++;
+        } while (batch.size() == batchSize);
+        log.info("批量质量评分计算完成: {}", count);
+        return count;
+    }
+
+    /** Phase11: 统计已评分机器人数 */
+    @Override
+    public int countScoredRobots() {
+        return Math.toIntExact(scoreMapper.selectCount(null));
+    }
+
+    /** Phase11: 统计低分机器人数 */
+    @Override
+    public int countLowScoreRobots(int threshold) {
+        return Math.toIntExact(scoreMapper.selectCount(
+                new LambdaQueryWrapper<RobotQualityScore>().lt(RobotQualityScore::getTotalScore, threshold)));
+    }
+
+    /** Phase11: 统计未处理问题数 */
+    @Override
+    public int countPendingIssues() {
+        return Math.toIntExact(issueMapper.selectCount(
+                new LambdaQueryWrapper<RobotQualityIssue>().eq(RobotQualityIssue::getStatus, 0)));
+    }
+
     // ---- 评分维度 ----
 
     private int computeBasicInfo(Robot r) {

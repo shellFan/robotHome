@@ -11,7 +11,7 @@ import java.util.List;
  */
 public interface ArticleService {
 
-    PageResult<ArticleListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize);
+    PageResult<ArticleListVO> page(Long categoryId, Long robotId, String keyword, Integer pageNum, Integer pageSize);
 
     ArticleDetailVO detail(Long id, Long currentUserId);
 

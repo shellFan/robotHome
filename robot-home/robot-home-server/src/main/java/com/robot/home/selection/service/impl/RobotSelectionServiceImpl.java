@@ -108,11 +108,14 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
             int score = 0;
             List<String> reasons = new ArrayList<>();
             List<SelectionResultVO.ParamItem> keyParams = new ArrayList<>();
+            // Phase11: 匹配条件明细
+            List<SelectionResultVO.MatchedCondition> matchedConditions = new ArrayList<>();
 
             // Category match (30 points) — already filtered at SQL level, all candidates match
             if (categoryId != null && r.getCategoryId() != null) {
                 score += 30;
                 reasons.add("分类匹配");
+                addCondition(matchedConditions, "CATEGORY_MATCH", "分类匹配", 30);
             }
 
             // Budget match (25 points)
@@ -120,6 +123,7 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
                     && r.getGuidePrice().compareTo(dto.getBudgetMax()) <= 0) {
                 score += 25;
                 reasons.add("预算内");
+                addCondition(matchedConditions, "BUDGET_MATCH", "预算内", 25);
             }
 
             // Brand match (15 points)
@@ -127,6 +131,7 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
                     && r.getBrandId() != null && dto.getBrandIds().contains(r.getBrandId())) {
                 score += 15;
                 reasons.add("品牌偏好");
+                addCondition(matchedConditions, "BRAND_MATCH", "品牌偏好", 15);
             }
 
             // Usage/scene match (20 points) - check mainParams JSON or subtitle/description
@@ -147,6 +152,7 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
                 if (usageMatch) {
                     score += 20;
                     reasons.add("场景匹配");
+                    addCondition(matchedConditions, "USAGE_MATCH", "场景匹配", 20);
                 }
             }
 
@@ -163,9 +169,14 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
                         }
                     }
                     if (filterTotal > 0 && filterMatch > 0) {
-                        score += (int) (10.0 * filterMatch / filterTotal);
+                        int filterScore = (int) (10.0 * filterMatch / filterTotal);
+                        score += filterScore;
                         if (filterMatch == filterTotal) {
                             reasons.add("参数完全匹配");
+                            addCondition(matchedConditions, "FILTER_MATCH", "参数完全匹配", filterScore);
+                        } else {
+                            reasons.add("参数部分匹配");
+                            addCondition(matchedConditions, "FILTER_PARTIAL", "参数部分匹配", filterScore);
                         }
                     }
                 } catch (Exception e) {
@@ -201,6 +212,12 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
                 }
             }
             vo.setKeyParams(keyParams);
+            // Phase11: 设置匹配条件明细
+            vo.setMatchedConditions(matchedConditions);
+            // Phase11: 计算匹配置信度(0-100), 基于匹配条件数/最大可能条件数(6)
+            int maxConditions = 6; // CATEGORY+BUDGET+BRAND+USAGE+FILTER+FILTER_PARTIAL
+            int matchedCount = matchedConditions.size();
+            vo.setConfidence(Math.min(100, (matchedCount * 100 / maxConditions)));
 
             results.add(vo);
         }
@@ -301,6 +318,15 @@ public class RobotSelectionServiceImpl implements RobotSelectionService {
         m.put("name", name);
         m.put("code", code);
         return m;
+    }
+
+    /** Phase11: 构建匹配条件明细 */
+    private void addCondition(List<SelectionResultVO.MatchedCondition> conditions, String code, String text, int score) {
+        SelectionResultVO.MatchedCondition cond = new SelectionResultVO.MatchedCondition();
+        cond.setCode(code);
+        cond.setText(text);
+        cond.setScore(score);
+        conditions.add(cond);
     }
 
     @Override

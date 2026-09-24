@@ -4,12 +4,27 @@
       <el-tab-pane label="质量评分" name="scores">
         <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
           <h3>机器人质量评分</h3>
-          <el-button type="primary" :loading="computing" @click="handleCompute">重新计算评分</el-button>
+          <div>
+            <el-button type="primary" :loading="computing" @click="handleComputeAll">批量计算评分</el-button>
+          </div>
         </div>
         <el-table :data="scores" v-loading="loading" border stripe>
           <el-table-column prop="robotId" label="机器人ID" width="100" />
-          <el-table-column prop="robotName" label="机器人名称" min-width="150" />
-          <el-table-column prop="totalScore" label="总分" width="80" />
+          <el-table-column prop="robotName" label="机器人名称" min-width="150">
+            <template #default="{ row }">
+              <router-link v-if="row.robotId" :to="'/robot/model?robotId=' + row.robotId" style="color: var(--el-color-primary); text-decoration: none;">
+                {{ row.robotName || '-' }}
+              </router-link>
+              <span v-else>{{ row.robotName || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="totalScore" label="总分" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.totalScore >= 80 ? 'success' : row.totalScore >= 50 ? 'warning' : 'danger'" size="small">
+                {{ row.totalScore }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="basicInfoScore" label="基本信息" width="80" />
           <el-table-column prop="paramScore" label="参数" width="70" />
           <el-table-column prop="imageScore" label="图片" width="70" />
@@ -18,6 +33,11 @@
           <el-table-column prop="brandScore" label="品牌" width="70" />
           <el-table-column prop="categoryScore" label="分类" width="70" />
           <el-table-column prop="createTime" label="计算时间" width="160" />
+          <el-table-column label="操作" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button text size="small" type="primary" :loading="computing" @click="handleComputeOne(row.robotId)">重算</el-button>
+            </template>
+          </el-table-column>
         </el-table>
         <el-pagination background layout="total, prev, pager, next" :current-page="sPage" :page-size="pageSize" :total="sTotal" @current-change="(p) => { sPage = p; loadScores() }" />
       </el-tab-pane>
@@ -55,7 +75,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { computeQuality, getScorePage, getIssuePage, updateIssueStatus } from '@/api/quality'
+import { computeAllQuality, computeQuality, getScorePage, getIssuePage, updateIssueStatus } from '@/api/quality'
 
 const activeTab = ref('scores')
 const loading = ref(false)
@@ -85,13 +105,29 @@ async function loadIssues() {
   } finally { iLoading.value = false }
 }
 
-async function handleCompute() {
+/** Phase11: 批量计算所有机器人质量评分 */
+async function handleComputeAll() {
   computing.value = true
   try {
-    await computeQuality()
-    ElMessage.success('评分计算完成')
+    const res = await computeAllQuality()
+    const count = res.data || 0
+    ElMessage.success(`批量计算完成，共计算 ${count} 个机器人`)
     loadScores()
     loadIssues()
+  } catch (e) {
+    ElMessage.error('批量计算失败')
+  } finally { computing.value = false }
+}
+
+/** Phase11: 单个机器人重算 */
+async function handleComputeOne(robotId) {
+  computing.value = true
+  try {
+    await computeQuality(robotId)
+    ElMessage.success('评分计算完成')
+    loadScores()
+  } catch (e) {
+    ElMessage.error('计算失败')
   } finally { computing.value = false }
 }
 

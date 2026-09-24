@@ -11,7 +11,7 @@ import java.util.List;
  */
 public interface VideoService {
 
-    PageResult<VideoListVO> page(Long categoryId, String keyword, Integer pageNum, Integer pageSize);
+    PageResult<VideoListVO> page(Long categoryId, Long robotId, String keyword, Integer pageNum, Integer pageSize);
 
     VideoDetailVO detail(Long id, Long currentUserId);
 

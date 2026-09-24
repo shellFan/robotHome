@@ -127,3 +127,10 @@ export function publishCrawlerProducts() {
 export function publishCrawlerAll() {
   return request({ url: '/admin/crawler/publish/all', method: 'post' })
 }
+
+// ==================== Phase11: 健康检查 ====================
+
+/** Phase11: 采集器健康检查 */
+export function getCrawlerHealth() {
+  return request({ url: '/admin/crawler/health', method: 'get' })
+}

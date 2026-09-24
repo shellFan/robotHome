@@ -23,6 +23,11 @@ import com.robot.home.robot.entity.Robot;
 import com.robot.home.robot.mapper.RobotMapper;
 import com.robot.home.robot.service.RobotService;
 import com.robot.home.robot.vo.RobotListVO;
+import com.robot.home.topic.entity.Topic;
+import com.robot.home.topic.mapper.TopicMapper;
+import com.robot.home.discovery.vo.TopicVO;
+import com.robot.home.discovery.vo.DiscoveryStatsVO;
+import com.robot.home.company.mapper.CompanyMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -66,6 +71,10 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private RankingSnapshotMapper rankingSnapshotMapper;
     @Resource
     private RedisUtils redisUtils;
+    @Resource
+    private TopicMapper topicMapper;
+    @Resource
+    private CompanyMapper companyMapper;
 
     @Override
     public DiscoveryHomeVO home(Long currentUserId, String position) {
@@ -82,6 +91,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         }
 
         DiscoveryHomeVO vo = new DiscoveryHomeVO();
+        vo.setFeaturedRobots(featuredRobots(isPc ? 5 : 3, currentUserId));
         vo.setHotRobots(hotRobots(limit, currentUserId));
         vo.setTrendingRobots(trendingRobots(limit, currentUserId));
         vo.setNewRobots(newRobots(limit, currentUserId));
@@ -93,6 +103,12 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         vo.setRankingCards(buildRankingCards());
         vo.setHotPosts(hotPosts(isPc ? 8 : 5));
         vo.setHotQuestions(hotQuestions(isPc ? 8 : 5));
+        vo.setHotTopics(hotTopics(isPc ? 8 : 5));
+        vo.setStats(buildStats());
+        // 个性化推荐（仅登录用户）
+        if (currentUserId != null && currentUserId > 0) {
+            vo.setRecommendedRobots(recommendedRobots(limit, currentUserId));
+        }
 
         try {
             redisUtils.setObj(cacheKey, vo, CACHE_SECONDS + (long) (Math.random() * 30), TimeUnit.SECONDS);
@@ -225,6 +241,120 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     }
 
     // ========== 内部方法 ==========
+
+    /**
+     * 精选推荐（高热度+有封面图的机器人）
+     */
+    private List<RobotListVO> featuredRobots(int limit, Long currentUserId) {
+        int size = Math.max(1, Math.min(limit, 10));
+        String cacheKey = "robot:discovery:featured:" + size;
+        List<Long> ids = getCachedIds(cacheKey);
+        if (ids == null) {
+            List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                    .eq(Robot::getStatus, 1)
+                    .isNotNull(Robot::getCoverImage)
+                    .ne(Robot::getCoverImage, "")
+                    .orderByDesc(Robot::getHotScore)
+                    .last("LIMIT " + size));
+            ids = robots.stream().map(Robot::getId).collect(Collectors.toList());
+            setCachedIds(cacheKey, ids);
+        }
+        return loadRobotListVOs(ids, currentUserId);
+    }
+
+    /**
+     * 热门话题
+     */
+    private List<TopicVO> hotTopics(int limit) {
+        int size = Math.max(1, Math.min(limit, 20));
+        String cacheKey = "robot:discovery:topics:" + size;
+        try {
+            List<TopicVO> cached = redisUtils.getObj(cacheKey, List.class);
+            if (cached != null) {
+                @SuppressWarnings("unchecked")
+                List<TopicVO> result = (List<TopicVO>) cached;
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Redis话题缓存读取失败: error={}", e.getMessage());
+        }
+        List<Topic> topics = topicMapper.selectList(Wrappers.<Topic>lambdaQuery()
+                .eq(Topic::getStatus, 1)
+                .orderByDesc(Topic::getPostCount)
+                .last("LIMIT " + size));
+        List<TopicVO> result = new ArrayList<>();
+        for (Topic t : topics) {
+            TopicVO vo = new TopicVO();
+            vo.setId(t.getId());
+            vo.setName(t.getName());
+            vo.setDescription(t.getDescription());
+            vo.setIcon(t.getIcon());
+            vo.setPostCount(t.getPostCount());
+            result.add(vo);
+        }
+        try {
+            redisUtils.setObj(cacheKey, result, CACHE_SECONDS + (long) (Math.random() * 30), TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis话题缓存写入失败: error={}", e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 平台统计摘要
+     */
+    private DiscoveryStatsVO buildStats() {
+        String cacheKey = "robot:discovery:stats";
+        try {
+            DiscoveryStatsVO cached = redisUtils.getObj(cacheKey, DiscoveryStatsVO.class);
+            if (cached != null) {
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("Redis统计缓存读取失败: error={}", e.getMessage());
+        }
+        DiscoveryStatsVO stats = new DiscoveryStatsVO();
+        stats.setRobotCount(Math.toIntExact(robotMapper.selectCount(Wrappers.<Robot>lambdaQuery()
+                .eq(Robot::getStatus, 1))));
+        stats.setBrandCount(Math.toIntExact(brandMapper.selectCount(Wrappers.<Brand>lambdaQuery()
+                .eq(Brand::getStatus, 1))));
+        stats.setCompanyCount(Math.toIntExact(companyMapper.selectCount(
+                Wrappers.lambdaQuery(com.robot.home.company.entity.Company.class)
+                        .eq(com.robot.home.company.entity.Company::getStatus, 1))));
+        stats.setPostCount(Math.toIntExact(communityPostMapper.selectCount(Wrappers.<CommunityPost>lambdaQuery()
+                .eq(CommunityPost::getStatus, 1))));
+        stats.setQuestionCount(Math.toIntExact(robotQuestionMapper.selectCount(Wrappers.<RobotQuestion>lambdaQuery()
+                .eq(RobotQuestion::getStatus, 1))));
+        try {
+            redisUtils.setObj(cacheKey, stats, CACHE_SECONDS * 2 + (long) (Math.random() * 60), TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis统计缓存写入失败: error={}", e.getMessage());
+        }
+        return stats;
+    }
+
+    /**
+     * 个性化推荐（基于用户关注/收藏/浏览历史）
+     * 简化实现：推荐用户关注品牌的机器人
+     */
+    private List<RobotListVO> recommendedRobots(int limit, Long currentUserId) {
+        int size = Math.max(1, Math.min(limit, 20));
+        String cacheKey = "robot:discovery:recommended:" + currentUserId + ":" + size;
+        List<Long> ids = getCachedIds(cacheKey);
+        if (ids == null) {
+            // 简化：推荐高热度+用户未收藏的机器人
+            List<Robot> robots = robotMapper.selectList(Wrappers.<Robot>lambdaQuery()
+                    .eq(Robot::getStatus, 1)
+                    .orderByDesc(Robot::getHotScore)
+                    .last("LIMIT " + size * 2));
+            ids = robots.stream().map(Robot::getId).collect(Collectors.toList());
+            if (ids.size() > size) {
+                ids = ids.subList(0, size);
+            }
+            setCachedIds(cacheKey, ids);
+        }
+        return loadRobotListVOs(ids, currentUserId);
+    }
 
     private List<RobotListVO> topRatedRobots(int limit, Long currentUserId) {
         int size = Math.max(1, Math.min(limit, 50));

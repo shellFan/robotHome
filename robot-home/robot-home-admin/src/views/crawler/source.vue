@@ -23,6 +23,7 @@
       <div class="table-toolbar">
         <span class="page-title">数据源列表</span>
         <div>
+          <el-button @click="handleHealthCheck" type="success" plain>健康检查</el-button>
           <el-button @click="handleClearDedup" type="warning" plain>清除去重</el-button>
           <el-button type="primary" :icon="'Plus'" @click="openCreate">新增数据源</el-button>
         </div>
@@ -217,7 +218,8 @@ import {
   updateCrawlerSource,
   deleteCrawlerSource,
   toggleCrawlerSource,
-  clearCrawlerDedup
+  clearCrawlerDedup,
+  getCrawlerHealth
 } from '@/api/crawler'
 import { cleanParams } from '@/utils'
 
@@ -324,6 +326,21 @@ async function handleClearDedup() {
   try { await ElMessageBox.confirm('确认清除所有去重数据？重新抓取将处理已访问过的URL。', '提示', { type: 'warning' }) } catch { return }
   await clearCrawlerDedup()
   ElMessage.success('去重数据已清除')
+}
+
+/** Phase11: 采集器健康检查 */
+async function handleHealthCheck() {
+  try {
+    const res = await getCrawlerHealth()
+    const data = res.data || {}
+    if (data.collectorAvailable) {
+      ElMessage.success(`采集器可用 (HTTP ${data.httpStatus || 'OK'})`)
+    } else {
+      ElMessage.warning(`采集器不可用: ${data.error || '未知错误'}`)
+    }
+  } catch (e) {
+    ElMessage.error('健康检查请求失败')
+  }
 }
 
 onMounted(() => loadList())

@@ -24,10 +24,11 @@ public class VideoController {
 
     @GetMapping
     public Result<PageResult<VideoListVO>> page(@RequestParam(required = false) Long categoryId,
+                                                @RequestParam(required = false) Long robotId,
                                                 @RequestParam(required = false) String keyword,
                                                 @RequestParam(defaultValue = "1") Integer pageNum,
                                                 @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.success(videoService.page(categoryId, keyword, pageNum, pageSize));
+        return Result.success(videoService.page(categoryId, robotId, keyword, pageNum, pageSize));
     }
 
     @GetMapping("/categories")
