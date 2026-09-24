@@ -735,6 +735,62 @@ class RobotHomeIntegrationTest {
                 "信任等级值异常: " + trustLevel);
     }
 
+    @Test
+    @Order(33)
+    void test33_adminPermissionAndInterceptor() throws Exception {
+        // === 1. Anonymous → 非200 (AdminInterceptor拦截) ===
+        String anonDashboard = exec(get("/api/admin/dashboard/stats"));
+        assertFalse(anonDashboard.contains("\"code\":200"), "匿名用户不应访问admin接口");
+
+        String anonCrawler = exec(get("/api/admin/crawler/health"));
+        assertFalse(anonCrawler.contains("\"code\":200"), "匿名用户不应访问crawler health");
+
+        String anonProcurement = exec(get("/api/admin/procurement/inquiries"));
+        assertFalse(anonProcurement.contains("\"code\":200"), "匿名用户不应访问procurement admin");
+
+        String anonQuality = exec(get("/api/admin/quality/scores"));
+        assertFalse(anonQuality.contains("\"code\":200"), "匿名用户不应访问quality admin");
+
+        // === 2. Normal User → 非200 (AdminInterceptor: 非admin token) ===
+        String userAuth = "Bearer " + userToken;
+        String userDashboard = exec(get("/api/admin/dashboard/stats").header("Authorization", userAuth));
+        assertFalse(userDashboard.contains("\"code\":200"), "普通用户不应访问admin接口");
+
+        String userCrawler = exec(get("/api/admin/crawler/health").header("Authorization", userAuth));
+        assertFalse(userCrawler.contains("\"code\":200"), "普通用户不应访问crawler health");
+
+        String userProcurement = exec(get("/api/admin/procurement/inquiries").header("Authorization", userAuth));
+        assertFalse(userProcurement.contains("\"code\":200"), "普通用户不应访问procurement admin");
+
+        // === 3. Admin (super admin with ROLE_ADMIN) → 可访问所有admin端点 ===
+        String adminAuth = "Bearer " + adminToken;
+        // dashboard (已有@RequirePermission("dashboard:view"), ROLE_ADMIN bypasses)
+        JsonNode stats = getJson2("/api/admin/dashboard/stats", adminAuth);
+        assertNotNull(stats, "Admin应能访问dashboard");
+
+        // quality scores (已有@RequirePermission("quality:view"), ROLE_ADMIN bypasses)
+        String qualityScores = exec(get("/api/admin/quality/scores").header("Authorization", adminAuth));
+        JsonNode qualityRoot = objectMapper.readTree(qualityScores);
+        // PageResult直接返回, 无code字段, 有pageNum/pageSize/total/list
+        assertTrue(qualityRoot.has("pageNum") || qualityRoot.path("code").asInt() == 200,
+                "Admin应能访问quality admin: " + qualityScores);
+
+        // procurement inquiries (新增@RequirePermission("procurement:crm"), ROLE_ADMIN bypasses)
+        String procurementList = exec(get("/api/admin/procurement/inquiries").header("Authorization", adminAuth));
+        JsonNode procurementRoot = objectMapper.readTree(procurementList);
+        // PageResult直接返回或Result包装
+        assertTrue(procurementRoot.has("pageNum") || procurementRoot.path("code").asInt() == 200,
+                "Admin应能访问procurement admin: " + procurementList);
+
+        // crawler health (AdminInterceptor保护, 无@RequirePermission, 所有admin可访问)
+        String crawlerHealth = exec(get("/api/admin/crawler/health").header("Authorization", adminAuth));
+        JsonNode healthRoot = objectMapper.readTree(crawlerHealth);
+        // collector可能不可用返回503/502, 但不应是权限拒绝401/403
+        int healthCode = healthRoot.path("code").asInt();
+        assertTrue(healthCode == 200 || healthCode == 502 || healthCode == 503,
+                "Admin应能访问crawler health(非权限拒绝), 实际code=" + healthCode + ": " + crawlerHealth);
+    }
+
     private JsonNode getJson2(String url, String authorization) throws Exception {
         return data(exec(get(url).header("Authorization", authorization)));
     }

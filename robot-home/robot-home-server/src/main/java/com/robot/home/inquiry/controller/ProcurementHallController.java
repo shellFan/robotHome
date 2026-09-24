@@ -4,6 +4,7 @@ import com.robot.home.common.PageResult;
 import com.robot.home.inquiry.service.ProcurementHallService;
 import com.robot.home.inquiry.vo.InquiryVO;
 import com.robot.home.ratelimit.annotation.RateLimit;
+import com.robot.home.security.RequirePermission;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +38,7 @@ public class ProcurementHallController {
 
     /** 管理端: 采购需求列表 */
     @GetMapping("/api/admin/procurement/inquiries")
+    @RequirePermission("procurement:crm")
     public PageResult<InquiryVO> adminList(
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String requirementType,
@@ -47,12 +49,14 @@ public class ProcurementHallController {
 
     /** 管理端: 分配需求 */
     @PutMapping("/api/admin/procurement/inquiries/{id}/assign")
+    @RequirePermission("procurement:crm")
     public void assign(@PathVariable Long id, @RequestParam Long adminUserId) {
         procurementHallService.assign(id, adminUserId);
     }
 
     /** 管理端: 更新线索评分 */
     @PutMapping("/api/admin/procurement/inquiries/{id}/lead-score")
+    @RequirePermission("procurement:crm")
     public void updateLeadScore(@PathVariable Long id, @RequestParam Integer score) {
         procurementHallService.updateLeadScore(id, score);
     }
