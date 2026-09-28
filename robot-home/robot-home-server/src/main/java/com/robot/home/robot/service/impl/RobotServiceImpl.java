@@ -71,6 +71,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -966,5 +968,72 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
             return -1;
         }
         return bestIdx;
+    }
+
+    // ===== Phase12: Freshness新鲜度计算 =====
+
+    /** FRESH阈值：30天内 */
+    private static final long FRESH_DAYS = 30;
+    /** AGING阈值：90天内 */
+    private static final long AGING_DAYS = 90;
+
+    @Override
+    public void refreshFreshness(Long robotId) {
+        Robot robot = getById(robotId);
+        if (robot == null) {
+            return;
+        }
+        String freshness = computeFreshness(robot);
+        robot.setFreshness(freshness);
+        robot.setLastContentUpdateTime(LocalDateTime.now());
+        updateById(robot);
+        log.debug("Robot {} freshness updated: {}", robotId, freshness);
+    }
+
+    @Override
+    public int refreshAllFreshness() {
+        List<Robot> robots = list(Wrappers.<Robot>lambdaQuery()
+                .select(Robot::getId, Robot::getUpdateTime, Robot::getLastContentUpdateTime));
+        int updated = 0;
+        LocalDateTime now = LocalDateTime.now();
+        for (Robot robot : robots) {
+            String freshness = computeFreshness(robot);
+            // 仅更新有变化的
+            if (!freshness.equals(robot.getFreshness())) {
+                Robot update = new Robot();
+                update.setId(robot.getId());
+                update.setFreshness(freshness);
+                update.setLastContentUpdateTime(now);
+                updateById(update);
+                updated++;
+            }
+        }
+        log.info("Freshness refresh completed: {}/{} robots updated", updated, robots.size());
+        return updated;
+    }
+
+    /**
+     * 计算Robot新鲜度
+     * FRESH: 最后更新≤30天
+     * AGING: 最后更新31-90天
+     * STALE: 最后更新>90天或无更新时间
+     */
+    private String computeFreshness(Robot robot) {
+        LocalDateTime lastUpdate = robot.getLastContentUpdateTime();
+        // 回退到updateTime
+        if (lastUpdate == null) {
+            lastUpdate = robot.getUpdateTime();
+        }
+        if (lastUpdate == null) {
+            return "STALE";
+        }
+        long days = ChronoUnit.DAYS.between(lastUpdate, LocalDateTime.now());
+        if (days <= FRESH_DAYS) {
+            return "FRESH";
+        } else if (days <= AGING_DAYS) {
+            return "AGING";
+        } else {
+            return "STALE";
+        }
     }
 }

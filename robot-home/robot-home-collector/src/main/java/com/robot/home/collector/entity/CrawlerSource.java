@@ -178,4 +178,7 @@ public class CrawlerSource extends BaseEntity {
 
     /** 标签(逗号分隔) */
     private String tags;
+
+    /** 信任等级: OFFICIAL/TRUSTED/NORMAL */
+    private String trustLevel;
 }

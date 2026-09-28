@@ -52,9 +52,13 @@ public class TestDataSourceInitializer implements PriorityOrdered {
         run(TestSqlSupport.load("02_init_data.sql"));
         run(TestSqlSupport.load("03_demo_data.sql"));
         // 04_migration_source_url.sql 使用 MySQL PREPARE/EXECUTE 语法，H2 不兼容
+        // 04_crawler_schema.sql: 采集系统Schema(crawler_source/task/product/article等)
+        run(TestSqlSupport.load("04_crawler_schema.sql"));
         run(TestSqlSupport.load("05_brand_alias_and_indexes.sql"));
         run(TestSqlSupport.load("06_real_brands_companies.sql"));
         run(TestSqlSupport.load("07_real_robot_products.sql"));
+        // 09_crawler_sources.sql: 采集源扩展字段+初始数据(含health_status)
+        run(TestSqlSupport.load("09_crawler_sources.sql"));
         // 3. Phase6 Beta: 排行榜/行为事件/询价跟进/限流/搜索建议/用户反馈等新表
         run(TestSqlSupport.load("10_phase6_beta.sql"));
         // 4. Phase7: 内容/社区/增长等新表与新列
@@ -71,10 +75,16 @@ public class TestDataSourceInitializer implements PriorityOrdered {
         run(TestSqlSupport.load("14_phase10_ecosystem_growth.sql"));
         // 9. Phase10 H2测试数据（含H2兼容建表兜底 + 测试数据INSERT）
         runClasspath("sql/14_phase10_ecosystem_growth.sql");
-        // 10. 验证关键表
+        // 10. Phase12: Real Data & Content Growth
+        run(TestSqlSupport.load("15_phase12_real_data_growth.sql"));
+        // 10b. Phase12 H2测试数据（含H2兼容ALTER TABLE）
+        runClasspath("sql/15_phase12_real_data_growth.sql");
+        // 10c. Phase12: Data Quality Snapshot表
+        runClasspath("sql/16_phase12_data_quality_snapshot.sql");
+        // 11. 验证关键表
         verifyTables();
         initialized = true;
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10）");
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10 + phase12）");
     }
 
     private void verifyTables() {

@@ -77,4 +77,16 @@ public interface RobotService {
      * 分类树（缓存）
      */
     List<CategoryNodeVO> categoryTree();
+
+    /**
+     * Phase12: 刷新单个Robot的新鲜度
+     * FRESH(≤30d)/AGING(31-90d)/STALE(>90d)
+     */
+    void refreshFreshness(Long robotId);
+
+    /**
+     * Phase12: 批量刷新所有Robot的新鲜度
+     * @return 更新的行数
+     */
+    int refreshAllFreshness();
 }

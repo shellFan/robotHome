@@ -42,7 +42,7 @@ public class CrawlerProxyController {
 
     /** 允许代理的模块白名单，防止万能代理 */
     private static final Set<String> ALLOWED_MODULES = new HashSet<>(
-            Arrays.asList("source", "task", "content", "publish", "health"));
+            Arrays.asList("source", "task", "content", "publish", "health", "stats"));
 
     private final RestTemplate restTemplate;
 

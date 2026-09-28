@@ -94,12 +94,28 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
             data.setAuthor(extractResult.getAuthor());
             data.setPublishDate(extractResult.getPublishDate());
             data.setSourceUrl(fetchResult.getUrl());
-            data.setImages(extractResult.getImages());
             data.setTags(extractResult.getTags());
             data.setRawHtml(fetchResult.getHtml());
 
-            // 提取产品参数（如果有）
-            extractProductParams(fetchResult.getHtml(), data);
+            // Phase12: 提取封面图(og:image/twitter:image)并合并到images列表
+            Document fullDoc = Jsoup.parse(fetchResult.getHtml(), fetchResult.getUrl());
+            String coverImage = extractCoverImage(fullDoc);
+            List<String> images = new ArrayList<>();
+            if (StringUtils.isNotBlank(coverImage)) {
+                images.add(coverImage);
+                data.addMetadata("coverImage", coverImage);
+            }
+            if (extractResult.getImages() != null) {
+                for (String img : extractResult.getImages()) {
+                    if (!img.equals(coverImage)) {
+                        images.add(img);
+                    }
+                }
+            }
+            data.setImages(images);
+
+            // 提取产品参数（如果有），支持config配置CSS选择器
+            extractProductParams(fetchResult.getHtml(), data, config);
 
             return data;
         } catch (Exception e) {
@@ -204,13 +220,108 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
     }
 
     /**
-     * 提取产品参数表格
+     * 提取封面图：优先og:image，其次twitter:image，最后首图
+     * Phase12: 补齐A8 GAP，与WeChatAdapter对齐
+     * 
+     * URL规范化：相对路径/协议相对路径/绝对路径均resolve为完整URL
      */
-    private void extractProductParams(String html, ParsedData data) {
+    private String extractCoverImage(Document doc) {
+        // 1. Open Graph image (最可靠的封面图来源)
+        Element ogImage = doc.selectFirst("meta[property=og:image]");
+        if (ogImage != null) {
+            String content = ogImage.attr("content");
+            if (StringUtils.isNotBlank(content)) {
+                String resolved = resolveImageUrl(content, doc);
+                if (resolved != null) return resolved;
+            }
+        }
+
+        // 2. Twitter Card image
+        Element twitterImage = doc.selectFirst("meta[name=twitter:image], meta[property=twitter:image]");
+        if (twitterImage != null) {
+            String content = twitterImage.attr("content");
+            if (StringUtils.isNotBlank(content)) {
+                String resolved = resolveImageUrl(content, doc);
+                if (resolved != null) return resolved;
+            }
+        }
+
+        // 3. 文章首图（从主要内容区域）
+        Element firstImg = doc.selectFirst("article img[src], .content img[src], .article img[src], #content img[src]");
+        if (firstImg != null) {
+            String src = firstImg.absUrl("src");
+            if (StringUtils.isNotBlank(src) && !src.startsWith("data:")) {
+                return src;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 规范化图片URL：处理相对路径、协议相对路径
+     * /images/a.jpg → https://domain/images/a.jpg
+     * //cdn.example.com/a.jpg → https://cdn.example.com/a.jpg
+     * https://example.com/a.jpg → 原样返回
+     */
+    private String resolveImageUrl(String url, Document doc) {
+        if (StringUtils.isBlank(url)) return null;
+        url = url.trim();
+        // data: URI不作为封面图
+        if (url.startsWith("data:")) return null;
+        // 协议相对路径: //cdn.example.com/a.jpg
+        if (url.startsWith("//")) {
+            return "https:" + url;
+        }
+        // 绝对路径: https:// 或 http://
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        // 相对路径: /images/a.jpg 或 images/a.jpg
+        // 使用Document的baseUri来resolve
+        try {
+            String baseUri = doc.baseUri();
+            if (StringUtils.isNotBlank(baseUri)) {
+                if (url.startsWith("/")) {
+                    // 绝对路径相对域: /images/a.jpg → https://domain/images/a.jpg
+                    int schemeEnd = baseUri.indexOf("://");
+                    if (schemeEnd > 0) {
+                        int pathStart = baseUri.indexOf("/", schemeEnd + 3);
+                        String origin = pathStart > 0 ? baseUri.substring(0, pathStart) : baseUri;
+                        return origin + url;
+                    }
+                } else {
+                    // 相对路径相对当前页面: images/a.jpg → https://domain/path/images/a.jpg
+                    int lastSlash = baseUri.lastIndexOf("/");
+                    if (lastSlash > 0) {
+                        return baseUri.substring(0, lastSlash + 1) + url;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to resolve image URL: {} - {}", url, e.getMessage());
+        }
+        // 无法resolve时返回null(不返回未规范化URL)
+        return null;
+    }
+
+    /**
+     * 提取产品参数表格
+     * Phase12: 支持config配置CSS选择器(安全fallback)
+     */
+    private void extractProductParams(String html, ParsedData data, Map<String, String> config) {
         try {
             Document doc = Jsoup.parse(html);
-            // 查找参数表格
-            Elements tables = doc.select("table.spec, table.params, table.parameters, .spec-table, .param-table");
+
+            // 支持config自定义参数表格选择器(带安全fallback)
+            String paramTableSelector = config != null ? config.get("paramTableSelector") : null;
+            String paramListSelector = config != null ? config.get("paramListSelector") : null;
+
+            // 查找参数表格(安全选择: 无效选择器不crash)
+            String tableSelector = StringUtils.isNotBlank(paramTableSelector)
+                    ? paramTableSelector
+                    : "table.spec, table.params, table.parameters, .spec-table, .param-table";
+            Elements tables = safeSelect(doc, tableSelector);
             for (Element table : tables) {
                 Elements rows = table.select("tr");
                 for (Element row : rows) {
@@ -225,8 +336,11 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
                 }
             }
 
-            // 查找dl参数列表
-            Elements dls = doc.select("dl.spec, dl.params, .spec-list, .param-list");
+            // 查找dl参数列表(安全选择: 无效选择器不crash)
+            String dlSelector = StringUtils.isNotBlank(paramListSelector)
+                    ? paramListSelector
+                    : "dl.spec, dl.params, .spec-list, .param-list";
+            Elements dls = safeSelect(doc, dlSelector);
             for (Element dl : dls) {
                 Elements dts = dl.select("dt");
                 Elements dds = dl.select("dd");
@@ -240,6 +354,19 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
             }
         } catch (Exception e) {
             log.debug("Product param extraction failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 安全CSS选择: 无效选择器不crash，返回空Elements
+     */
+    private Elements safeSelect(Document doc, String selector) {
+        if (StringUtils.isBlank(selector)) return new Elements();
+        try {
+            return doc.select(selector);
+        } catch (Exception e) {
+            log.warn("Invalid CSS selector '{}': {}", selector, e.getMessage());
+            return new Elements();
         }
     }
 

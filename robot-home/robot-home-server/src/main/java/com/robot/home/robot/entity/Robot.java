@@ -85,6 +85,11 @@ public class Robot extends BaseEntity {
     /** Phase10: 待处理纠错数 */
     private Integer pendingCorrectionCount;
 
+    /** Phase12: 新鲜度 FRESH/AGING/STALE */
+    private String freshness;
+    /** Phase12: 最后内容更新时间(用于Freshness计算) */
+    private java.time.LocalDateTime lastContentUpdateTime;
+
     // --- 别名方法(兼容旧接口) ---
     public BigDecimal getPrice() { return guidePrice; }
     public String getImageUrl() { return coverImage; }

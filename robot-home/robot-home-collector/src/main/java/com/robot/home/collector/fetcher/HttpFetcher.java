@@ -164,6 +164,17 @@ public class HttpFetcher {
      * 抓取二进制内容（带自定义Headers）
      */
     public FetchResult fetchBinary(String url, Map<String, String> extraHeaders) {
+        // SSRF防护：校验URL安全性
+        try {
+            UrlSecurityUtil.validateUrl(url);
+        } catch (SecurityException e) {
+            log.warn("SSRF protection: fetchBinary blocked for URL '{}': {}", url, e.getMessage());
+            FetchResult result = new FetchResult();
+            result.setUrl(url);
+            result.setError("SSRF protection: " + e.getMessage());
+            return result;
+        }
+
         enforceRateLimit(url);
 
         long startTime = System.currentTimeMillis();

@@ -54,7 +54,11 @@ public class CollectorTestDataSourceInitializer {
         run(CollectorTestSqlSupport.load("02_init_data.sql"));
         log.info("H2 测试库：初始化数据加载完成");
 
-        log.info("H2 测试库初始化完成（主站schema + 采集器schema + Phase2迁移 + 初始化数据）");
+        // Phase12: crawler_source健康度字段+trust_level
+        run(CollectorTestSqlSupport.load("15_phase12_real_data_growth.sql"));
+        log.info("H2 测试库：Phase12迁移加载完成");
+
+        log.info("H2 测试库初始化完成（主站schema + 采集器schema + Phase2迁移 + 初始化数据 + Phase12迁移）");
     }
 
     /**
