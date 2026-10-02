@@ -14,6 +14,7 @@ import com.robot.home.common.PageResult;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.service.BizCounter;
 import com.robot.home.common.util.PageUtils;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.common.util.RedisUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
@@ -347,7 +348,7 @@ public class RobotServiceImpl extends ServiceImpl<RobotMapper, Robot> implements
         vo.setQuestionCount(robot.getQuestionCount());
         vo.setFollowCount(robot.getFollowCount());
         vo.setPendingCorrectionCount(robot.getPendingCorrectionCount());
-        vo.setSourceUrl(robot.getSourceUrl());
+        vo.setSourceUrl(XssUtils.sanitizeUrl(robot.getSourceUrl()));
         vo.setSourceName(robot.getSourceName());
         vo.setLastVerifiedTime(robot.getLastVerifiedTime());
 

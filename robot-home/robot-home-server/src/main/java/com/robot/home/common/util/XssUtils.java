@@ -77,4 +77,37 @@ public final class XssUtils {
         }
         return sb.toString();
     }
+
+    /**
+     * URL安全过滤：移除危险协议(javascript:/vbscript:/data:text/html)
+     * 用于前端href输出前的URL清洗，防止通过sourceUrl等字段注入XSS
+     *
+     * @param url 原始URL
+     * @return 安全的URL，危险协议返回空字符串
+     */
+    public static String sanitizeUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return url;
+        }
+        String trimmed = url.trim().toLowerCase();
+        // 移除前导空白和不可见字符后检测危险协议
+        // javascript: 协议 — 可执行任意JS
+        if (trimmed.startsWith("javascript:")) {
+            return "";
+        }
+        // vbscript: 协议 — IE专用，可执行VBScript
+        if (trimmed.startsWith("vbscript:")) {
+            return "";
+        }
+        // data:text/html — 可内嵌HTML+JS
+        if (trimmed.startsWith("data:") && trimmed.contains("text/html")) {
+            return "";
+        }
+        // 仅允许 http/https/ftp/mailto 协议
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")
+                && !trimmed.startsWith("ftp://") && !trimmed.startsWith("mailto:")) {
+            return "";
+        }
+        return url.trim();
+    }
 }

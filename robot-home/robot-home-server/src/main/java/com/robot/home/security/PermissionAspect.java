@@ -7,6 +7,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -22,6 +24,8 @@ import java.util.Set;
 @Aspect
 @Component
 public class PermissionAspect {
+
+    private static final Logger log = LoggerFactory.getLogger(PermissionAspect.class);
 
     @Resource
     private RedisUtils redisUtils;
@@ -85,16 +89,22 @@ public class PermissionAspect {
         if (userId == null) {
             return Collections.emptySet();
         }
-        String cached = redisUtils.get(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId);
-        if (cached == null) {
+        try {
+            String cached = redisUtils.get(Constants.CACHE_TOKEN_PREFIX + "perm:" + userId);
+            if (cached == null) {
+                return Collections.emptySet();
+            }
+            Set<String> set = new HashSet<>();
+            for (String p : cached.split(",")) {
+                if (!p.trim().isEmpty()) {
+                    set.add(p.trim());
+                }
+            }
+            return set;
+        } catch (Exception e) {
+            // Redis宕机时降级：返回空集合，权限校验将拒绝访问（安全优先）
+            log.warn("Redis权限缓存读取失败，降级返回空权限集: userId={}, error={}", userId, e.getMessage());
             return Collections.emptySet();
         }
-        Set<String> set = new HashSet<>();
-        for (String p : cached.split(",")) {
-            if (!p.trim().isEmpty()) {
-                set.add(p.trim());
-            }
-        }
-        return set;
     }
 }

@@ -124,7 +124,7 @@
           <div v-if="detail.robot.dataSource || detail.sourceName" class="detail-head__source">
             <el-icon><InfoFilled /></el-icon>
             <span>数据来源：</span>
-            <a v-if="detail.sourceUrl" :href="detail.sourceUrl" target="_blank" rel="noopener" class="detail-head__source-link">
+            <a v-if="detail.sourceUrl && isSafeUrl(detail.sourceUrl)" :href="detail.sourceUrl" target="_blank" rel="noopener noreferrer" class="detail-head__source-link">
               {{ detail.sourceName || dataSourceLabel }}
             </a>
             <span v-else>{{ detail.sourceName || dataSourceLabel }}</span>
@@ -717,6 +717,15 @@ function scorePercent (count) {
 function formatScore (val) {
   if (val == null) return '-'
   return Number(val).toFixed(1)
+}
+
+/** URL安全检查：阻止javascript:/vbscript:/data:等危险协议 */
+function isSafeUrl (url) {
+  if (!url) return false
+  const lower = url.trim().toLowerCase()
+  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:')) return false
+  if (!lower.startsWith('http://') && !lower.startsWith('https://') && !lower.startsWith('ftp://') && !lower.startsWith('mailto:')) return false
+  return true
 }
 
 // ========== Phase9: Related Robots (推荐) ==========
