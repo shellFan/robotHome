@@ -44,6 +44,12 @@ public final class CollectorTestSqlSupport {
             "`(\\w+)`\\(\\d+\\)");
     private static final Pattern DROP_TABLE = Pattern.compile(
             "DROP\\s+TABLE\\s+IF\\s+EXISTS", Pattern.CASE_INSENSITIVE);
+    /** CALL p_add_column('table','col','definition') → ALTER TABLE table ADD COLUMN IF NOT EXISTS col definition */
+    private static final Pattern CALL_ADD_COLUMN = Pattern.compile(
+            "CALL\\s+`?p_add_column`?\\s*\\(\\s*'([^']+)'\\s*,\\s*'([^']+)'\\s*,\\s*'(.+)'\\s*\\)", Pattern.CASE_INSENSITIVE);
+    /** CALL p_add_index('table','index','columns') → skip (H2 doesn't need) */
+    private static final Pattern CALL_ADD_INDEX = Pattern.compile(
+            "CALL\\s+`?p_add_index`?\\s*\\(", Pattern.CASE_INSENSITIVE);
 
     public static Path sqlDir() {
         Path dir = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
@@ -65,11 +71,31 @@ public final class CollectorTestSqlSupport {
     public static String translate(String sql) {
         List<String> out = new ArrayList<>();
         String currentTable = "";
+        boolean inProcedure = false;
         for (String line : sql.split("\n")) {
             String trimmed = line.trim();
 
             // 跳过注释和空行
             if (trimmed.startsWith("--") || trimmed.isEmpty()) {
+                continue;
+            }
+
+            // 跳过 DELIMITER $$ / DELIMITER ;
+            if (trimmed.toUpperCase().startsWith("DELIMITER")) {
+                continue;
+            }
+
+            // 跳过 CREATE PROCEDURE 块（从 CREATE PROCEDURE 到 END$$ 或 END;）
+            if (trimmed.toUpperCase().startsWith("CREATE PROCEDURE") || trimmed.toUpperCase().startsWith("DROP PROCEDURE")) {
+                inProcedure = true;
+            }
+            if (inProcedure) {
+                if (trimmed.equals("END$$") || trimmed.equals("END;") || trimmed.toUpperCase().startsWith("DROP PROCEDURE")) {
+                    // END$$/END; 结束存储过程体，DROP PROCEDURE 也跳过
+                    if (!trimmed.toUpperCase().startsWith("DROP PROCEDURE")) {
+                        inProcedure = false;
+                    }
+                }
                 continue;
             }
 
@@ -85,6 +111,36 @@ public final class CollectorTestSqlSupport {
 
             // 跳过 ALTER TABLE ADD INDEX/KEY（H2 不支持）
             if (ALTER_ADD_INDEX.matcher(trimmed).find()) {
+                continue;
+            }
+
+            // CALL p_add_column('table','col','def') → ALTER TABLE table ADD COLUMN IF NOT EXISTS col def
+            Matcher callAddCol = CALL_ADD_COLUMN.matcher(trimmed);
+            if (callAddCol.find()) {
+                String tbl = callAddCol.group(1);
+                String col = callAddCol.group(2);
+                String def = callAddCol.group(3);
+                // 移除尾部分号（在字符串内）
+                if (def.endsWith("';")) {
+                    def = def.substring(0, def.length() - 2);
+                }
+                // 处理 MySQL 双单引号转义 → 单引号
+                def = def.replace("''", "'");
+                // 移除 AFTER 子句（H2 不支持）
+                def = AFTER_CLAUSE.matcher(def).replaceAll("");
+                // 移除字段级 COMMENT
+                def = INLINE_COMMENT.matcher(def).replaceAll("");
+                // 类型映射
+                def = def.replaceAll("(?i)\\bLONGTEXT\\b", "CLOB");
+                def = def.replaceAll("(?i)\\bMEDIUMTEXT\\b", "CLOB");
+                def = def.replaceAll("(?i)\\bTEXT\\b", "CLOB");
+                def = def.replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP");
+                out.add("ALTER TABLE " + tbl + " ADD COLUMN IF NOT EXISTS " + col + " " + def + ";");
+                continue;
+            }
+
+            // CALL p_add_index → 跳过（H2 不需要额外索引迁移）
+            if (CALL_ADD_INDEX.matcher(trimmed).find()) {
                 continue;
             }
 

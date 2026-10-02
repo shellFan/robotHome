@@ -9,6 +9,7 @@ import com.robot.home.common.Constants;
 import com.robot.home.common.PageResult;
 import com.robot.home.common.util.PageUtils;
 import com.robot.home.common.util.RedisUtils;
+import com.robot.home.common.util.XssUtils;
 import com.robot.home.correction.entity.RobotParamCorrection;
 import com.robot.home.correction.mapper.RobotParamCorrectionMapper;
 import com.robot.home.robot.entity.Robot;
@@ -353,7 +354,7 @@ public class TrustServiceImpl implements TrustService {
         vo.setId(ds.getId());
         vo.setSourceType(ds.getSourceType());
         vo.setSourceName(ds.getSourceName());
-        vo.setSourceUrl(ds.getSourceUrl());
+        vo.setSourceUrl(XssUtils.sanitizeUrl(ds.getSourceUrl()));
         vo.setTrustWeight(ds.getTrustWeight());
         vo.setVerified(ds.getVerified());
         vo.setVerifiedTime(ds.getVerifiedTime());
