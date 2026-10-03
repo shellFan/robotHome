@@ -46,6 +46,10 @@ public class CollectorTestDataSourceInitializer {
         run(CollectorTestSqlSupport.load("04_crawler_schema.sql"));
         log.info("H2 测试库：采集器 schema 加载完成");
 
+        // Phase 5: 采集源扩展字段（rss_url, language, region, priority, tags, health_status）+ 采集源数据
+        run(CollectorTestSqlSupport.load("09_crawler_sources.sql"));
+        log.info("H2 测试库：采集源扩展字段加载完成");
+
         // Phase 2 迁移：新增字段（brand/company/robot）+ 新表（brand_alias, param_mapping, product_change）
         run(CollectorTestSqlSupport.load("05_brand_alias_and_indexes.sql"));
         log.info("H2 测试库：Phase 2 迁移加载完成");
@@ -58,7 +62,7 @@ public class CollectorTestDataSourceInitializer {
         run(CollectorTestSqlSupport.load("15_phase12_real_data_growth.sql"));
         log.info("H2 测试库：Phase12迁移加载完成");
 
-        log.info("H2 测试库初始化完成（主站schema + 采集器schema + Phase2迁移 + 初始化数据 + Phase12迁移）");
+        log.info("H2 测试库初始化完成（主站schema + 采集器schema + 采集源扩展 + Phase2迁移 + 初始化数据 + Phase12迁移）");
     }
 
     /**
