@@ -13,7 +13,7 @@ ALTER TABLE `crawler_source` ADD COLUMN `language` VARCHAR(16) DEFAULT 'zh' COMM
 ALTER TABLE `crawler_source` ADD COLUMN `region` VARCHAR(16) DEFAULT 'CN' COMMENT '地区: CN/US/JP/EU' AFTER `language`;
 ALTER TABLE `crawler_source` ADD COLUMN `priority` INT DEFAULT 5 COMMENT '优先级: 1-10' AFTER `region`;
 ALTER TABLE `crawler_source` ADD COLUMN `tags` VARCHAR(512) DEFAULT NULL COMMENT '标签(逗号分隔)' AFTER `priority`;
-ALTER TABLE `crawler_source` ADD COLUMN `health_status` VARCHAR(32) DEFAULT 'UNKNOWN' COMMENT '健康状态: UNKNOWN/HEALTHY/DEGRADED/DOWN' AFTER `tags`;
+ALTER TABLE `crawler_source` ADD COLUMN `health_status` VARCHAR(32) DEFAULT 'UNKNOWN' COMMENT '健康状态: UNKNOWN/HEALTHY/DEGRADED/FAILED/DISABLED' AFTER `tags`;
 
 -- ============================================================
 -- 中国人形机器人企业官网（10个）

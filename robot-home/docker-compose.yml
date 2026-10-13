@@ -27,6 +27,15 @@ services:
       - ./sql/05_brand_alias_and_indexes.sql:/docker-entrypoint-initdb.d/05_brand_alias_and_indexes.sql:ro
       - ./sql/06_real_brands_companies.sql:/docker-entrypoint-initdb.d/06_real_brands_companies.sql:ro
       - ./sql/07_real_robot_products.sql:/docker-entrypoint-initdb.d/07_real_robot_products.sql:ro
+      - ./sql/08_search_indexes.sql:/docker-entrypoint-initdb.d/08_search_indexes.sql:ro
+      - ./sql/09_crawler_sources.sql:/docker-entrypoint-initdb.d/09_crawler_sources.sql:ro
+      - ./sql/10_phase6_beta.sql:/docker-entrypoint-initdb.d/10_phase6_beta.sql:ro
+      - ./sql/11_phase7_content_community_growth.sql:/docker-entrypoint-initdb.d/11_phase7_content_community_growth.sql:ro
+      - ./sql/12_phase8_community_procurement_growth.sql:/docker-entrypoint-initdb.d/12_phase8_community_procurement_growth.sql:ro
+      - ./sql/13_phase9_product_growth.sql:/docker-entrypoint-initdb.d/13_phase9_product_growth.sql:ro
+      - ./sql/14_phase10_ecosystem_growth.sql:/docker-entrypoint-initdb.d/14_phase10_ecosystem_growth.sql:ro
+      - ./sql/15_phase12_real_data_growth.sql:/docker-entrypoint-initdb.d/15_phase12_real_data_growth.sql:ro
+      - ./sql/16_phase12_data_quality_snapshot.sql:/docker-entrypoint-initdb.d/16_phase12_data_quality_snapshot.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
       interval: 10s

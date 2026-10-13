@@ -90,14 +90,24 @@ public class WeChatAdapter implements CrawlerAdapter {
 
             // 提取封面图
             String coverImage = extractCoverImage(doc, fetchResult.getUrl());
-            if (coverImage != null && !coverImage.isEmpty()) {
-                data.addImage(coverImage);
-                data.addMetadata("coverImage", coverImage);
-            }
 
             // 提取文章中的图片
             List<String> images = extractImages(doc, fetchResult.getUrl());
-            data.setImages(images);
+
+            // Phase12: 修复setImages覆盖addImage的BUG - coverImage放首位
+            if (coverImage != null && !coverImage.isEmpty()) {
+                data.addMetadata("coverImage", coverImage);
+                List<String> mergedImages = new ArrayList<>();
+                mergedImages.add(coverImage);
+                for (String img : images) {
+                    if (!img.equals(coverImage)) {
+                        mergedImages.add(img);
+                    }
+                }
+                data.setImages(mergedImages);
+            } else {
+                data.setImages(images);
+            }
 
             // 标记为文章类型
             data.setType("ARTICLE");

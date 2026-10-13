@@ -77,4 +77,23 @@ public final class XssUtils {
         }
         return sb.toString();
     }
+
+    /**
+     * URL安全过滤 — 阻止javascript:/vbscript:/data:text/html等危险协议
+     * 仅允许http/https协议（适用于网页来源URL字段）
+     *
+     * @param url 原始URL
+     * @return 安全的URL，危险协议返回空字符串
+     */
+    public static String sanitizeUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return url;
+        }
+        String trimmed = url.trim().toLowerCase();
+        if (trimmed.startsWith("javascript:")) return "";
+        if (trimmed.startsWith("vbscript:")) return "";
+        if (trimmed.startsWith("data:") && trimmed.contains("text/html")) return "";
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return "";
+        return url.trim();
+    }
 }

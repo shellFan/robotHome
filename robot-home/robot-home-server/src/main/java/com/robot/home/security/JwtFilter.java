@@ -4,6 +4,8 @@ import com.robot.home.common.Constants;
 import com.robot.home.common.exception.AuthenticationException;
 import com.robot.home.common.util.JwtUtils;
 import com.robot.home.common.util.RedisUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -17,6 +19,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 @Component
 public class JwtFilter implements HandlerInterceptor {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     @Resource
     private JwtUtils jwtUtils;
@@ -39,9 +43,16 @@ public class JwtFilter implements HandlerInterceptor {
             return true;
         }
         try {
-            // 黑名单校验（登出后失效）
-            if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:" + token)) {
-                throw new AuthenticationException("登录已失效，请重新登录");
+            // 黑名单校验（登出后失效）— Redis宕机时降级：跳过黑名单检查，仅靠JWT签名+TTL验证
+            // tradeoff: fail-open避免全站认证瘫痪，JWT过期是主要防线，黑名单是补充防线
+            try {
+                if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:" + token)) {
+                    throw new AuthenticationException("登录已失效，请重新登录");
+                }
+            } catch (AuthenticationException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("Redis黑名单校验失败，降级跳过（JWT TTL仍有效）: error={}", e.getMessage());
             }
             Long userId = jwtUtils.getUserId(token);
             String username = jwtUtils.getUsername(token);

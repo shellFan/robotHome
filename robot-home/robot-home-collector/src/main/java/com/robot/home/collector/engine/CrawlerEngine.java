@@ -9,6 +9,7 @@ import com.robot.home.collector.fetcher.BrowserFetcher;
 import com.robot.home.collector.fetcher.FetchResult;
 import com.robot.home.collector.fetcher.HttpFetcher;
 import com.robot.home.collector.mapper.CrawlerErrorMapper;
+import com.robot.home.collector.mapper.CrawlerSourceMapper;
 import com.robot.home.collector.mapper.CrawlerTaskMapper;
 import com.robot.home.collector.parser.DateParser;
 import com.robot.home.collector.parser.PageClassifier;
@@ -105,6 +106,9 @@ public class CrawlerEngine {
 
     @Autowired
     private CrawlerErrorMapper errorMapper;
+
+    @Autowired
+    private CrawlerSourceMapper sourceMapper;
 
     @Value("${crawler.max-depth:3}")
     private int defaultMaxDepth;
@@ -287,6 +291,7 @@ public class CrawlerEngine {
         // 同步健康度到数据库
         try {
             sourceHealthMonitor.syncToEntity(source);
+            sourceMapper.updateById(source);
             log.info("Synced health status for source: {}", source.getSourceName());
         } catch (Exception e) {
             log.warn("Failed to sync health status: {}", e.getMessage());
