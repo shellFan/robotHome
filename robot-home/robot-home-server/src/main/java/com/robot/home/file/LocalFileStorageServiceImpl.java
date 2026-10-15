@@ -30,7 +30,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Override
     public String upload(byte[] data, String originalFilename, String module) {
         String ext = ext(originalFilename);
-        String relativeDir = StrUtil.join("/", module, LocalDate.now().format(DF));
+        String relativeDir = StrUtil.join("/", FileModulePolicy.normalize(module), LocalDate.now().format(DF));
         File dir = new File(uploadDir, relativeDir);
         if (!dir.exists()) {
             FileUtil.mkdir(dir);
@@ -48,7 +48,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Override
     public String upload(InputStream inputStream, String originalFilename, String module) {
         String ext = ext(originalFilename);
-        String relativeDir = StrUtil.join("/", module, LocalDate.now().format(DF));
+        String relativeDir = StrUtil.join("/", FileModulePolicy.normalize(module), LocalDate.now().format(DF));
         File dir = new File(uploadDir, relativeDir);
         if (!dir.exists()) {
             FileUtil.mkdir(dir);

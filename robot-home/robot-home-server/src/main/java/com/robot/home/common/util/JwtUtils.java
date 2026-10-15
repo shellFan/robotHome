@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * JWT 工具：生成与解析 Token
@@ -18,6 +19,10 @@ import java.util.Date;
 public class JwtUtils {
 
     private static final Logger log = LoggerFactory.getLogger(JwtUtils.class);
+
+    public static final String TOKEN_TYPE_USER = "user";
+    public static final String TOKEN_TYPE_ADMIN = "admin";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -62,9 +67,14 @@ public class JwtUtils {
      * @param type user / admin —— 用于区分前台用户与后台管理员
      */
     public String generateToken(Long userId, String username, String role, String type) {
+        return generateToken(userId, username, role, type, UUID.randomUUID().toString());
+    }
+
+    public String generateToken(Long userId, String username, String role, String type, String sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
         return Jwts.builder()
+                .setId(sessionId)
                 .setSubject(username)
                 .claim("uid", userId)
                 .claim("role", role)
@@ -79,27 +89,45 @@ public class JwtUtils {
      * 前台用户 Token
      */
     public String generateToken(Long userId, String username, String role) {
-        return generateToken(userId, username, role, "user");
+        return generateToken(userId, username, role, TOKEN_TYPE_USER);
     }
 
     /**
      * 后台管理员 Token
      */
     public String generateAdminToken(Long userId, String username, String roleCodes) {
-        return generateToken(userId, username, roleCodes, "admin");
+        return generateToken(userId, username, roleCodes, TOKEN_TYPE_ADMIN);
     }
 
     public String getType(String token) {
         return parseToken(token).get("type", String.class);
     }
 
+    public boolean isAccessToken(String token) {
+        String type = getType(token);
+        return TOKEN_TYPE_USER.equals(type) || TOKEN_TYPE_ADMIN.equals(type);
+    }
+
+    public boolean isRefreshToken(String token) {
+        return TOKEN_TYPE_REFRESH.equals(getType(token));
+    }
+
+    public String getSessionId(String token) {
+        return parseToken(token).getId();
+    }
+
     public String generateRefreshToken(Long userId, String username) {
+        return generateRefreshToken(userId, username, UUID.randomUUID().toString());
+    }
+
+    public String generateRefreshToken(Long userId, String username, String sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + refreshExpiration);
         return Jwts.builder()
+                .setId(sessionId)
                 .setSubject(username)
                 .claim("uid", userId)
-                .claim("type", "refresh")
+                .claim("type", TOKEN_TYPE_REFRESH)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(SignatureAlgorithm.HS256, secret)

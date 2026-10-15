@@ -8,6 +8,15 @@
     <view class="follow-btn {{followed?'followed':''}}" bindtap="toggleFollow">{{followed?'已关注':'关注'}} {{followCount}}</view>
   </view>
 
+  <!-- Phase13: 企业认领入口 -->
+  <view class="rh-card claim-banner" wx:if="{{company.verificationStatus !== 'VERIFIED' && company.verificationStatus !== 'PENDING'}}" bindtap="goClaim">
+    <text>这是您的企业？立即认领，获得官方认证标识</text>
+    <text class="claim-arrow">›</text>
+  </view>
+  <view class="rh-card claim-banner claimed" wx:if="{{company.verificationStatus === 'PENDING'}}">
+    <text>该企业认领审核中</text>
+  </view>
+
   <view class="rh-card" wx:if="{{company.intro || company.description}}">
     <view class="rh-section-title" style="margin-bottom:12rpx">简介</view>
     <text>{{company.intro || company.description}}</text>

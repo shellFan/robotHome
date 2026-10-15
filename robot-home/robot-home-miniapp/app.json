@@ -39,7 +39,10 @@
     "pages/selection/index",
     "pages/procurement/index",
     "pages/feed/feed",
-    "pages/follow/follow"
+    "pages/follow/follow",
+    "pages/workspace/index",
+    "pages/workspace/claim",
+    "pages/workspace/claims"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

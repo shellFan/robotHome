@@ -51,6 +51,10 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
             Constants.PIPELINE_WON, Constants.PIPELINE_LOST, Constants.PIPELINE_CLOSED
     );
 
+    private static final List<String> TERMINAL_PIPELINE_STATUSES = Arrays.asList(
+            Constants.PIPELINE_WON, Constants.PIPELINE_LOST, Constants.PIPELINE_CLOSED
+    );
+
     /** 合法的CRM跟进操作 */
     private static final List<String> VALID_CRM_ACTIONS = Arrays.asList(
             Constants.CRM_ACTION_STATUS_CHANGE, Constants.CRM_ACTION_FOLLOW_UP,
@@ -167,11 +171,27 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
             throw new BusinessException("采购需求不存在");
         }
 
-        String oldStatus = inquiry.getPipelineStatus();
-        inquiryMapper.update(null, new LambdaUpdateWrapper<Inquiry>()
-                .eq(Inquiry::getId, procurementId)
-                .set(Inquiry::getPipelineStatus, newPipelineStatus)
-                .set(Inquiry::getUpdateTime, LocalDateTime.now()));
+        String persistedOldStatus = inquiry.getPipelineStatus();
+        String oldStatus = persistedOldStatus == null ? Constants.PIPELINE_NEW : persistedOldStatus;
+        if (oldStatus.equals(newPipelineStatus)) {
+            return;
+        }
+        if (!canTransitionPipeline(oldStatus, newPipelineStatus)) {
+            throw new BusinessException("不允许的Pipeline状态变更: " + oldStatus + " -> " + newPipelineStatus);
+        }
+
+        LambdaUpdateWrapper<Inquiry> update = new LambdaUpdateWrapper<Inquiry>()
+                .eq(Inquiry::getId, procurementId);
+        if (persistedOldStatus == null) {
+            update.isNull(Inquiry::getPipelineStatus);
+        } else {
+            update.eq(Inquiry::getPipelineStatus, persistedOldStatus);
+        }
+        update.set(Inquiry::getPipelineStatus, newPipelineStatus)
+                .set(Inquiry::getUpdateTime, LocalDateTime.now());
+        if (inquiryMapper.update(null, update) != 1) {
+            throw new BusinessException("Pipeline状态已被其他操作修改，请刷新后重试");
+        }
 
         // 记录跟进
         ProcurementFollowRecord record = new ProcurementFollowRecord();
@@ -186,6 +206,15 @@ public class ProcurementCrmServiceImpl implements ProcurementCrmService {
         followRecordMapper.insert(record);
 
         log.info("Pipeline状态更新: procurementId={}, {} → {}, operator={}", procurementId, oldStatus, newPipelineStatus, operatorId);
+    }
+
+    private boolean canTransitionPipeline(String currentStatus, String newStatus) {
+        if (TERMINAL_PIPELINE_STATUSES.contains(currentStatus)) {
+            return false;
+        }
+        int currentIndex = VALID_PIPELINE_STATUSES.indexOf(currentStatus);
+        int newIndex = VALID_PIPELINE_STATUSES.indexOf(newStatus);
+        return currentIndex >= 0 && newIndex > currentIndex;
     }
 
     @Override

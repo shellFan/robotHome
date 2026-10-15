@@ -1,0 +1,22 @@
+.page { padding: 24rpx; }
+.state-card { padding: 100rpx 24rpx; text-align: center; color: #86909c; }
+.error-state { color: #f5222d; }
+.retry-btn { margin-top: 24rpx; }
+.company-card { background: linear-gradient(135deg, #e8f3ff, #f7fbff); }
+.eyebrow { color: #1668dc; font-size: 24rpx; margin-bottom: 10rpx; }
+.company-name { color: #1f2329; font-size: 36rpx; font-weight: 600; }
+.status-card { text-align: center; padding: 48rpx 32rpx; }
+.status-title { color: #1f2329; font-size: 32rpx; font-weight: 600; }
+.status-desc { color: #86909c; font-size: 26rpx; line-height: 1.6; margin: 16rpx 0 32rpx; }
+.history-btn { width: 100%; }
+.form { padding: 28rpx 24rpx; }
+.form-title { font-size: 32rpx; font-weight: 600; color: #1f2329; }
+.form-tip { color: #86909c; font-size: 24rpx; margin: 8rpx 0 16rpx; }
+.form-item { display: flex; align-items: center; padding: 22rpx 0; border-bottom: 1rpx solid #f2f3f5; }
+.form-item--column { align-items: flex-start; flex-direction: column; }
+.form-label { width: 180rpx; color: #4e5969; flex-shrink: 0; }
+.form-input { flex: 1; font-size: 28rpx; }
+.form-textarea { box-sizing: border-box; width: 100%; min-height: 180rpx; margin-top: 18rpx; padding: 18rpx; border-radius: 10rpx; background: #f7f8fa; font-size: 28rpx; }
+.proof-input { min-height: 140rpx; }
+.submit-btn { margin-top: 32rpx; }
+.submit-btn[disabled] { opacity: .65; }

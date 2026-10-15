@@ -41,6 +41,7 @@ Page({
   goHistory() { this.needLogin('/pages/mine/history') },
   goPosts() { this.needLogin('/pages/mine/posts') },
   goInquiries() { this.needLogin('/pages/mine/inquiries') },
+  goEnterprise() { this.needLogin('/pages/workspace/index') },
   goSettings() { wx.navigateTo({ url: '/pages/mine/settings' }) },
   goFeedback() { wx.navigateTo({ url: '/pages/feedback/feedback' }) },
   needLogin(url) {

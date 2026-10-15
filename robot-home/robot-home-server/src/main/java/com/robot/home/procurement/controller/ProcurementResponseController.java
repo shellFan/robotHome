@@ -56,7 +56,7 @@ public class ProcurementResponseController {
             @PathVariable Long procurementId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        Long currentUserId = SecurityUtils.currentUserId();
+        Long currentUserId = SecurityUtils.requireUserId();
         return Result.success(procurementResponseService.listByProcurement(procurementId, currentUserId, pageNum, pageSize));
     }
 

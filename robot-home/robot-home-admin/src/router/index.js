@@ -97,6 +97,31 @@ export const defaultMenus = [
     component: () => import('@/views/company/index.vue')
   },
   {
+    path: '/company-review',
+    name: 'CompanyReview',
+    menuName: '企业审核',
+    icon: 'DocumentChecked',
+    redirect: '/company-review/claims',
+    children: [
+      {
+        path: 'claims',
+        name: 'CompanyClaimReview',
+        menuName: '企业认领审核',
+        icon: 'CircleCheck',
+        permission: 'company:claim:review',
+        component: () => import('@/views/company/claim-review.vue')
+      },
+      {
+        path: 'profile-changes',
+        name: 'CompanyProfileChangeReview',
+        menuName: '资料变更审核',
+        icon: 'EditPen',
+        permission: 'company:profile:review',
+        component: () => import('@/views/company/profile-change-review.vue')
+      }
+    ]
+  },
+  {
     path: '/article',
     name: 'Article',
     menuName: '资讯管理',
@@ -435,7 +460,7 @@ function toRoutes(menus, parentPath = '') {
         path: fullPath,
         name: item.name,
         component: item.component,
-        meta: { title: item.menuName, icon: item.icon }
+        meta: { title: item.menuName, icon: item.icon, permission: item.permission }
       })
     }
   })
@@ -495,6 +520,11 @@ router.beforeEach(async (to, from, next) => {
       next({ path: '/login' })
       return
     }
+  }
+  if (to.meta && to.meta.permission && !userStore.hasPermission(to.meta.permission)) {
+    ElMessage.error('无权访问该页面')
+    next({ path: '/dashboard' })
+    return
   }
   next()
 })

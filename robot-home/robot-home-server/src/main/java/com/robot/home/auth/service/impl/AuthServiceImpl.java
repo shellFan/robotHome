@@ -25,6 +25,7 @@ import javax.annotation.Resource;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -45,6 +46,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
+
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long jwtRefreshExpiration;
 
     @Value("${robot.sms-dev-mode:false}")
     private boolean smsDevMode;
@@ -78,9 +82,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private Map<String, Object> buildTokenResult(User user) {
+        return buildTokenResult(user, UUID.randomUUID().toString());
+    }
+
+    private Map<String, Object> buildTokenResult(User user, String sessionId) {
         String role = Constants.ROLE_USER;
-        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), role);
-        String refreshToken = jwtUtils.generateRefreshToken(user.getId(), user.getUsername());
+        String token = jwtUtils.generateToken(
+                user.getId(), user.getUsername(), role, JwtUtils.TOKEN_TYPE_USER, sessionId);
+        String refreshToken = jwtUtils.generateRefreshToken(user.getId(), user.getUsername(), sessionId);
         // 登录成功写入 Redis（用于登出黑名单反向校验 / 会话管理），Redis故障时降级放行
         safeSet(Constants.CACHE_TOKEN_PREFIX + user.getId(), token, jwtExpiration / 1000, TimeUnit.SECONDS);
         Map<String, Object> result = new HashMap<>(8);
@@ -311,13 +320,25 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException("refreshToken 不能为空");
         }
         try {
+            if (!jwtUtils.isRefreshToken(refreshToken)) {
+                throw new AuthenticationException("refreshToken 类型无效");
+            }
+            String sessionId = jwtUtils.getSessionId(refreshToken);
+            if (StrUtil.isBlank(sessionId)) {
+                throw new AuthenticationException("refreshToken 会话无效");
+            }
+            if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:" + refreshToken)) {
+                throw new AuthenticationException("refreshToken 已失效");
+            }
+            if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:session:" + sessionId)) {
+                throw new AuthenticationException("refreshToken 已失效");
+            }
             Long userId = jwtUtils.getUserId(refreshToken);
-            String username = jwtUtils.getUsername(refreshToken);
             User user = userService.getById(userId);
             if (user == null) {
                 throw new AuthenticationException("用户不存在");
             }
-            return buildTokenResult(user);
+            return buildTokenResult(user, sessionId);
         } catch (Exception e) {
             throw new AuthenticationException("refreshToken 无效或已过期");
         }
@@ -329,9 +350,16 @@ public class AuthServiceImpl implements AuthService {
             return;
         }
         try {
-            long remain = jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
+            io.jsonwebtoken.Claims claims = jwtUtils.parseToken(token);
+            long remain = claims.getExpiration().getTime() - System.currentTimeMillis();
             if (remain > 0) {
                 redisUtils.set(Constants.CACHE_TOKEN_PREFIX + "black:" + token, "1", remain / 1000, TimeUnit.SECONDS);
+                String sessionId = claims.getId();
+                if (StrUtil.isNotBlank(sessionId)) {
+                    long sessionRemain = Math.max(remain, jwtRefreshExpiration);
+                    redisUtils.set(Constants.CACHE_TOKEN_PREFIX + "black:session:" + sessionId,
+                            "1", sessionRemain / 1000, TimeUnit.SECONDS);
+                }
             }
         } catch (Exception e) {
             log.warn("logout处理异常, token可能已失效: {}", e.getMessage());

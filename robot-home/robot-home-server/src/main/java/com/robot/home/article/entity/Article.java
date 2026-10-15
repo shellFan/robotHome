@@ -19,6 +19,8 @@ public class Article extends BaseEntity {
     private Long robotId;
     private Long brandId;
     private String title;
+    /** Phase13: SEO slug */
+    private String slug;
     private String cover;
     private String summary;
     private String content;

@@ -16,7 +16,9 @@ import com.robot.home.company.service.CompanyMemberService;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
 import com.robot.home.procurement.dto.ProcurementResponseDTO;
+import com.robot.home.procurement.entity.ProcurementFollowRecord;
 import com.robot.home.procurement.entity.ProcurementResponse;
+import com.robot.home.procurement.mapper.ProcurementFollowRecordMapper;
 import com.robot.home.procurement.mapper.ProcurementResponseMapper;
 import com.robot.home.procurement.service.ProcurementResponseService;
 import com.robot.home.procurement.vo.ProcurementResponseVO;
@@ -52,11 +54,13 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
 
     /** 终态状态，不可再变更 */
     private static final Set<String> TERMINAL_STATUSES = new HashSet<>(Arrays.asList(
-            Constants.RESPONSE_WITHDRAWN, Constants.RESPONSE_REJECTED
+            Constants.RESPONSE_ACCEPTED, Constants.RESPONSE_REJECTED, Constants.RESPONSE_WITHDRAWN
     ));
 
     @Resource
     private ProcurementResponseMapper responseMapper;
+    @Resource
+    private ProcurementFollowRecordMapper followRecordMapper;
     @Resource
     private InquiryMapper inquiryMapper;
     @Resource
@@ -80,10 +84,18 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         if (company == null) {
             throw new BusinessException("企业不存在");
         }
+        companyMemberService.requireActiveMember(userId, companyId);
+        requireVerifiedActiveCompany(company);
 
         // 3. 校验不能响应自己的需求（如果需求发布者是企业用户）
         if (inquiry.getUserId() != null && inquiry.getUserId().equals(userId)) {
             throw new BusinessException("不能响应自己发布的采购需求");
+        }
+
+        // 以采购需求+企业为业务幂等键，重试返回已有资源且不重复推进CRM。
+        ProcurementResponse existing = findResponse(dto.getProcurementId(), companyId);
+        if (existing != null) {
+            return responseWithCompany(existing, company);
         }
 
         // 4. XSS防护
@@ -111,13 +123,20 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         try {
             responseMapper.insert(response);
         } catch (DuplicateKeyException e) {
-            // 唯一索引 uk_procurement_company 防重复响应
-            throw new BusinessException("您的企业已响应过该采购需求，不可重复提交");
+            // 并发重试由唯一索引收敛，返回已有资源。
+            ProcurementResponse concurrent = findResponse(dto.getProcurementId(), companyId);
+            if (concurrent != null) {
+                return responseWithCompany(concurrent, company);
+            }
+            throw e;
         }
 
         log.info("企业提交采购响应: procurementId={}, companyId={}, userId={}", dto.getProcurementId(), companyId, userId);
 
-        // 7. 通知采购需求发布者
+        // 7. 同一事务内推进CRM并写入一条可追溯记录。
+        advancePipelineAndRecordResponse(inquiry, response, userId, company.getName());
+
+        // 8. 通知采购需求发布者
         try {
             if (inquiry.getUserId() != null) {
                 notificationService.sendNotification(
@@ -132,11 +151,8 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
             log.warn("采购响应通知失败(不影响响应提交): procurementId={}, error={}", dto.getProcurementId(), e.getMessage());
         }
 
-        // 8. 返回VO
-        ProcurementResponseVO vo = toResponseVO(response, true);
-        vo.setCompanyName(company.getName());
-        vo.setCompanyLogo(company.getLogo());
-        return vo;
+        // 9. 返回VO
+        return responseWithCompany(response, company);
     }
 
     @Override
@@ -152,10 +168,22 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
                         .ne(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
                         .orderByDesc(ProcurementResponse::getCreateTime));
 
-        // 获取需求发布者，用于隐私判断
+        // 只有需求发布者、后台管理员或响应企业的有效成员可查看列表。
         Inquiry inquiry = inquiryMapper.selectById(procurementId);
-        Long publisherId = inquiry != null ? inquiry.getUserId() : null;
+        if (inquiry == null) {
+            throw new BusinessException("采购需求不存在");
+        }
+        Long publisherId = inquiry.getUserId();
         boolean isAdmin = isAdminUser();
+        Set<Long> myVerifiedCompanyIds = verifiedCompanyIdsForUser(currentUserId);
+        boolean isPublisher = currentUserId != null && currentUserId.equals(publisherId);
+        boolean isRespondingMember = !myVerifiedCompanyIds.isEmpty()
+                && responseMapper.selectCount(Wrappers.<ProcurementResponse>lambdaQuery()
+                .eq(ProcurementResponse::getProcurementId, procurementId)
+                .in(ProcurementResponse::getCompanyId, myVerifiedCompanyIds)) > 0;
+        if (!isPublisher && !isAdmin && !isRespondingMember) {
+            throw new BusinessException("无权查看该采购需求的响应");
+        }
 
         // 批量查询企业信息（避免N+1）
         Set<Long> companyIds = result.getRecords().stream()
@@ -167,8 +195,7 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         List<ProcurementResponseVO> voList = result.getRecords().stream()
                 .map(r -> {
                     boolean isMine = currentUserId != null && currentUserId.equals(r.getContactUserId());
-                    boolean isPublisher = currentUserId != null && currentUserId.equals(publisherId);
-                    boolean canViewDetail = isMine || isPublisher || isAdmin;
+                    boolean canViewDetail = isPublisher || isAdmin || myVerifiedCompanyIds.contains(r.getCompanyId());
 
                     ProcurementResponseVO vo = toResponseVO(r, canViewDetail);
                     Company company = companyMap.get(r.getCompanyId());
@@ -211,7 +238,7 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
 
         IPage<ProcurementResponse> result;
         if (companyId != null) {
-            // 查指定企业的响应（Controller已校验企业成员身份）
+            requireVerifiedActiveMember(userId, companyId);
             result = responseMapper.selectPage(page,
                     Wrappers.<ProcurementResponse>lambdaQuery()
                             .eq(ProcurementResponse::getCompanyId, companyId)
@@ -219,9 +246,7 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
                             .orderByDesc(ProcurementResponse::getCreateTime));
         } else {
             // 查用户所有所属企业的响应
-            List<Long> myCompanyIds = companyMemberService.listActiveByUserId(userId).stream()
-                    .map(com.robot.home.company.entity.CompanyMember::getCompanyId)
-                    .collect(Collectors.toList());
+            List<Long> myCompanyIds = new java.util.ArrayList<>(verifiedCompanyIdsForUser(userId));
             if (myCompanyIds.isEmpty()) {
                 return PageResult.of(pn, ps, 0, new java.util.ArrayList<>());
             }
@@ -265,13 +290,27 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
 
         // 终态不可变更
         if (TERMINAL_STATUSES.contains(response.getStatus())) {
+            if (response.getStatus().equals(newStatus)) {
+                return;
+            }
             throw new BusinessException("当前响应状态不可变更: " + response.getStatus());
         }
 
-        responseMapper.update(null, Wrappers.<ProcurementResponse>lambdaUpdate()
+        if (response.getStatus().equals(newStatus)) {
+            return;
+        }
+        if (!canTransitionResponse(response.getStatus(), newStatus)) {
+            throw new BusinessException("不允许的响应状态变更: " + response.getStatus() + " -> " + newStatus);
+        }
+
+        int updated = responseMapper.update(null, Wrappers.<ProcurementResponse>lambdaUpdate()
                 .eq(ProcurementResponse::getId, responseId)
+                .eq(ProcurementResponse::getStatus, response.getStatus())
                 .set(ProcurementResponse::getStatus, newStatus)
                 .set(ProcurementResponse::getUpdateTime, LocalDateTime.now()));
+        if (updated != 1) {
+            throw new BusinessException("响应状态已被其他操作修改，请刷新后重试");
+        }
 
         log.info("响应状态更新: responseId={}, {} → {}, operator={}", responseId, response.getStatus(), newStatus, userId);
     }
@@ -288,21 +327,25 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         if (!userId.equals(response.getContactUserId())) {
             throw new BusinessException("只能撤回自己提交的响应");
         }
+        requireVerifiedActiveMember(userId, response.getCompanyId());
 
         // 已撤回的不可重复撤回
         if (Constants.RESPONSE_WITHDRAWN.equals(response.getStatus())) {
             throw new BusinessException("该响应已撤回");
         }
 
-        // 已接受的不允许撤回
-        if (Constants.RESPONSE_ACCEPTED.equals(response.getStatus())) {
-            throw new BusinessException("已接受的响应不可撤回");
+        if (TERMINAL_STATUSES.contains(response.getStatus())) {
+            throw new BusinessException("当前响应状态不可撤回: " + response.getStatus());
         }
 
-        responseMapper.update(null, Wrappers.<ProcurementResponse>lambdaUpdate()
+        int updated = responseMapper.update(null, Wrappers.<ProcurementResponse>lambdaUpdate()
                 .eq(ProcurementResponse::getId, responseId)
+                .eq(ProcurementResponse::getStatus, response.getStatus())
                 .set(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
                 .set(ProcurementResponse::getUpdateTime, LocalDateTime.now()));
+        if (updated != 1) {
+            throw new BusinessException("响应状态已被其他操作修改，请刷新后重试");
+        }
 
         log.info("响应撤回: responseId={}, userId={}", responseId, userId);
     }
@@ -318,15 +361,15 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         vo.setId(response.getId());
         vo.setProcurementId(response.getProcurementId());
         vo.setCompanyId(response.getCompanyId());
-        vo.setContactUserId(response.getContactUserId());
         vo.setStatus(response.getStatus());
-        vo.setRobotIds(response.getRobotIds());
         vo.setCreateTime(response.getCreateTime());
         vo.setUpdateTime(response.getUpdateTime());
         vo.setCanViewDetail(canViewDetail);
 
         if (canViewDetail) {
             // 授权用户可查看完整信息
+            vo.setContactUserId(response.getContactUserId());
+            vo.setRobotIds(response.getRobotIds());
             vo.setSolution(response.getSolution());
             vo.setPriceDescription(response.getPriceDescription());
             vo.setDeliveryDescription(response.getDeliveryDescription());
@@ -351,6 +394,114 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
             return value;
         }
         return value.substring(0, maxLen) + "...";
+    }
+
+    private ProcurementResponse findResponse(Long procurementId, Long companyId) {
+        return responseMapper.selectOne(Wrappers.<ProcurementResponse>lambdaQuery()
+                .eq(ProcurementResponse::getProcurementId, procurementId)
+                .eq(ProcurementResponse::getCompanyId, companyId));
+    }
+
+    private ProcurementResponseVO responseWithCompany(ProcurementResponse response, Company company) {
+        ProcurementResponseVO vo = toResponseVO(response, true);
+        vo.setCompanyName(company.getName());
+        vo.setCompanyLogo(company.getLogo());
+        return vo;
+    }
+
+    private void requireVerifiedActiveMember(Long userId, Long companyId) {
+        companyMemberService.requireActiveMember(userId, companyId);
+        Company company = companyMapper.selectById(companyId);
+        if (company == null) {
+            throw new BusinessException("企业不存在");
+        }
+        requireVerifiedActiveCompany(company);
+    }
+
+    private void requireVerifiedActiveCompany(Company company) {
+        if (!Integer.valueOf(1).equals(company.getStatus())
+                || !"VERIFIED".equals(company.getVerificationStatus())) {
+            throw new BusinessException("只有正常且已认证的企业可操作采购响应");
+        }
+    }
+
+    private Set<Long> verifiedCompanyIdsForUser(Long userId) {
+        if (userId == null) {
+            return new HashSet<>();
+        }
+        List<Long> companyIds = companyMemberService.listActiveByUserId(userId).stream()
+                .map(com.robot.home.company.entity.CompanyMember::getCompanyId)
+                .collect(Collectors.toList());
+        if (companyIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        return companyMapper.selectBatchIds(companyIds).stream()
+                .filter(c -> Integer.valueOf(1).equals(c.getStatus()))
+                .filter(c -> "VERIFIED".equals(c.getVerificationStatus()))
+                .map(Company::getId)
+                .collect(Collectors.toSet());
+    }
+
+    private void advancePipelineAndRecordResponse(Inquiry inquiry, ProcurementResponse response,
+                                                   Long operatorId, String operatorName) {
+        String oldStatus = inquiry.getPipelineStatus() == null ? Constants.PIPELINE_NEW : inquiry.getPipelineStatus();
+        if (Constants.PIPELINE_WON.equals(oldStatus) || Constants.PIPELINE_LOST.equals(oldStatus)
+                || Constants.PIPELINE_CLOSED.equals(oldStatus)) {
+            throw new BusinessException("采购线索已进入终态，不可提交新响应");
+        }
+
+        boolean shouldAdvance = Constants.PIPELINE_NEW.equals(oldStatus)
+                || Constants.PIPELINE_CONTACTED.equals(oldStatus)
+                || Constants.PIPELINE_QUALIFIED.equals(oldStatus)
+                || Constants.PIPELINE_MATCHING.equals(oldStatus);
+        String newStatus = oldStatus;
+        if (shouldAdvance) {
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Inquiry> update =
+                    Wrappers.<Inquiry>lambdaUpdate().eq(Inquiry::getId, inquiry.getId());
+            if (inquiry.getPipelineStatus() == null) {
+                update.isNull(Inquiry::getPipelineStatus);
+            } else {
+                update.eq(Inquiry::getPipelineStatus, inquiry.getPipelineStatus());
+            }
+            update.set(Inquiry::getPipelineStatus, Constants.PIPELINE_RESPONDED)
+                    .set(Inquiry::getUpdateTime, LocalDateTime.now());
+            if (inquiryMapper.update(null, update) != 1) {
+                throw new BusinessException("CRM状态已被其他操作修改，请重试");
+            }
+            newStatus = Constants.PIPELINE_RESPONDED;
+        }
+
+        ProcurementFollowRecord record = new ProcurementFollowRecord();
+        record.setProcurementId(inquiry.getId());
+        record.setOperatorId(operatorId);
+        record.setOperatorName(operatorName);
+        record.setAction(shouldAdvance ? Constants.CRM_ACTION_STATUS_CHANGE : Constants.CRM_ACTION_FOLLOW_UP);
+        record.setContent(shouldAdvance
+                ? "企业响应触发Pipeline状态变更: " + oldStatus + " -> " + newStatus
+                : "企业提交采购响应: responseId=" + response.getId());
+        record.setOldStatus(oldStatus);
+        record.setNewStatus(newStatus);
+        record.setCreateTime(LocalDateTime.now());
+        followRecordMapper.insert(record);
+    }
+
+    private boolean canTransitionResponse(String currentStatus, String newStatus) {
+        if (Constants.RESPONSE_SUBMITTED.equals(currentStatus)) {
+            return Constants.RESPONSE_VIEWED.equals(newStatus)
+                    || Constants.RESPONSE_CONTACTED.equals(newStatus)
+                    || Constants.RESPONSE_ACCEPTED.equals(newStatus)
+                    || Constants.RESPONSE_REJECTED.equals(newStatus);
+        }
+        if (Constants.RESPONSE_VIEWED.equals(currentStatus)) {
+            return Constants.RESPONSE_CONTACTED.equals(newStatus)
+                    || Constants.RESPONSE_ACCEPTED.equals(newStatus)
+                    || Constants.RESPONSE_REJECTED.equals(newStatus);
+        }
+        if (Constants.RESPONSE_CONTACTED.equals(currentStatus)) {
+            return Constants.RESPONSE_ACCEPTED.equals(newStatus)
+                    || Constants.RESPONSE_REJECTED.equals(newStatus);
+        }
+        return false;
     }
 
     /**

@@ -61,6 +61,12 @@ public class CompanyMemberServiceImpl implements CompanyMemberService {
 
     @Override
     public void addMember(Long companyId, Long userId, String role) {
+        CompanyMember existing = findMember(companyId, userId);
+        if (existing != null) {
+            activateMember(existing, role);
+            return;
+        }
+
         CompanyMember member = new CompanyMember();
         member.setCompanyId(companyId);
         member.setUserId(userId);
@@ -70,8 +76,29 @@ public class CompanyMemberServiceImpl implements CompanyMemberService {
             companyMemberMapper.insert(member);
             log.info("添加企业成员: companyId={}, userId={}, role={}", companyId, userId, role);
         } catch (DuplicateKeyException e) {
-            // uk_company_user 唯一约束，已存在则忽略
-            log.info("企业成员已存在: companyId={}, userId={}", companyId, userId);
+            // Concurrent insert or historical disabled membership: preserve one row and activate it.
+            CompanyMember concurrent = findMember(companyId, userId);
+            if (concurrent == null) {
+                throw e;
+            }
+            activateMember(concurrent, role);
         }
+    }
+
+    private CompanyMember findMember(Long companyId, Long userId) {
+        return companyMemberMapper.selectOne(Wrappers.<CompanyMember>lambdaQuery()
+                .eq(CompanyMember::getCompanyId, companyId)
+                .eq(CompanyMember::getUserId, userId)
+                .last("LIMIT 1"));
+    }
+
+    private void activateMember(CompanyMember member, String role) {
+        member.setStatus(1);
+        if ("OWNER".equals(role)) {
+            member.setRole("OWNER");
+        }
+        companyMemberMapper.updateById(member);
+        log.info("激活企业成员: companyId={}, userId={}, role={}",
+                member.getCompanyId(), member.getUserId(), member.getRole());
     }
 }

@@ -22,6 +22,8 @@ public class Robot extends BaseEntity {
     private Long seriesId;
     private Long brandId;
     private String name;
+    /** Phase13: SEO slug */
+    private String slug;
     private String model;
     private String subtitle;
     private BigDecimal guidePrice;

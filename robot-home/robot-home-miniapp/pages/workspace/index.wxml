@@ -1,0 +1,63 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <!-- 无企业 -->
+  <block wx:if="{{!loading && !hasCompany}}">
+    <view class="empty rh-card">
+      <view class="empty-title">您还未关联企业</view>
+      <view class="empty-desc">浏览企业详情页，点击「认领企业」提交认证申请</view>
+    </view>
+    <view class="section-title" wx:if="{{claims.length > 0}}">我的认领申请</view>
+    <view class="rh-card" wx:if="{{claims.length > 0}}">
+      <view class="claim-item" wx:for="{{claims}}" wx:key="id">
+        <text>企业ID: {{item.companyId}}</text>
+        <text class="status {{item.status}}">{{item.status === 'PENDING' ? '审核中' : item.status === 'APPROVED' ? '已通过' : item.status === 'REJECTED' ? '已拒绝' : '已取消'}}</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 有企业 -->
+  <block wx:if="{{!loading && hasCompany && company}}">
+    <view class="company-header rh-card" bindtap="goCompanyDetail">
+      <image class="logo" src="{{company.logo}}" mode="aspectFit" />
+      <view class="info">
+        <view class="name">{{company.name}}</view>
+        <view class="meta">
+          <text class="role">{{myRole === 'OWNER' ? '管理员' : myRole === 'ADMIN' ? '运营' : '成员'}}</text>
+          <text class="verify-badge {{isVerified ? 'verified' : ''}}">{{isVerified ? '已认证' : '未认证'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="quick-links rh-card">
+      <view class="link" bindtap="goCompanyDetail">
+        <text class="link-icon">🏢</text>
+        <text>企业主页</text>
+      </view>
+      <view class="link" bindtap="goProcurement">
+        <text class="link-icon">📋</text>
+        <text>采购大厅</text>
+      </view>
+      <view class="link" bindtap="goClaimList">
+        <text class="link-icon">📝</text>
+        <text>认领记录</text>
+      </view>
+    </view>
+
+    <view class="section-title" wx:if="{{claims.length > 0}}">最近认领申请</view>
+    <view class="rh-card" wx:if="{{claims.length > 0}}">
+      <view class="claim-item" wx:for="{{claims}}" wx:key="id">
+        <text>企业ID: {{item.companyId}}</text>
+        <text class="status {{item.status}}">{{item.status === 'PENDING' ? '审核中' : item.status === 'APPROVED' ? '已通过' : item.status === 'REJECTED' ? '已拒绝' : '已取消'}}</text>
+      </view>
+    </view>
+
+    <view class="section-title" wx:if="{{changes.length > 0}}">资料变更记录</view>
+    <view class="rh-card" wx:if="{{changes.length > 0}}">
+      <view class="change-item" wx:for="{{changes}}" wx:key="id">
+        <text>{{item.fieldLabel || item.fieldName}}</text>
+        <text class="status {{item.status}}">{{item.status === 'PENDING' ? '审核中' : item.status === 'APPROVED' ? '已通过' : '已拒绝'}}</text>
+      </view>
+    </view>
+  </block>
+</view>
