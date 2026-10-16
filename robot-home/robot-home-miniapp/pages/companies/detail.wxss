@@ -17,3 +17,6 @@
 .article-row:last-child{border-bottom:none}
 .article-row__title{flex:1;font-size:26rpx;margin-right:16rpx}
 .rh-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.claim-banner{display:flex;justify-content:space-between;align-items:center;padding:20rpx 24rpx;background:#e6f4ff;border:1rpx solid #bae0ff;font-size:26rpx;color:#1668dc}
+.claim-banner.claimed{background:#fff7e6;border-color:#ffe0a3;color:#fa8c16}
+.claim-arrow{font-size:32rpx;font-weight:bold}

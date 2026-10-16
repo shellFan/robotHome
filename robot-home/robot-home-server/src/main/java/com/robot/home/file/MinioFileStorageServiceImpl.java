@@ -49,7 +49,7 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
 
     @Override
     public String upload(byte[] data, String originalFilename, String module) {
-        String objectName = module + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
+        String objectName = FileModulePolicy.normalize(module) + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
         try (InputStream is = new ByteArrayInputStream(data)) {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
@@ -64,7 +64,7 @@ public class MinioFileStorageServiceImpl implements FileStorageService {
 
     @Override
     public String upload(InputStream inputStream, String originalFilename, String module) {
-        String objectName = module + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
+        String objectName = FileModulePolicy.normalize(module) + "/" + IdUtil.fastSimpleUUID() + ext(originalFilename);
         try {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)

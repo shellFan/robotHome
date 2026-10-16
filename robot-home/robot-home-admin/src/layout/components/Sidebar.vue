@@ -36,6 +36,7 @@ defineProps({
 const route = useRoute()
 const userStore = useUserStore()
 const fallbackMenus = normalize(defaultMenus)
+const companyReviewMenu = defaultMenus.find((item) => item.path === '/company-review')
 
 /**
  * 归一化菜单：统一 fullPath / title / resolvedIcon
@@ -63,10 +64,59 @@ function normalize(list, parentPath = '') {
 const menus = computed(() => {
   if (userStore.menus && userStore.menus.length) {
     const normalized = normalize(userStore.menus)
-    if (normalized.length) return normalized
+    if (normalized.length) {
+      appendCompanyReviewMenu(normalized)
+      return normalized
+    }
   }
-  return fallbackMenus
+  return filterCompanyReviewMenu(fallbackMenus)
 })
+
+function filterCompanyReviewMenu(list) {
+  return list
+    .map((item) => {
+      if (item.fullPath !== '/company-review') return item
+      const children = (item.children || []).filter((child) => {
+        const source = (companyReviewMenu.children || []).find(
+          (menu) => `${companyReviewMenu.path}/${menu.path}` === child.fullPath
+        )
+        return !source || userStore.hasPermission(source.permission)
+      })
+      return children.length ? { ...item, children } : null
+    })
+    .filter(Boolean)
+}
+
+function appendCompanyReviewMenu(list) {
+  if (!companyReviewMenu) return
+  const children = (companyReviewMenu.children || []).filter((item) =>
+    userStore.hasPermission(item.permission)
+  )
+  if (!children.length) return
+
+  const existingPaths = new Set()
+  const collectPaths = (nodes) => {
+    ;(nodes || []).forEach((item) => {
+      existingPaths.add(item.fullPath)
+      collectPaths(item.children)
+    })
+  }
+  collectPaths(list)
+
+  const missingChildren = children.filter(
+    (item) => !existingPaths.has(`${companyReviewMenu.path}/${item.path}`)
+  )
+  if (!missingChildren.length) return
+
+  const existingParent = list.find((item) => item.fullPath === companyReviewMenu.path)
+  const normalizedChildren = normalize(missingChildren, companyReviewMenu.path)
+  if (existingParent) {
+    existingParent.children = [...(existingParent.children || []), ...normalizedChildren]
+  } else {
+    const reviewNode = normalize([{ ...companyReviewMenu, children: missingChildren }])[0]
+    if (reviewNode) list.push(reviewNode)
+  }
+}
 
 const activeMenu = computed(() => {
   const { meta, path } = route

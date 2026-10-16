@@ -13,6 +13,8 @@ import lombok.Data;
 public class Company extends BaseEntity {
 
     private String name;
+    /** Phase13: SEO slug */
+    private String slug;
     /** 公司英文名 */
     private String companyNameEn;
     /** 简称 */
@@ -51,6 +53,8 @@ public class Company extends BaseEntity {
     private String detail;
     private Integer sort;
     private Integer status;
+    /** Phase13: 认证状态: UNCLAIMED/PENDING/VERIFIED/REJECTED/SUSPENDED */
+    private String verificationStatus;
     /** Phase9: 企业关注数 */
     private Integer followCount;
     /** Phase9: 企业文章数 */

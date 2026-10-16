@@ -1,0 +1,21 @@
+.page { padding: 24rpx; }
+.state-card { padding: 100rpx 24rpx; text-align: center; color: #86909c; }
+.error-state { color: #f5222d; }
+.retry-btn { margin-top: 24rpx; }
+.empty-card { margin-top: 120rpx; text-align: center; }
+.empty-title { color: #4e5969; font-size: 30rpx; font-weight: 600; }
+.empty-desc { color: #a9aeb8; font-size: 25rpx; margin-top: 12rpx; }
+.claim-card { padding: 28rpx 24rpx; }
+.claim-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18rpx; }
+.company-id { color: #1f2329; font-size: 30rpx; font-weight: 600; }
+.status { padding: 6rpx 16rpx; border-radius: 18rpx; font-size: 23rpx; }
+.status--PENDING { color: #fa8c16; background: #fff7e6; }
+.status--APPROVED { color: #00a870; background: #e8ffea; }
+.status--REJECTED { color: #f5222d; background: #fff1f0; }
+.status--CANCELLED { color: #86909c; background: #f2f3f5; }
+.claim-meta { color: #86909c; font-size: 24rpx; line-height: 1.7; }
+.claim-reason { color: #4e5969; font-size: 27rpx; line-height: 1.6; margin-top: 16rpx; padding: 18rpx; background: #f7f8fa; border-radius: 10rpx; }
+.review-comment { color: #4e5969; font-size: 25rpx; margin-top: 16rpx; }
+.cancel-btn { margin: 24rpx 0 0; color: #f5222d; background: #fff; border: 1rpx solid #ffccc7; font-size: 26rpx; }
+.cancel-btn::after { border: none; }
+.cancel-btn[disabled] { opacity: .55; }

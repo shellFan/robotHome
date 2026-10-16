@@ -13,6 +13,8 @@ import lombok.Data;
 public class Brand extends BaseEntity {
 
     private String name;
+    /** Phase13: SEO slug */
+    private String slug;
     /** 品牌英文名 */
     private String brandNameEn;
     /** 简称 */

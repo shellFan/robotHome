@@ -31,6 +31,9 @@
           <el-button size="default" :type="followed ? 'primary' : 'default'" plain @click="toggleFollow">
             {{ followed ? '已关注' : '关注企业' }}
           </el-button>
+          <el-button v-if="page.company.verificationStatus !== 'VERIFIED'" size="default" @click="claimCompany">
+            认领企业
+          </el-button>
         </div>
       </section>
 
@@ -164,6 +167,15 @@ async function toggleFollow () {
   const data = await followApi.toggle('company', id.value)
   followed.value = data.followed
   ElMessage.success(data.followed ? '已关注' : '已取消关注')
+}
+
+function claimCompany () {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录后认领企业')
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
+    return
+  }
+  router.push({ name: 'user-enterprise', query: { companyId: String(id.value), companyName: page.value.company.name } })
 }
 
 function changePage (p) {

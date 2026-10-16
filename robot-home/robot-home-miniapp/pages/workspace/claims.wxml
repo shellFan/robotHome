@@ -1,0 +1,29 @@
+<view class="page safe-bottom">
+  <view wx:if="{{loading}}" class="state-card">正在加载认领记录...</view>
+
+  <view wx:elif="{{error}}" class="state-card error-state">
+    <view>{{error}}</view>
+    <button class="rh-btn rh-btn--ghost retry-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <view wx:elif="{{!list.length}}" class="empty-card">
+    <view class="empty-title">暂无认领记录</view>
+    <view class="empty-desc">可从企业详情页发起认领申请</view>
+  </view>
+
+  <block wx:else>
+    <view class="rh-card claim-card" wx:for="{{list}}" wx:key="id">
+      <view class="claim-head">
+        <view class="company-id">企业 #{{item.companyId}}</view>
+        <view class="status status--{{item.status}}">{{item.statusText}}</view>
+      </view>
+      <view class="claim-meta">申请人：{{item.applicantName}}</view>
+      <view class="claim-meta" wx:if="{{item.createTimeText}}">提交时间：{{item.createTimeText}}</view>
+      <view class="claim-reason">{{item.claimReason}}</view>
+      <view class="review-comment" wx:if="{{item.reviewComment}}">审核意见：{{item.reviewComment}}</view>
+      <button class="cancel-btn" wx:if="{{item.status === 'PENDING'}}" data-id="{{item.id}}" loading="{{cancelingId === item.id}}" disabled="{{!!cancelingId}}" bindtap="cancelClaim">取消申请</button>
+    </view>
+    <view class="load-more" wx:if="{{loadingMore}}">正在加载更多...</view>
+    <view class="load-more" wx:elif="{{finished}}">没有更多记录了</view>
+  </block>
+</view>

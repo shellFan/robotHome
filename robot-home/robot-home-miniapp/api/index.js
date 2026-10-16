@@ -235,6 +235,19 @@ const authApi = {
   me: function () { return get('/auth/me') }
 }
 
+// Phase13: Enterprise Claim & Workspace API
+const enterpriseApi = {
+  submitClaim: function (data) { return postForm('/company-claims/submit', data) },
+  cancelClaim: function (claimId) { return postForm('/company-claims/cancel', { claimId: claimId }) },
+  myClaims: function (params) { return get('/company-claims/my', params) },
+  latestClaim: function (companyId) { return get('/company-claims/latest', { companyId: companyId }) },
+  myCompany: function () { return get('/workspace/company') },
+  submitProfileChange: function (data) { return postForm('/workspace/profile-change/submit', data) },
+  directUpdate: function (data) { return postForm('/workspace/profile-update', data) },
+  myProfileChanges: function (params) { return get('/workspace/profile-changes', params) },
+  fieldRisk: function (fieldName) { return get('/workspace/field-risk', { fieldName: fieldName }) }
+}
+
 module.exports = {
   homeApi,
   robotApi,
@@ -264,5 +277,6 @@ module.exports = {
   followApi,
   feedApi,
   discoveryApi,
-  recommendApi
+  recommendApi,
+  enterpriseApi
 }

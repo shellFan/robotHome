@@ -43,8 +43,7 @@ public class JwtFilter implements HandlerInterceptor {
             return true;
         }
         try {
-            // 黑名单校验（登出后失效）— Redis宕机时降级：跳过黑名单检查，仅靠JWT签名+TTL验证
-            // tradeoff: fail-open避免全站认证瘫痪，JWT过期是主要防线，黑名单是补充防线
+            // 黑名单校验（登出后失效）。无法确认撤销状态时拒绝认证，避免已撤销凭证被放行。
             try {
                 if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:" + token)) {
                     throw new AuthenticationException("登录已失效，请重新登录");
@@ -52,7 +51,24 @@ public class JwtFilter implements HandlerInterceptor {
             } catch (AuthenticationException e) {
                 throw e;
             } catch (Exception e) {
-                log.error("Redis黑名单校验失败，降级跳过（JWT TTL仍有效）: error={}", e.getMessage());
+                log.error("Redis黑名单校验失败，拒绝认证: error={}", e.getMessage());
+                throw new AuthenticationException("认证服务暂不可用，请稍后重试");
+            }
+            if (!jwtUtils.isAccessToken(token)) {
+                throw new AuthenticationException("无效的登录凭证");
+            }
+            String sessionId = jwtUtils.getSessionId(token);
+            if (StringUtils.hasText(sessionId)) {
+                try {
+                    if (redisUtils.hasKey(Constants.CACHE_TOKEN_PREFIX + "black:session:" + sessionId)) {
+                        throw new AuthenticationException("登录已失效，请重新登录");
+                    }
+                } catch (AuthenticationException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.error("Redis会话撤销校验失败，拒绝认证: error={}", e.getMessage());
+                    throw new AuthenticationException("认证服务暂不可用，请稍后重试");
+                }
             }
             Long userId = jwtUtils.getUserId(token);
             String username = jwtUtils.getUsername(token);
@@ -63,7 +79,8 @@ public class JwtFilter implements HandlerInterceptor {
                     .setUsername(username)
                     .setRole(role)
                     .setToken(token);
-            user.setUserType("admin".equals(type) ? Constants.USER_TYPE_ADMIN : Constants.USER_TYPE_NORMAL);
+            user.setUserType(JwtUtils.TOKEN_TYPE_ADMIN.equals(type)
+                    ? Constants.USER_TYPE_ADMIN : Constants.USER_TYPE_NORMAL);
             UserContext.setUser(user);
         } catch (AuthenticationException e) {
             throw e;

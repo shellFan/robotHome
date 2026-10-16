@@ -48,7 +48,8 @@ const routes = [
       { path: 'comments', name: 'user-comments', component: () => import('@/views/user/MyComments.vue'), meta: { title: '我的评论 - 机器人之家' } },
       { path: 'follows', name: 'user-follows', component: () => import('@/views/user/Follows.vue'), meta: { title: '我的关注 - 机器人之家' } },
       { path: 'inquiries', name: 'user-inquiries', component: () => import('@/views/user/Inquiries.vue'), meta: { title: '我的询价 - 机器人之家' } },
-      { path: 'messages', name: 'user-messages', component: () => import('@/views/user/Messages.vue'), meta: { title: '我的消息 - 机器人之家' } }
+      { path: 'messages', name: 'user-messages', component: () => import('@/views/user/Messages.vue'), meta: { title: '我的消息 - 机器人之家' } },
+      { path: 'enterprise', name: 'user-enterprise', component: () => import('@/views/user/EnterpriseWorkspace.vue'), meta: { title: '企业工作台 - 机器人之家' } }
     ]
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFound.vue'), meta: { title: '页面不存在 - 机器人之家' } }

@@ -3,6 +3,7 @@ var followApi = require('../../api/index').followApi
 var formatPrice = require('../../utils/format').formatPrice
 var imageOf = require('../../utils/format').imageOf
 var formatCount = require('../../utils/format').formatCount
+var ensureLogin = require('../../utils/request').ensureLogin
 
 Page({
   data: {
@@ -93,5 +94,12 @@ Page({
   },
   goPost: function (e) {
     wx.navigateTo({ url: '/pages/community/post-detail?id=' + e.currentTarget.dataset.id })
+  },
+  goClaim: function () {
+    if (!ensureLogin()) return
+    var companyName = this.data.company ? this.data.company.name : ''
+    wx.navigateTo({
+      url: '/pages/workspace/claim?companyId=' + encodeURIComponent(this.id) + '&companyName=' + encodeURIComponent(companyName)
+    })
   }
 })

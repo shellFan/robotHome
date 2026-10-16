@@ -57,6 +57,17 @@ export const companyApi = {
   companyPage: (id) => get(`/companies/${id}/page`)
 }
 
+export const enterpriseApi = {
+  submitClaim: (data) => postForm('/company-claims/submit', data),
+  latestClaim: (companyId) => get('/company-claims/latest', { companyId }),
+  myClaims: (params) => get('/company-claims/my', params),
+  cancelClaim: (claimId) => postForm('/company-claims/cancel', { claimId }),
+  myCompany: () => get('/workspace/company'),
+  myProfileChanges: (params) => get('/workspace/profile-changes', params),
+  directUpdate: (data) => postForm('/workspace/profile-update', data),
+  submitProfileChange: (data) => postForm('/workspace/profile-change/submit', data)
+}
+
 export const articleApi = {
   page: (params) => get('/articles', params),
   categories: () => get('/articles/categories'),

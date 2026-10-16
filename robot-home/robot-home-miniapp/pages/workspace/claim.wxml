@@ -1,0 +1,51 @@
+<view class="page safe-bottom">
+  <view wx:if="{{loading}}" class="state-card">正在加载认领状态...</view>
+
+  <view wx:elif="{{error}}" class="state-card error-state">
+    <view>{{error}}</view>
+    <button class="rh-btn rh-btn--ghost retry-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="rh-card company-card">
+      <view class="eyebrow">待认领企业</view>
+      <view class="company-name">{{companyName || ('企业 #' + companyId)}}</view>
+    </view>
+
+    <view class="rh-card status-card" wx:if="{{blocked}}">
+      <view class="status-title">{{latestClaim.status === 'APPROVED' ? '该企业已完成认证' : '该企业已有认领申请审核中'}}</view>
+      <view class="status-desc">{{latestClaim.status === 'APPROVED' ? '无需再次提交认领申请。' : '请等待当前申请审核完成后再操作。'}}</view>
+      <button class="rh-btn rh-btn--ghost history-btn" bindtap="goClaims">查看我的认领记录</button>
+    </view>
+
+    <view class="rh-card form" wx:else>
+      <view class="form-title">填写认领信息</view>
+      <view class="form-tip">带 * 的项目为必填项</view>
+      <view class="form-item">
+        <text class="form-label">姓名 *</text>
+        <input class="form-input" value="{{applicantName}}" maxlength="50" placeholder="申请人姓名" bindinput="onName" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">联系电话 *</text>
+        <input class="form-input" value="{{applicantPhone}}" maxlength="30" placeholder="手机或固定电话" bindinput="onPhone" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">邮箱</text>
+        <input class="form-input" value="{{applicantEmail}}" maxlength="100" placeholder="选填" bindinput="onEmail" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">职位</text>
+        <input class="form-input" value="{{applicantPosition}}" maxlength="100" placeholder="选填" bindinput="onPosition" />
+      </view>
+      <view class="form-item form-item--column">
+        <text class="form-label">认领理由 *</text>
+        <textarea class="form-textarea" value="{{claimReason}}" maxlength="1000" placeholder="请说明您与该企业的关系及认领用途" bindinput="onReason" />
+      </view>
+      <view class="form-item form-item--column">
+        <text class="form-label">证明材料链接</text>
+        <textarea class="form-textarea proof-input" value="{{proofMaterials}}" maxlength="2000" placeholder="选填，每行一个可访问的材料链接" bindinput="onProofMaterials" />
+      </view>
+      <button class="rh-btn rh-btn--block submit-btn" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{submitting ? '提交中...' : '提交认领申请'}}</button>
+    </view>
+  </block>
+</view>

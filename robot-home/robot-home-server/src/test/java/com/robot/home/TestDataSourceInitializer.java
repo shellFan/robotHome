@@ -81,7 +81,9 @@ public class TestDataSourceInitializer implements PriorityOrdered {
         runClasspath("sql/15_phase12_real_data_growth.sql");
         // 10c. Phase12: Data Quality Snapshot表
         runClasspath("sql/16_phase12_data_quality_snapshot.sql");
-        // 11. 验证关键表
+        // 11. Phase13: Growth & Enterprise Ecosystem
+        runClasspath("sql/17_phase13_growth_enterprise.sql");
+        // 12. 验证关键表
         verifyTables();
         initialized = true;
         log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10 + phase12）");
