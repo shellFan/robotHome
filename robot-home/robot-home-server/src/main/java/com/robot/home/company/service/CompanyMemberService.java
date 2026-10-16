@@ -54,4 +54,31 @@ public interface CompanyMemberService {
      * @param role      角色
      */
     void addMember(Long companyId, Long userId, String role);
+
+    /**
+     * 查询企业成员列表（仅活跃成员）
+     *
+     * @param companyId 企业ID
+     * @return 成员列表
+     */
+    List<CompanyMember> listMembers(Long companyId);
+
+    /**
+     * 修改成员角色（仅OWNER可操作，不能修改自己的角色）
+     *
+     * @param operatorId 操作人用户ID（须为该企业OWNER）
+     * @param companyId  企业ID
+     * @param targetUserId 目标成员用户ID
+     * @param newRole    新角色
+     */
+    void updateMemberRole(Long operatorId, Long companyId, Long targetUserId, String newRole);
+
+    /**
+     * 移除成员（仅OWNER可操作，不能移除自己，不能移除最后一个OWNER）
+     *
+     * @param operatorId 操作人用户ID（须为该企业OWNER）
+     * @param companyId  企业ID
+     * @param targetUserId 目标成员用户ID
+     */
+    void removeMember(Long operatorId, Long companyId, Long targetUserId);
 }

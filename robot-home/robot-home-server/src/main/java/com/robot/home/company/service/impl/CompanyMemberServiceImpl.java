@@ -101,4 +101,98 @@ public class CompanyMemberServiceImpl implements CompanyMemberService {
         log.info("激活企业成员: companyId={}, userId={}, role={}",
                 member.getCompanyId(), member.getUserId(), member.getRole());
     }
+
+    private static final java.util.Set<String> VALID_ROLES =
+            new java.util.HashSet<>(java.util.Arrays.asList("OWNER", "ADMIN", "EDITOR", "SALES", "VIEWER"));
+
+    @Override
+    public List<CompanyMember> listMembers(Long companyId) {
+        return companyMemberMapper.selectList(Wrappers.<CompanyMember>lambdaQuery()
+                .eq(CompanyMember::getCompanyId, companyId)
+                .eq(CompanyMember::getStatus, 1)
+                .orderByAsc(CompanyMember::getCreateTime));
+    }
+
+    @Override
+    public void updateMemberRole(Long operatorId, Long companyId, Long targetUserId, String newRole) {
+        if (!VALID_ROLES.contains(newRole)) {
+            throw new BusinessException("无效的角色: " + newRole);
+        }
+        requireOwner(operatorId, companyId);
+        // 不能修改自己的角色（防止最后一个OWNER自我降级导致企业无OWNER）
+        if (operatorId.equals(targetUserId)) {
+            throw new BusinessException("不能修改自己的角色");
+        }
+        CompanyMember target = getActiveMember(targetUserId, companyId);
+        if (target == null) {
+            throw new BusinessException("目标用户不是该企业成员");
+        }
+        // 如果目标 是OWNER且要降级，须确保还有其他OWNER
+        if ("OWNER".equals(target.getRole()) && !"OWNER".equals(newRole)) {
+            ensureOtherOwnerExists(companyId, targetUserId);
+        }
+        int updated = companyMemberMapper.update(null, Wrappers.<CompanyMember>lambdaUpdate()
+                .eq(CompanyMember::getId, target.getId())
+                .eq(CompanyMember::getRole, target.getRole())
+                .set(CompanyMember::getRole, newRole));
+        if (updated != 1) {
+            throw new BusinessException("成员角色已被其他操作修改，请刷新后重试");
+        }
+        log.info("成员角色更新: companyId={}, targetUserId={}, {} → {}, operator={}",
+                companyId, targetUserId, target.getRole(), newRole, operatorId);
+    }
+
+    @Override
+    public void removeMember(Long operatorId, Long companyId, Long targetUserId) {
+        requireOwner(operatorId, companyId);
+        // 不能移除自己
+        if (operatorId.equals(targetUserId)) {
+            throw new BusinessException("不能移除自己，如需退出请联系其他OWNER操作");
+        }
+        CompanyMember target = getActiveMember(targetUserId, companyId);
+        if (target == null) {
+            throw new BusinessException("目标用户不是该企业成员");
+        }
+        // 如果目标 是OWNER，须确保还有其他OWNER
+        if ("OWNER".equals(target.getRole())) {
+            ensureOtherOwnerExists(companyId, targetUserId);
+        }
+        // 逻辑移除：status=0，权限校验getActiveMember只查status=1，移除后立即失去访问权
+        int updated = companyMemberMapper.update(null, Wrappers.<CompanyMember>lambdaUpdate()
+                .eq(CompanyMember::getId, target.getId())
+                .eq(CompanyMember::getStatus, 1)
+                .set(CompanyMember::getStatus, 0));
+        if (updated != 1) {
+            throw new BusinessException("成员状态已被其他操作修改，请刷新后重试");
+        }
+        log.info("成员移除: companyId={}, targetUserId={}, operator={}",
+                companyId, targetUserId, operatorId);
+    }
+
+    /**
+     * 校验操作人是该企业的OWNER
+     */
+    private void requireOwner(Long operatorId, Long companyId) {
+        CompanyMember operator = getActiveMember(operatorId, companyId);
+        if (operator == null) {
+            throw new BusinessException("您不是该企业的成员，无权操作");
+        }
+        if (!"OWNER".equals(operator.getRole())) {
+            throw new BusinessException("仅企业OWNER可执行此操作");
+        }
+    }
+
+    /**
+     * 确保移除/降级目标OWNER后企业仍至少有一个OWNER
+     */
+    private void ensureOtherOwnerExists(Long companyId, Long excludingUserId) {
+        Long otherOwners = companyMemberMapper.selectCount(Wrappers.<CompanyMember>lambdaQuery()
+                .eq(CompanyMember::getCompanyId, companyId)
+                .eq(CompanyMember::getRole, "OWNER")
+                .eq(CompanyMember::getStatus, 1)
+                .ne(CompanyMember::getUserId, excludingUserId));
+        if (otherOwners == 0) {
+            throw new BusinessException("不能移除或降级最后一个OWNER");
+        }
+    }
 }

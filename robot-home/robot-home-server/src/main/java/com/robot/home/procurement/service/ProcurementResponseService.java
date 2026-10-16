@@ -38,14 +38,15 @@ public interface ProcurementResponseService {
                                                          Integer pageNum, Integer pageSize);
 
     /**
-     * 查看企业的响应列表
+     * 查看企业的响应列表（需校验调用者是该企业成员，防止IDOR）
      *
+     * @param userId    当前登录用户ID
      * @param companyId 企业ID
      * @param pageNum   页码
      * @param pageSize  每页条数
      * @return 响应分页列表
      */
-    PageResult<ProcurementResponseVO> listByCompany(Long companyId, Integer pageNum, Integer pageSize);
+    PageResult<ProcurementResponseVO> listByCompany(Long userId, Long companyId, Integer pageNum, Integer pageSize);
 
     /**
      * 我的响应列表（安全修复：按用户所属企业查询）

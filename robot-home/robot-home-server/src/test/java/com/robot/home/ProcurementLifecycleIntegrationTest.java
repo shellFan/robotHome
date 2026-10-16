@@ -179,6 +179,53 @@ class ProcurementLifecycleIntegrationTest {
         assertFalse(body.contains(response.getContactDescription()), body);
     }
 
+    @Test
+    void withdrawnResponseCanBeResubmittedWithNewContent() {
+        verifyCompany(1L);
+        addActiveMember(1L, COMPANY_MEMBER_USER_ID);
+        Inquiry inquiry = createInquiry(Constants.PIPELINE_NEW);
+        ProcurementResponseDTO dto = responseDto(inquiry.getId());
+
+        // 1. 首次提交
+        ProcurementResponseVO first = responseService.submitResponse(COMPANY_MEMBER_USER_ID, 1L, dto);
+        assertEquals(Constants.RESPONSE_SUBMITTED, first.getStatus());
+
+        // 2. 撤回
+        responseService.withdrawResponse(first.getId(), COMPANY_MEMBER_USER_ID);
+        assertEquals(Constants.RESPONSE_WITHDRAWN,
+                responseMapper.selectById(first.getId()).getStatus());
+
+        // 3. 撤回后重新提交（MEDIUM-1修复：不再返回旧撤回记录，而是重新激活）
+        ProcurementResponseDTO newDto = responseDto(inquiry.getId());
+        newDto.setSolution("updated-solution-after-withdraw");
+        newDto.setPriceDescription("updated-price");
+        ProcurementResponseVO resubmitted = responseService.submitResponse(COMPANY_MEMBER_USER_ID, 1L, newDto);
+
+        // 4. 验证：同一记录被重新激活，内容已更新，状态恢复SUBMITTED
+        assertEquals(first.getId(), resubmitted.getId());
+        assertEquals(Constants.RESPONSE_SUBMITTED, resubmitted.getStatus());
+        ProcurementResponse dbRecord = responseMapper.selectById(first.getId());
+        assertEquals(Constants.RESPONSE_SUBMITTED, dbRecord.getStatus());
+        assertEquals("updated-solution-after-withdraw", dbRecord.getSolution());
+        assertEquals("updated-price", dbRecord.getPriceDescription());
+    }
+
+    @Test
+    void listByCompanyRejectsNonMember() {
+        verifyCompany(1L);
+        addActiveMember(1L, COMPANY_MEMBER_USER_ID);
+        Inquiry inquiry = createInquiry(Constants.PIPELINE_NEW);
+        responseService.submitResponse(COMPANY_MEMBER_USER_ID, 1L, responseDto(inquiry.getId()));
+
+        // 非企业成员调用listByCompany应被拒绝（LOW-4修复：IDOR防护）
+        assertThrows(BusinessException.class, () -> responseService.listByCompany(
+                OUTSIDE_COMPANY_USER_ID, 1L, 1, 10));
+
+        // 企业成员可正常查看
+        assertEquals(1, responseService.listByCompany(
+                COMPANY_MEMBER_USER_ID, 1L, 1, 10).getList().size());
+    }
+
     private Inquiry createInquiry(String pipelineStatus) {
         Inquiry inquiry = new Inquiry();
         inquiry.setUserId(BUYER_USER_ID);

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -119,6 +120,41 @@ public class EnterpriseWorkspaceController {
         data.put("fieldName", fieldName);
         data.put("highRisk", profileChangeService.isHighRiskField(fieldName));
         return Result.success(data);
+    }
+
+    // ==================== 成员管理 ====================
+
+    /**
+     * 企业成员列表（活跃成员可查看）
+     */
+    @GetMapping("/members")
+    public Result<List<CompanyMember>> listMembers(@RequestParam Long companyId) {
+        Long userId = SecurityUtils.requireUserId();
+        companyMemberService.requireActiveMember(userId, companyId);
+        return Result.success(companyMemberService.listMembers(companyId));
+    }
+
+    /**
+     * 修改成员角色（仅OWNER可操作）
+     */
+    @PostMapping("/members/role")
+    public Result<Void> updateMemberRole(@RequestParam Long companyId,
+                                          @RequestParam Long targetUserId,
+                                          @RequestParam String newRole) {
+        Long userId = SecurityUtils.requireUserId();
+        companyMemberService.updateMemberRole(userId, companyId, targetUserId, newRole);
+        return Result.success();
+    }
+
+    /**
+     * 移除成员（仅OWNER可操作，不能移除自己，不能移除最后一个OWNER）
+     */
+    @PostMapping("/members/remove")
+    public Result<Void> removeMember(@RequestParam Long companyId,
+                                      @RequestParam Long targetUserId) {
+        Long userId = SecurityUtils.requireUserId();
+        companyMemberService.removeMember(userId, companyId, targetUserId);
+        return Result.success();
     }
 
     // ==================== 私有方法 ====================

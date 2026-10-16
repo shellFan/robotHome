@@ -171,6 +171,23 @@ SET c.`status` = 'CANCELLED',
     c.`pending_applicant_user_id` = NULL
 WHERE c.`status` = 'PENDING' AND c.`deleted` = 0 AND k.`id` IS NULL;
 DROP TEMPORARY TABLE `phase13_claim_pending_keep`;
+-- 同理按company_id去重：不同申请人对同一企业的多个待审申请只保留最老一条，
+-- 否则UPDATE填充pending_company_id后p_add_unique_index(uk_company_active_claim)会因重复键失败。
+DROP TEMPORARY TABLE IF EXISTS `phase13_claim_company_keep`;
+CREATE TEMPORARY TABLE `phase13_claim_company_keep` (`id` BIGINT NOT NULL PRIMARY KEY);
+INSERT INTO `phase13_claim_company_keep` (`id`)
+SELECT MIN(`id`) FROM `company_claim`
+WHERE `status` = 'PENDING' AND `deleted` = 0
+GROUP BY `company_id`;
+UPDATE `company_claim` c
+LEFT JOIN `phase13_claim_company_keep` k ON c.`id` = k.`id`
+SET c.`status` = 'CANCELLED',
+    c.`review_comment` = COALESCE(c.`review_comment`, '自动关闭：历史数据中同一企业存在多个待审申请'),
+    c.`review_time` = COALESCE(c.`review_time`, CURRENT_TIMESTAMP),
+    c.`pending_company_id` = NULL,
+    c.`pending_applicant_user_id` = NULL
+WHERE c.`status` = 'PENDING' AND c.`deleted` = 0 AND k.`id` IS NULL;
+DROP TEMPORARY TABLE `phase13_claim_company_keep`;
 UPDATE `company_claim`
 SET `pending_company_id` = `company_id`, `pending_applicant_user_id` = `applicant_user_id`
 WHERE `status` = 'PENDING' AND `deleted` = 0

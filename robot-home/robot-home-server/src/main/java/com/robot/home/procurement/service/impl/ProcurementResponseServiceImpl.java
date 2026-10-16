@@ -123,12 +123,34 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         try {
             responseMapper.insert(response);
         } catch (DuplicateKeyException e) {
-            // 并发重试由唯一索引收敛，返回已有资源。
-            ProcurementResponse concurrent = findResponse(dto.getProcurementId(), companyId);
-            if (concurrent != null) {
-                return responseWithCompany(concurrent, company);
+            // 并发重试、撤回后重提、或逻辑删除占位，由唯一索引uk_procurement_company收敛。
+            // 使用绕过@TableLogic的原生查询覆盖全部占位场景。
+            ProcurementResponse conflict = responseMapper.selectAnyByProcurementAndCompany(
+                    dto.getProcurementId(), companyId);
+            if (conflict == null) {
+                throw e;
             }
-            throw e;
+            if (conflict.getDeleted() != null && conflict.getDeleted() == 1) {
+                // 逻辑删除记录占位：恢复并更新内容
+                restoreDeletedResponse(conflict, response);
+            } else if (Constants.RESPONSE_WITHDRAWN.equals(conflict.getStatus())) {
+                // 撤回记录占位：重新激活并更新内容（CAS保证不覆盖他人并发操作）
+                reactivateWithdrawnResponse(conflict, response);
+            } else {
+                // 并发提交：返回已有资源，不重复推进CRM
+                return responseWithCompany(conflict, company);
+            }
+            // 同步内存对象以供CRM推进和VO返回
+            conflict.setStatus(Constants.RESPONSE_SUBMITTED);
+            conflict.setSolution(solution);
+            conflict.setPriceDescription(priceDescription);
+            conflict.setDeliveryDescription(deliveryDescription);
+            conflict.setContactDescription(contactDescription);
+            conflict.setRobotIds(dto.getRobotIds());
+            log.info("采购响应重新激活: responseId={}, procurementId={}, companyId={}",
+                    conflict.getId(), dto.getProcurementId(), companyId);
+            advancePipelineAndRecordResponse(inquiry, conflict, userId, company.getName());
+            return responseWithCompany(conflict, company);
         }
 
         log.info("企业提交采购响应: procurementId={}, companyId={}, userId={}", dto.getProcurementId(), companyId, userId);
@@ -212,7 +234,9 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
     }
 
     @Override
-    public PageResult<ProcurementResponseVO> listByCompany(Long companyId, Integer pageNum, Integer pageSize) {
+    public PageResult<ProcurementResponseVO> listByCompany(Long userId, Long companyId, Integer pageNum, Integer pageSize) {
+        // IDOR防护：必须校验调用者是该企业的活跃成员
+        requireVerifiedActiveMember(userId, companyId);
         int pn = PageUtils.normalizePageNum(pageNum);
         int ps = PageUtils.normalizePageSize(pageSize);
         Page<ProcurementResponse> page = new Page<>(pn, ps);
@@ -399,7 +423,48 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
     private ProcurementResponse findResponse(Long procurementId, Long companyId) {
         return responseMapper.selectOne(Wrappers.<ProcurementResponse>lambdaQuery()
                 .eq(ProcurementResponse::getProcurementId, procurementId)
-                .eq(ProcurementResponse::getCompanyId, companyId));
+                .eq(ProcurementResponse::getCompanyId, companyId)
+                .ne(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN));
+    }
+
+    /**
+     * 恢复逻辑删除的响应记录并更新为最新提交内容。
+     * 唯一索引不含deleted列，逻辑删除记录占位时需恢复而非新建。
+     */
+    private void restoreDeletedResponse(ProcurementResponse deleted, ProcurementResponse newContent) {
+        int updated = responseMapper.restoreDeletedResponse(
+                deleted.getId(),
+                newContent.getSolution(),
+                newContent.getPriceDescription(),
+                newContent.getDeliveryDescription(),
+                newContent.getContactDescription(),
+                newContent.getRobotIds(),
+                newContent.getContactUserId(),
+                newContent.getEventKey());
+        if (updated != 1) {
+            throw new BusinessException("恢复响应记录失败，请重试");
+        }
+    }
+
+    /**
+     * 重新激活已撤回的响应记录并更新为最新提交内容。
+     * CAS条件：status必须仍为WITHDRAWN，防止覆盖他人并发操作。
+     */
+    private void reactivateWithdrawnResponse(ProcurementResponse withdrawn, ProcurementResponse newContent) {
+        int updated = responseMapper.update(null, Wrappers.<ProcurementResponse>lambdaUpdate()
+                .eq(ProcurementResponse::getId, withdrawn.getId())
+                .eq(ProcurementResponse::getStatus, Constants.RESPONSE_WITHDRAWN)
+                .set(ProcurementResponse::getStatus, Constants.RESPONSE_SUBMITTED)
+                .set(ProcurementResponse::getSolution, newContent.getSolution())
+                .set(ProcurementResponse::getPriceDescription, newContent.getPriceDescription())
+                .set(ProcurementResponse::getDeliveryDescription, newContent.getDeliveryDescription())
+                .set(ProcurementResponse::getContactDescription, newContent.getContactDescription())
+                .set(ProcurementResponse::getRobotIds, newContent.getRobotIds())
+                .set(ProcurementResponse::getContactUserId, newContent.getContactUserId())
+                .set(ProcurementResponse::getUpdateTime, LocalDateTime.now()));
+        if (updated != 1) {
+            throw new BusinessException("响应状态已被其他操作修改，请刷新后重试");
+        }
     }
 
     private ProcurementResponseVO responseWithCompany(ProcurementResponse response, Company company) {
