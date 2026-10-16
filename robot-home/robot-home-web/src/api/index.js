@@ -287,3 +287,31 @@ export const procurementApi = {
   /** 采购需求详情 */
   hallDetail: (id) => get(`/procurement/hall/${id}`)
 }
+
+/** Phase14: 商业化 */
+export const commercialApi = {
+  /** 公开套餐列表 */
+  plans: () => get('/plans'),
+  /** 套餐详情 */
+  planDetail: (planId) => get(`/plans/${planId}`),
+  /** 创建订单 */
+  createOrder: (data) => post('/commercial/orders', data),
+  /** 我的订单列表 */
+  myOrders: (params) => get('/commercial/orders', params),
+  /** 订单详情 */
+  orderDetail: (orderId) => get(`/commercial/orders/${orderId}`),
+  /** 取消订单 */
+  cancelOrder: (orderId) => postForm(`/commercial/orders/${orderId}/cancel`),
+  /** 发起支付 */
+  payOrder: (orderId, channel) => postForm(`/commercial/orders/${orderId}/pay`, { channel }),
+  /** 沙箱确认支付 */
+  sandboxConfirm: (orderId) => postForm(`/commercial/orders/${orderId}/sandbox-confirm`),
+  /** 可用支付渠道 */
+  paymentChannels: () => get('/commercial/orders/payment-channels'),
+  /** 当前订阅 */
+  mySubscription: () => get('/commercial/subscription'),
+  /** 我的权益列表 */
+  myEntitlements: () => get('/commercial/subscription/entitlements'),
+  /** 取消自动续费 */
+  cancelAutoRenew: () => postForm('/commercial/subscription/cancel')
+}

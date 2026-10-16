@@ -323,6 +323,64 @@ export const defaultMenus = [
     component: () => import('@/views/procurement/index.vue')
   },
   {
+    path: '/commercial',
+    name: 'Commercial',
+    menuName: '商业化管理',
+    icon: 'Wallet',
+    redirect: '/commercial/plans',
+    children: [
+      {
+        path: 'plans',
+        name: 'CommercialPlans',
+        menuName: '套餐管理',
+        icon: 'Goods',
+        permission: 'commercial:plan:manage',
+        component: () => import('@/views/commercial/plans.vue')
+      },
+      {
+        path: 'orders',
+        name: 'CommercialOrders',
+        menuName: '订单管理',
+        icon: 'List',
+        permission: 'commercial:order:manage',
+        component: () => import('@/views/commercial/orders.vue')
+      },
+      {
+        path: 'refunds',
+        name: 'CommercialRefunds',
+        menuName: '退款管理',
+        icon: 'RefreshLeft',
+        permission: 'commercial:refund:manage',
+        component: () => import('@/views/commercial/refunds.vue')
+      }
+    ]
+  },
+  {
+    path: '/advertising',
+    name: 'Advertising',
+    menuName: '广告管理',
+    icon: 'Promotion',
+    redirect: '/advertising/campaigns',
+    children: [
+      {
+        path: 'slots',
+        name: 'AdvertisingSlots',
+        menuName: '广告位管理',
+        icon: 'Picture',
+        permission: 'advertising:slot:manage',
+        component: () => import('@/views/advertising/slots.vue')
+      },
+      {
+        path: 'campaigns',
+        name: 'AdvertisingCampaigns',
+        menuName: '广告审核',
+        icon: 'DocumentChecked',
+        permission: 'advertising:campaign:review',
+        component: () => import('@/views/advertising/campaigns.vue')
+      }
+    ]
+  },
+  {
     path: '/operation',
     name: 'Operation',
     menuName: '运营配置',
