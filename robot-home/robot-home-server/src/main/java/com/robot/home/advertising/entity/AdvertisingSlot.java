@@ -25,7 +25,7 @@ public class AdvertisingSlot extends BaseEntity {
     private String allowedTypes;
     /** 投放规则(JSON) */
     private String rules;
-    /** 状态: ENABLED/DISABLED */
+    /** 状态: ACTIVE/INACTIVE */
     private String status;
     private Integer sort;
 }

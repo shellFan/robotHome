@@ -56,7 +56,7 @@ public class AdvertisingServiceImpl implements AdvertisingService {
     public List<AdvertisingSlot> listSlots() {
         return slotMapper.selectList(
                 Wrappers.<AdvertisingSlot>lambdaQuery()
-                        .eq(AdvertisingSlot::getStatus, "ENABLED")
+                        .eq(AdvertisingSlot::getStatus, "ACTIVE")
                         .orderByAsc(AdvertisingSlot::getSort));
     }
 
@@ -78,7 +78,7 @@ public class AdvertisingServiceImpl implements AdvertisingService {
         if (slot.getId() != null) {
             slotMapper.updateById(slot);
         } else {
-            if (slot.getStatus() == null) slot.setStatus("ENABLED");
+            if (slot.getStatus() == null) slot.setStatus("ACTIVE");
             if (slot.getSort() == null) slot.setSort(0);
             slotMapper.insert(slot);
         }
@@ -88,7 +88,7 @@ public class AdvertisingServiceImpl implements AdvertisingService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSlotStatus(Long slotId, String status) {
-        if (!"ENABLED".equals(status) && !"DISABLED".equals(status)) {
+        if (!"ACTIVE".equals(status) && !"INACTIVE".equals(status)) {
             throw new BusinessException("无效状态: " + status);
         }
         int updated = slotMapper.update(null,
@@ -111,7 +111,7 @@ public class AdvertisingServiceImpl implements AdvertisingService {
             throw new BusinessException("参数不完整");
         }
         AdvertisingSlot slot = getSlot(slotId);
-        if (!"ENABLED".equals(slot.getStatus())) {
+        if (!"ACTIVE".equals(slot.getStatus())) {
             throw new BusinessException("广告位已停用");
         }
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
@@ -301,7 +301,7 @@ public class AdvertisingServiceImpl implements AdvertisingService {
         AdvertisingSlot slot = slotMapper.selectOne(
                 Wrappers.<AdvertisingSlot>lambdaQuery()
                         .eq(AdvertisingSlot::getSlotCode, slotCode)
-                        .eq(AdvertisingSlot::getStatus, "ENABLED"));
+                        .eq(AdvertisingSlot::getStatus, "ACTIVE"));
         if (slot == null) {
             return new ArrayList<>();
         }
