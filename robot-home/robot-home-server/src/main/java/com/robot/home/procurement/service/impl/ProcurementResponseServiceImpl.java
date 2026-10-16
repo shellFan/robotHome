@@ -13,6 +13,7 @@ import com.robot.home.common.util.XssUtils;
 import com.robot.home.company.entity.Company;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.company.service.CompanyMemberService;
+import com.robot.home.commercial.service.EntitlementService;
 import com.robot.home.inquiry.entity.Inquiry;
 import com.robot.home.inquiry.mapper.InquiryMapper;
 import com.robot.home.procurement.dto.ProcurementResponseDTO;
@@ -69,6 +70,8 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
     private NotificationService notificationService;
     @Resource
     private CompanyMemberService companyMemberService;
+    @Resource
+    private EntitlementService entitlementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -96,6 +99,15 @@ public class ProcurementResponseServiceImpl implements ProcurementResponseServic
         ProcurementResponse existing = findResponse(dto.getProcurementId(), companyId);
         if (existing != null) {
             return responseWithCompany(existing, company);
+        }
+
+        // Phase14: 消耗LEAD_RESPONSE配额（商机响应商业化）
+        // 兼容策略：有权益记录则扣配额，无权益记录（尚未开通Phase14订阅的企业）放行
+        com.robot.home.commercial.entity.EnterpriseEntitlement leadRespEnt =
+                entitlementService.checkEntitlement(companyId, "LEAD_RESPONSE");
+        if (leadRespEnt != null) {
+            entitlementService.consumeQuota(companyId, "LEAD_RESPONSE",
+                    "PROCUREMENT_RESPONSE", dto.getProcurementId());
         }
 
         // 4. XSS防护

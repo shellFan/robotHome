@@ -34,7 +34,9 @@ public class DbMigrationRunner {
             "13_phase9_product_growth.sql",
             "14_phase10_ecosystem_growth.sql",
             "15_phase12_real_data_growth.sql",
-            "16_phase12_data_quality_snapshot.sql"
+            "16_phase12_data_quality_snapshot.sql",
+            "17_phase13_growth_enterprise.sql",
+            "18_phase14_commercialization.sql"
     };
 
     public static void main(String[] args) {

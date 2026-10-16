@@ -83,10 +83,12 @@ public class TestDataSourceInitializer implements PriorityOrdered {
         runClasspath("sql/16_phase12_data_quality_snapshot.sql");
         // 11. Phase13: Growth & Enterprise Ecosystem
         runClasspath("sql/17_phase13_growth_enterprise.sql");
-        // 12. 验证关键表
+        // 12. Phase14: Commercialization & Platform Operations（商业化表+套餐+广告位+权限）
+        runClasspath("sql/18_phase14_commercialization.sql");
+        // 13. 验证关键表
         verifyTables();
         initialized = true;
-        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10 + phase12）");
+        log.info("H2 测试库初始化完成（schema + init + demo + migrations + real data + phase6 beta + phase7 + phase8 + phase9 + phase10 + phase12 + phase13 + phase14）");
     }
 
     private void verifyTables() {
