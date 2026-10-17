@@ -39,6 +39,12 @@ public class EntitlementServiceImpl implements EntitlementService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void initEntitlements(Long companyId, Long subscriptionId, String entitlementConfig) {
+        initEntitlements(companyId, subscriptionId, entitlementConfig, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void initEntitlements(Long companyId, Long subscriptionId, String entitlementConfig, LocalDateTime expireTime) {
         if (entitlementConfig == null || entitlementConfig.isEmpty()) {
             return;
         }
@@ -87,6 +93,8 @@ public class EntitlementServiceImpl implements EntitlementService {
                 ent.setPeriodStart(now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0));
                 ent.setPeriodEnd(ent.getPeriodStart().plusMonths(1));
             }
+            // 权益到期时间与订阅到期时间一致（确保订阅过期后权益自动失效）
+            ent.setExpireTime(expireTime);
             try {
                 entitlementMapper.insert(ent);
             } catch (org.springframework.dao.DuplicateKeyException e) {

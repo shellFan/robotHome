@@ -2,6 +2,7 @@ package com.robot.home.commercial.service;
 
 import com.robot.home.commercial.entity.EnterpriseEntitlement;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -14,8 +15,19 @@ public interface EntitlementService {
 
     /**
      * 初始化企业权益（订阅激活/套餐分配时调用）
+     * @deprecated 使用带expireTime的重载方法，确保权益与订阅到期时间一致
      */
+    @Deprecated
     void initEntitlements(Long companyId, Long subscriptionId, String entitlementConfig);
+
+    /**
+     * 初始化企业权益（指定权益到期时间，与订阅到期时间一致）
+     * @param companyId 企业ID
+     * @param subscriptionId 订阅ID
+     * @param entitlementConfig 权益配置JSON
+     * @param expireTime 权益到期时间（与订阅end_time一致，null则不设过期）
+     */
+    void initEntitlements(Long companyId, Long subscriptionId, String entitlementConfig, LocalDateTime expireTime);
 
     /**
      * 检查企业是否拥有某权益（不扣额度）

@@ -12,6 +12,7 @@ import com.robot.home.commercial.payment.MockSandboxPaymentProvider;
 import com.robot.home.commercial.payment.PaymentProvider;
 import com.robot.home.commercial.service.CommercialOrderService;
 import com.robot.home.commercial.service.PaymentService;
+import com.robot.home.message.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +48,8 @@ public class PaymentServiceImpl implements PaymentService {
     private CommercialAuditLogMapper auditLogMapper;
     @Resource
     private MockSandboxPaymentProvider mockSandboxProvider;
+    @Resource
+    private NotificationService notificationService;
 
     /** 渠道路由表 */
     private final Map<String, PaymentProvider> providerMap = new ConcurrentHashMap<>();
@@ -199,6 +202,15 @@ public class PaymentServiceImpl implements PaymentService {
         result.put("message", "支付成功");
         auditLog("SYSTEM", null, order.getCompanyId(), "PAYMENT_CALLBACK_SUCCESS", "PAYMENT",
                 payment != null ? payment.getId() : null, "orderNo=" + orderNo);
+        // 发送用户通知（支付成功）
+        try {
+            notificationService.sendNotification(order.getUserId(), "SYSTEM",
+                    "支付成功", "订单" + order.getOrderNo() + "支付成功，套餐已激活",
+                    "company", order.getCompanyId(),
+                    "PAYMENT_SUCCESS:" + order.getOrderNo());
+        } catch (Exception e) {
+            log.warn("支付成功通知发送失败: orderNo={}", orderNo, e);
+        }
         return result;
     }
 

@@ -6,15 +6,20 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.robot.home.common.exception.BusinessException;
 import com.robot.home.commercial.entity.CommercialAuditLog;
 import com.robot.home.commercial.entity.CommercialOrder;
+import com.robot.home.commercial.entity.EnterpriseEntitlement;
 import com.robot.home.commercial.entity.EnterprisePlan;
 import com.robot.home.commercial.entity.EnterprisePlanVersion;
 import com.robot.home.commercial.entity.EnterpriseSubscription;
 import com.robot.home.commercial.mapper.CommercialAuditLogMapper;
+import com.robot.home.commercial.mapper.EnterpriseEntitlementMapper;
 import com.robot.home.commercial.mapper.EnterprisePlanMapper;
 import com.robot.home.commercial.mapper.EnterprisePlanVersionMapper;
 import com.robot.home.commercial.mapper.EnterpriseSubscriptionMapper;
 import com.robot.home.commercial.service.EntitlementService;
 import com.robot.home.commercial.service.CommercialSubscriptionService;
+import com.robot.home.company.entity.CompanyMember;
+import com.robot.home.company.service.CompanyMemberService;
+import com.robot.home.message.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -47,6 +52,12 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
     private CommercialAuditLogMapper auditLogMapper;
     @Resource
     private EntitlementService entitlementService;
+    @Resource
+    private EnterpriseEntitlementMapper entitlementMapper;
+    @Resource
+    private CompanyMemberService companyMemberService;
+    @Resource
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -78,9 +89,9 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
         sub.setAutoRenew(0);
         try {
             subscriptionMapper.insert(sub);
-            // 初始化FREE权益
+            // 初始化FREE权益（到期时间与订阅一致：100年）
             if (freeVersion != null) {
-                entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig());
+                entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig(), sub.getEndTime());
             }
         } catch (DuplicateKeyException e) {
             // 并发创建，幂等跳过
@@ -133,7 +144,7 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
             sub.setSourceOrderId(order.getId());
             try {
                 subscriptionMapper.insert(sub);
-                entitlementService.initEntitlements(order.getCompanyId(), sub.getId(), entitlementConfig);
+                entitlementService.initEntitlements(order.getCompanyId(), sub.getId(), entitlementConfig, endTime);
                 updateEntitlementExpiry(order.getCompanyId(), endTime);
             } catch (DuplicateKeyException e) {
                 log.debug("订阅并发激活跳过: companyId={}", order.getCompanyId());
@@ -154,7 +165,7 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
                             .set(EnterpriseSubscription::getSourceOrderId, order.getId())
                             .eq(EnterpriseSubscription::getId, existing.getId()));
             if (updated > 0) {
-                entitlementService.initEntitlements(order.getCompanyId(), existing.getId(), entitlementConfig);
+                entitlementService.initEntitlements(order.getCompanyId(), existing.getId(), entitlementConfig, endTime);
                 updateEntitlementExpiry(order.getCompanyId(), endTime);
             }
         }
@@ -231,7 +242,7 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
                                 .eq(EnterprisePlanVersion::getPlanId, freePlan.getId())
                                 .eq(EnterprisePlanVersion::getStatus, "ACTIVE"));
                 if (freeVersion != null) {
-                    entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig());
+                    entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig(), LocalDateTime.now().plusYears(100));
                 }
             }
         }
@@ -258,6 +269,10 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
                             .eq(EnterpriseSubscription::getId, sub.getId())
                             .eq(EnterpriseSubscription::getStatus, "ACTIVE"));
             count++;
+            // 通知企业管理员订阅即将到期
+            notifyCompanyAdmins(sub.getCompanyId(), "订阅即将到期",
+                    "您的订阅\"" + sub.getPlanName() + "\"将于" + sub.getEndTime().toLocalDate() + "到期，请及时续费",
+                    "SUBSCRIPTION_EXPIRING:" + sub.getId());
         }
         // EXPIRING/ACTIVE→EXPIRED（已过期）
         List<EnterpriseSubscription> expired = subscriptionMapper.selectList(
@@ -320,15 +335,32 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
 
     // ==================== 私有方法 ====================
 
+    /**
+     * 通知企业管理员（OWNER角色成员）
+     */
+    private void notifyCompanyAdmins(Long companyId, String title, String summary, String eventKey) {
+        try {
+            List<CompanyMember> members = companyMemberService.listMembers(companyId);
+            for (CompanyMember member : members) {
+                if ("OWNER".equals(member.getRole()) || "ADMIN".equals(member.getRole())) {
+                    notificationService.sendNotification(member.getUserId(), "SYSTEM",
+                            title, summary, "company", companyId, eventKey);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("企业管理员通知发送失败: companyId={}", companyId, e);
+        }
+    }
+
     private void updateEntitlementExpiry(Long companyId, LocalDateTime endTime) {
-        // 权益过期时间与订阅到期时间一致
-        List<com.robot.home.commercial.entity.EnterpriseEntitlement> ents =
-                entitlementService.listEntitlements(companyId);
-        for (com.robot.home.commercial.entity.EnterpriseEntitlement ent : ents) {
+        // 权益过期时间与订阅到期时间一致（实际更新DB，确保订阅过期后权益自动失效）
+        List<EnterpriseEntitlement> ents = entitlementService.listEntitlements(companyId);
+        for (EnterpriseEntitlement ent : ents) {
             if ("ACTIVE".equals(ent.getStatus())) {
-                // 使用mapper直接更新过期时间
-                // 通过entitlementService无法直接更新，这里用日志标记
-                log.debug("权益过期时间应更新为: entId={}, endTime={}", ent.getId(), endTime);
+                entitlementMapper.update(null,
+                        Wrappers.<EnterpriseEntitlement>lambdaUpdate()
+                                .set(EnterpriseEntitlement::getExpireTime, endTime)
+                                .eq(EnterpriseEntitlement::getId, ent.getId()));
             }
         }
     }

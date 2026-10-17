@@ -273,6 +273,13 @@ public class AdvertisingServiceImpl implements AdvertisingService {
         if (StrUtil.isBlank(mediaUrl) || StrUtil.isBlank(title)) {
             throw new BusinessException("素材URL和标题不能为空");
         }
+        // 安全：jumpUrl仅允许http/https协议，禁止javascript:/data:/vbscript:等危险协议
+        if (StrUtil.isNotBlank(jumpUrl)) {
+            String normalized = jumpUrl.trim().toLowerCase();
+            if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+                throw new BusinessException("跳转链接仅支持http/https协议");
+            }
+        }
         AdvertisingCreative creative = new AdvertisingCreative();
         creative.setCampaignId(campaignId);
         creative.setMediaType(mediaType);
@@ -313,8 +320,29 @@ public class AdvertisingServiceImpl implements AdvertisingService {
                         .eq(AdvertisingCampaign::getStatus, "ONLINE")
                         .le(AdvertisingCampaign::getStartTime, now)
                         .ge(AdvertisingCampaign::getEndTime, now));
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         List<Map<String, Object>> ads = new ArrayList<>();
         for (AdvertisingCampaign campaign : campaigns) {
+            // 投放限额检查：totalLimit>0时检查总展示数，dailyLimit>0时检查当日展示数
+            if (campaign.getTotalLimit() != null && campaign.getTotalLimit() > 0) {
+                long totalImpressions = eventMapper.selectCount(
+                        Wrappers.<AdvertisingEvent>lambdaQuery()
+                                .eq(AdvertisingEvent::getCampaignId, campaign.getId())
+                                .eq(AdvertisingEvent::getEventType, "IMPRESSION"));
+                if (totalImpressions >= campaign.getTotalLimit()) {
+                    continue; // 已达总展示上限，不再展示
+                }
+            }
+            if (campaign.getDailyLimit() != null && campaign.getDailyLimit() > 0) {
+                long todayImpressions = eventMapper.selectCount(
+                        Wrappers.<AdvertisingEvent>lambdaQuery()
+                                .eq(AdvertisingEvent::getCampaignId, campaign.getId())
+                                .eq(AdvertisingEvent::getEventType, "IMPRESSION")
+                                .ge(AdvertisingEvent::getEventTime, todayStart));
+                if (todayImpressions >= campaign.getDailyLimit()) {
+                    continue; // 已达当日展示上限，不再展示
+                }
+            }
             // 查第一个素材
             AdvertisingCreative creative = creativeMapper.selectOne(
                     Wrappers.<AdvertisingCreative>lambdaQuery()

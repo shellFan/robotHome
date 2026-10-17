@@ -13,6 +13,7 @@ import com.robot.home.commercial.mapper.CommercialOrderMapper;
 import com.robot.home.commercial.mapper.CommercialRefundMapper;
 import com.robot.home.commercial.service.RefundService;
 import com.robot.home.commercial.service.CommercialSubscriptionService;
+import com.robot.home.message.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,8 @@ public class RefundServiceImpl implements RefundService {
     private CommercialAuditLogMapper auditLogMapper;
     @Resource
     private CommercialSubscriptionService subscriptionService;
+    @Resource
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -118,6 +121,17 @@ public class RefundServiceImpl implements RefundService {
         auditLog("ADMIN", operatorId, order != null ? order.getCompanyId() : null,
                 "REFUND_CONFIRM", "REFUND", refundId, "refundNo=" + refund.getRefundNo());
         log.info("退款确认成功: refundId={}, orderId={}", refundId, refund.getOrderId());
+        // 发送用户通知（退款已处理）
+        if (order != null) {
+            try {
+                notificationService.sendNotification(order.getUserId(), "SYSTEM",
+                        "退款已处理", "订单" + order.getOrderNo() + "退款已确认，订阅已降级为免费版",
+                        "company", order.getCompanyId(),
+                        "REFUND_CONFIRMED:" + refund.getRefundNo());
+            } catch (Exception e) {
+                log.warn("退款确认通知发送失败: refundNo={}", refund.getRefundNo(), e);
+            }
+        }
     }
 
     @Override
