@@ -212,12 +212,14 @@ public class EntitlementServiceImpl implements EntitlementService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void expireEntitlements(Long companyId) {
+        // 订阅到期/退款时，撤销该企业所有ACTIVE权益
+        // 不检查expireTime：订阅已到期/退款，其授予的权益必须全部撤销，
+        // 即使权益的expireTime仍在未来（权益expireTime基于订阅时长计算，订阅失效则权益失效）
         entitlementMapper.update(null,
                 Wrappers.<EnterpriseEntitlement>lambdaUpdate()
                         .set(EnterpriseEntitlement::getStatus, "EXPIRED")
                         .eq(EnterpriseEntitlement::getCompanyId, companyId)
-                        .eq(EnterpriseEntitlement::getStatus, "ACTIVE")
-                        .lt(EnterpriseEntitlement::getExpireTime, LocalDateTime.now()));
+                        .eq(EnterpriseEntitlement::getStatus, "ACTIVE"));
     }
 
     @Override

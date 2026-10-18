@@ -50,6 +50,12 @@ export function failRefund(refundId, reason) {
   return request({ url: `/admin/commercial/refunds/${refundId}/fail`, method: 'post', params: { reason } })
 }
 
+// ==================== 商业统计 ====================
+
+export function getCommercialStats() {
+  return request({ url: '/admin/commercial/stats', method: 'get' })
+}
+
 // ==================== 订阅管理 ====================
 
 export function getSubscription(companyId) {

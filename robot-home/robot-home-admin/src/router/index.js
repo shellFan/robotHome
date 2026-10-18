@@ -330,6 +330,14 @@ export const defaultMenus = [
     redirect: '/commercial/plans',
     children: [
       {
+        path: 'stats',
+        name: 'CommercialStats',
+        menuName: '商业统计',
+        icon: 'DataAnalysis',
+        permission: 'commercial:order:manage',
+        component: () => import('@/views/commercial/stats.vue')
+      },
+      {
         path: 'plans',
         name: 'CommercialPlans',
         menuName: '套餐管理',

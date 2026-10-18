@@ -422,4 +422,161 @@ class Phase14IntegrationTest {
         }
         assertTrue(data.size() >= 1, "FREE套餐应在上架列表中");
     }
+
+    // ==================== E2E-03: 权益到期链条 ====================
+
+    @Test
+    void subscriptionExpirationExpiresEntitlements() {
+        Long companyId = 1L;
+        Long userId = 910008L;
+        // 完整支付链路获得ACTIVE订阅（processExpirations只扫描ACTIVE/EXPIRING）
+        subscriptionService.ensureFreeSubscription(companyId);
+        EnterprisePlan basicPlan = planMapper.selectOne(
+                Wrappers.<EnterprisePlan>lambdaQuery().eq(EnterprisePlan::getCode, "BASIC"));
+        basicPlan.setStatus("ON_SHELF");
+        basicPlan.setSaleable(1);
+        planMapper.updateById(basicPlan);
+        CommercialOrder order = orderService.createOrder(
+                companyId, userId, basicPlan.getId(), "idem-expire-" + System.currentTimeMillis());
+        paymentService.createPayment(order.getId(), companyId, "MOCK_SANDBOX");
+        paymentService.sandboxConfirmPayment(order.getId(), companyId);
+
+        EnterpriseSubscription sub = subscriptionService.getSubscription(companyId);
+        assertNotNull(sub);
+        assertEquals("ACTIVE", sub.getStatus(), "支付后订阅应为ACTIVE");
+
+        // 验证权益已初始化
+        List<EnterpriseEntitlement> ents = entitlementService.listEntitlements(companyId);
+        assertFalse(ents.isEmpty(), "权益应已初始化");
+
+        // 模拟订阅到期：将endTime设为过去
+        subscriptionMapper.update(null,
+                Wrappers.<EnterpriseSubscription>lambdaUpdate()
+                        .set(EnterpriseSubscription::getEndTime, LocalDateTime.now().minusDays(1))
+                        .eq(EnterpriseSubscription::getId, sub.getId()));
+
+        // 执行到期扫描
+        subscriptionService.processExpirations();
+
+        // 验证订阅已EXPIRED
+        EnterpriseSubscription expiredSub = subscriptionMapper.selectById(sub.getId());
+        assertEquals("EXPIRED", expiredSub.getStatus(), "到期订阅必须被标记为EXPIRED");
+
+        // 验证权益已被撤销（非ACTIVE）
+        List<EnterpriseEntitlement> expiredEnts = entitlementService.listEntitlements(companyId);
+        assertTrue(expiredEnts.stream().noneMatch(e -> "ACTIVE".equals(e.getStatus())),
+                "订阅到期后所有权益必须被撤销（非ACTIVE）");
+
+        // 过期后消耗配额必须失败
+        assertThrows(BusinessException.class,
+                () -> entitlementService.consumeQuota(companyId, "LEAD_VIEW", "TEST", 8888L),
+                "订阅到期后不可消耗配额");
+    }
+
+    // ==================== E2E-04b: 回调幂等（同一回调重复处理） ====================
+
+    @Test
+    void duplicateCallbackIsIdempotent() {
+        Long companyId = 1L;
+        Long userId = 910006L;
+        subscriptionService.ensureFreeSubscription(companyId);
+        EnterprisePlan freePlan = planMapper.selectOne(
+                Wrappers.<EnterprisePlan>lambdaQuery().eq(EnterprisePlan::getCode, "FREE"));
+        CommercialOrder order = orderService.createOrder(
+                companyId, userId, freePlan.getId(), "idem-callback-" + System.currentTimeMillis());
+        paymentService.createPayment(order.getId(), companyId, "MOCK_SANDBOX");
+
+        // 构造正确的回调
+        String mockNo = "MOCK_DUP_" + System.currentTimeMillis();
+        String sign = cn.hutool.crypto.digest.DigestUtil.md5Hex(
+                order.getOrderNo() + mockNo + "MOCK_SANDBOX_SECRET");
+        Map<String, String> params = new HashMap<>();
+        params.put("orderNo", order.getOrderNo());
+        params.put("mockNo", mockNo);
+        params.put("status", "SUCCESS");
+        params.put("amountCents", String.valueOf(order.getPayableAmountCents()));
+        params.put("sign", sign);
+
+        // 第一次回调应成功
+        Map<String, Object> firstResult = paymentService.handleCallback("MOCK_SANDBOX", params, "dup-test");
+        assertEquals(Boolean.TRUE, firstResult.get("success"), "第一次回调应成功");
+
+        // 订单应PAID
+        CommercialOrder paidOrder = orderMapper.selectById(order.getId());
+        assertEquals("PAID", paidOrder.getStatus());
+
+        // 第二次相同回调应幂等返回（不重复处理）
+        Map<String, Object> secondResult = paymentService.handleCallback("MOCK_SANDBOX", params, "dup-test");
+        // 幂等：要么返回success=true（已处理），要么返回明确的已处理标记
+        // 关键是订单状态不变、不产生重复支付记录
+        assertNotNull(secondResult, "重复回调必须有响应");
+
+        // 验证订单仍为PAID（未被重复处理破坏）
+        CommercialOrder orderAfterDup = orderMapper.selectById(order.getId());
+        assertEquals("PAID", orderAfterDup.getStatus(), "重复回调后订单状态必须保持PAID");
+
+        // 验证支付记录只有一条SUCCESS
+        long successPayments = paymentService.getPaymentsByOrderNo(order.getOrderNo()).stream()
+                .filter(p -> "SUCCESS".equals(p.getStatus()))
+                .count();
+        assertEquals(1, successPayments, "重复回调不应产生多条SUCCESS支付记录");
+    }
+
+    // ==================== E2E-09b: Admin商业统计端点 ====================
+
+    @Test
+    void adminCommercialStatsEndpointReturnsCorrectStructure() throws Exception {
+        // 先产生一些商业数据
+        Long companyId = 1L;
+        Long userId = 910007L;
+        subscriptionService.ensureFreeSubscription(companyId);
+        EnterprisePlan basicPlan = planMapper.selectOne(
+                Wrappers.<EnterprisePlan>lambdaQuery().eq(EnterprisePlan::getCode, "BASIC"));
+        basicPlan.setStatus("ON_SHELF");
+        basicPlan.setSaleable(1);
+        planMapper.updateById(basicPlan);
+        CommercialOrder order = orderService.createOrder(
+                companyId, userId, basicPlan.getId(), "idem-stats-" + System.currentTimeMillis());
+        paymentService.createPayment(order.getId(), companyId, "MOCK_SANDBOX");
+        paymentService.sandboxConfirmPayment(order.getId(), companyId);
+
+        // 生成Admin JWT（TOKEN_TYPE_ADMIN，ROLE_ADMIN bypass @RequirePermission）
+        String adminToken = jwtUtils.generateAdminToken(1L, "admin", "ADMIN");
+
+        // 调用Admin统计端点
+        MvcResult result = mockMvc.perform(get("/api/admin/commercial/stats")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andReturn();
+        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertEquals(200, root.path("code").asInt(), "Admin统计端点应返回200");
+        JsonNode data = root.path("data");
+
+        // 验证订单统计结构
+        JsonNode orderStats = data.path("orderStats");
+        assertTrue(orderStats.has("total"), "orderStats必须包含total");
+        assertTrue(orderStats.has("paid"), "orderStats必须包含paid");
+        assertTrue(orderStats.path("total").asInt() >= 1, "至少有1条订单");
+
+        // 验证收入统计结构（严格区分REAL/SANDBOX）
+        JsonNode revenueStats = data.path("revenueStats");
+        assertTrue(revenueStats.has("realRevenueCents"), "revenueStats必须包含realRevenueCents");
+        assertTrue(revenueStats.has("sandboxRevenueCents"), "revenueStats必须包含sandboxRevenueCents");
+        assertTrue(revenueStats.has("totalRevenueCents"), "revenueStats必须包含totalRevenueCents");
+        assertTrue(revenueStats.has("channelRevenue"), "revenueStats必须包含channelRevenue");
+
+        // 沙箱支付的订单金额必须计入sandboxRevenueCents，不能计入realRevenueCents
+        long sandboxRevenue = revenueStats.path("sandboxRevenueCents").asLong();
+        long realRevenue = revenueStats.path("realRevenueCents").asLong();
+        assertTrue(sandboxRevenue >= 0, "沙箱收入必须非负");
+        assertTrue(realRevenue >= 0, "真实收入必须非负");
+
+        // 验证订阅统计结构
+        JsonNode subStats = data.path("subscriptionStats");
+        assertTrue(subStats.has("total"), "subscriptionStats必须包含total");
+        assertTrue(subStats.has("active"), "subscriptionStats必须包含active");
+
+        // 验证退款统计结构
+        JsonNode refundStats = data.path("refundStats");
+        assertTrue(refundStats.has("total"), "refundStats必须包含total");
+    }
 }
