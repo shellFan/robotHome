@@ -1,0 +1,40 @@
+<view class="page rh-container">
+  <view wx:if="{{loading}}" class="rh-empty">加载中...</view>
+  <view wx:elif="{{error}}" class="rh-empty" bindtap="refresh">{{error}}</view>
+  <block wx:else>
+    <view class="orders-tabs">
+      <text class="orders-tab {{statusFilter === '' ? 'orders-tab--active' : ''}}" data-status="" bindtap="switchStatus">全部</text>
+      <text class="orders-tab {{statusFilter === 'PENDING_PAYMENT' ? 'orders-tab--active' : ''}}" data-status="PENDING_PAYMENT" bindtap="switchStatus">待支付</text>
+      <text class="orders-tab {{statusFilter === 'PAID' ? 'orders-tab--active' : ''}}" data-status="PAID" bindtap="switchStatus">已支付</text>
+      <text class="orders-tab {{statusFilter === 'CANCELLED' ? 'orders-tab--active' : ''}}" data-status="CANCELLED" bindtap="switchStatus">已取消</text>
+      <text class="orders-tab {{statusFilter === 'REFUNDED' ? 'orders-tab--active' : ''}}" data-status="REFUNDED" bindtap="switchStatus">已退款</text>
+    </view>
+
+    <view wx:if="{{orders.length === 0}}" class="rh-empty">
+      <text>暂无订单</text>
+      <button class="rh-btn orders-empty-btn" size="mini" bindtap="goPlans">去购买套餐</button>
+    </view>
+
+    <view wx:for="{{orders}}" wx:key="id" class="order-card rh-card">
+      <view class="order-card__head">
+        <text class="order-card__no">{{item.orderNo}}</text>
+        <text class="order-card__status order-card__status--{{item.status}}">{{item.status === 'PENDING_PAYMENT' ? '待支付' : item.status === 'PAID' ? '已支付' : item.status === 'CANCELLED' ? '已取消' : item.status === 'REFUNDED' ? '已退款' : item.status}}</text>
+      </view>
+      <view class="order-card__row">
+        <text class="rh-text-light">套餐：{{item.planName}}</text>
+        <text class="order-card__amount">¥{{item.payableAmountCents / 100}}</text>
+      </view>
+      <view class="order-card__row">
+        <text class="rh-text-light">{{item.createTime}}</text>
+      </view>
+      <view class="order-card__actions" wx:if="{{item.status === 'PENDING_PAYMENT'}}">
+        <button class="rh-btn--ghost order-card__btn" size="mini" data-id="{{item.id}}" bindtap="cancelOrder" disabled="{{operating}}">取消订单</button>
+        <button class="rh-btn order-card__btn" size="mini" data-id="{{item.id}}" bindtap="payOrder" disabled="{{operating}}">去支付</button>
+      </view>
+    </view>
+
+    <view class="orders-tip rh-card">
+      <text class="rh-text-light">沙箱环境支付仅供测试。生产环境不提供模拟支付确认操作。</text>
+    </view>
+  </block>
+</view>

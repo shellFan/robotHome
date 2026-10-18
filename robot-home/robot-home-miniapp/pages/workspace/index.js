@@ -9,7 +9,8 @@ Page({
     myRole: null,
     isVerified: false,
     claims: [],
-    changes: []
+    changes: [],
+    commercial: null
   },
   onShow() { this.refresh() },
   async refresh() {
@@ -29,6 +30,7 @@ Page({
         })
         this.loadClaims()
         this.loadChanges()
+        this.loadCommercial()
       } else {
         this.setData({
           hasCompany: false,
@@ -40,6 +42,14 @@ Page({
     } catch (e) {
       this.setData({ loading: false, hasCompany: false })
     }
+  },
+  async loadCommercial() {
+    if (!this.data.company) return
+    try {
+      const { commercialApi } = require('../../api/index')
+      const overview = await commercialApi.commercialOverview(this.data.company.id)
+      this.setData({ commercial: overview })
+    } catch (e) { /* 商业概览加载失败不阻塞 */ }
   },
   async loadClaims() {
     try {
@@ -63,6 +73,15 @@ Page({
   },
   goProcurement() {
     wx.navigateTo({ url: '/pages/procurement/index' })
+  },
+  goPlans() {
+    wx.navigateTo({ url: '/pages/plans/plans' })
+  },
+  goOrders() {
+    wx.navigateTo({ url: '/pages/orders/orders' })
+  },
+  goSubscription() {
+    wx.navigateTo({ url: '/pages/subscription/subscription' })
   },
   statusText(status) {
     var map = { PENDING: '审核中', APPROVED: '已通过', REJECTED: '已拒绝', CANCELLED: '已取消' }

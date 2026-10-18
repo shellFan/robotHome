@@ -42,7 +42,10 @@
     "pages/follow/follow",
     "pages/workspace/index",
     "pages/workspace/claim",
-    "pages/workspace/claims"
+    "pages/workspace/claims",
+    "pages/plans/plans",
+    "pages/orders/orders",
+    "pages/subscription/subscription"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

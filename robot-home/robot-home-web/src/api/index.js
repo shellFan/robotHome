@@ -313,5 +313,31 @@ export const commercialApi = {
   /** 我的权益列表 */
   myEntitlements: () => get('/commercial/subscription/entitlements'),
   /** 取消自动续费 */
-  cancelAutoRenew: () => postForm('/commercial/subscription/cancel')
+  cancelAutoRenew: () => postForm('/commercial/subscription/cancel'),
+  /** 企业商业概览（工作台） */
+  commercialOverview: (companyId) => get('/workspace/commercial-overview', { companyId })
+}
+
+/** Phase14: 企业端广告投放 */
+export const advertisingApi = {
+  /** 广告位列表 */
+  slots: () => get('/advertising/slots'),
+  /** 广告位展示内容（公开） */
+  slotAds: (slotCode) => get(`/advertising/slots/${slotCode}/ads`),
+  /** 创建投放计划 */
+  createCampaign: (data) => postForm('/advertising/campaigns', data),
+  /** 我的投放计划 */
+  myCampaigns: (params) => get('/advertising/campaigns', params),
+  /** 提交审核 */
+  submitCampaign: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/submit`, { companyId }),
+  /** 上线 */
+  goOnline: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/online`, { companyId }),
+  /** 下线 */
+  goOffline: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/offline`, { companyId }),
+  /** 添加素材 */
+  createCreative: (data) => postForm(`/advertising/campaigns/${data.campaignId}/creatives`, data),
+  /** 素材列表 */
+  creatives: (campaignId) => get(`/advertising/campaigns/${campaignId}/creatives`),
+  /** 投放统计 */
+  campaignStats: (campaignId) => get(`/advertising/campaigns/${campaignId}/stats`)
 }

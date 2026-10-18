@@ -45,7 +45,8 @@ const menus = [
   { path: '/user/messages', label: '我的消息' },
   { path: '/user/enterprise', label: '企业工作台' },
   { path: '/user/orders', label: '商业订单' },
-  { path: '/user/subscription', label: '我的订阅' }
+  { path: '/user/subscription', label: '我的订阅' },
+  { path: '/user/advertising', label: '广告管理' }
 ]
 
 onMounted(() => {

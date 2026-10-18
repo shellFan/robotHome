@@ -52,7 +52,8 @@ const routes = [
       { path: 'messages', name: 'user-messages', component: () => import('@/views/user/Messages.vue'), meta: { title: '我的消息 - 机器人之家' } },
       { path: 'enterprise', name: 'user-enterprise', component: () => import('@/views/user/EnterpriseWorkspace.vue'), meta: { title: '企业工作台 - 机器人之家' } },
       { path: 'orders', name: 'user-orders', component: () => import('@/views/user/CommercialOrders.vue'), meta: { title: '商业订单 - 机器人之家' } },
-      { path: 'subscription', name: 'user-subscription', component: () => import('@/views/user/MySubscription.vue'), meta: { title: '我的订阅 - 机器人之家' } }
+      { path: 'subscription', name: 'user-subscription', component: () => import('@/views/user/MySubscription.vue'), meta: { title: '我的订阅 - 机器人之家' } },
+      { path: 'advertising', name: 'user-advertising', component: () => import('@/views/user/EnterpriseAdvertising.vue'), meta: { title: '广告管理 - 机器人之家' } }
     ]
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFound.vue'), meta: { title: '页面不存在 - 机器人之家' } }
