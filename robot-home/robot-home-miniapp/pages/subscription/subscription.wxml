@@ -1,0 +1,45 @@
+<view class="page rh-container">
+  <view wx:if="{{loading}}" class="rh-empty">加载中...</view>
+  <view wx:elif="{{error}}" class="rh-empty" bindtap="refresh">{{error}}</view>
+  <block wx:else>
+    <view class="sub-header rh-card">
+      <view class="sub-header__top">
+        <text class="sub-header__name">{{subscription ? subscription.planName : '免费版'}}</text>
+        <text class="sub-header__status sub-header__status--{{subscription ? subscription.status : 'FREE'}}">{{subscription ? (subscription.status === 'ACTIVE' ? '使用中' : subscription.status === 'EXPIRING' ? '即将到期' : subscription.status === 'EXPIRED' ? '已过期' : subscription.status === 'SUSPENDED' ? '已暂停' : subscription.status === 'FREE' ? '免费版' : subscription.status) : '免费版'}}</text>
+      </view>
+      <view class="sub-header__meta" wx:if="{{subscription}}">
+        <text class="rh-text-light">生效：{{subscription.startTime ? (subscription.startTime + '').substring(0, 10) : '-'}}</text>
+        <text class="rh-text-light">到期：{{subscription.endTime ? (subscription.endTime + '').substring(0, 10) : '-'}}</text>
+        <text class="rh-text-light">自动续费：{{subscription.autoRenew === 1 ? '已开启' : '未开启'}}</text>
+      </view>
+      <view class="sub-header__actions">
+        <button class="rh-btn sub-header__btn" size="mini" bindtap="goPlans">升级套餐</button>
+        <button wx:if="{{subscription && subscription.autoRenew === 1}}" class="rh-btn--ghost sub-header__btn" size="mini" bindtap="cancelRenew">关闭自动续费</button>
+        <button class="rh-btn--ghost sub-header__btn" size="mini" bindtap="goOrders">我的订单</button>
+      </view>
+    </view>
+
+    <view class="ent-section">
+      <view class="rh-section-head">
+        <text class="rh-section-title">权益清单</text>
+      </view>
+      <view wx:if="{{entitlements.length === 0}}" class="rh-empty">暂无权益数据</view>
+      <view wx:for="{{entitlements}}" wx:key="entCode" class="ent-item rh-card">
+        <view class="ent-item__head">
+          <text class="ent-item__name">{{item.entCode === 'LEAD_VIEW' ? '商机查看' : item.entCode === 'LEAD_RESPONSE' ? '商机响应' : item.entCode === 'PRODUCT_MANAGEMENT' ? '产品管理' : item.entCode === 'PRODUCT_FEATURED' ? '精选推荐位' : item.entCode === 'AD_CAMPAIGN' ? '广告投放' : item.entCode === 'ANALYTICS_ADVANCED' ? '高级数据分析' : item.entCode === 'COMPANY_PROFILE_ENHANCED' ? '企业主页增强' : item.entCode}}</text>
+          <text class="ent-item__status {{item.status === 'ACTIVE' ? 'ent-item__status--active' : ''}}">{{item.status === 'ACTIVE' ? '生效中' : item.status}}</text>
+        </view>
+        <view class="ent-item__quota">
+          <text wx:if="{{item.quotaTotal === 0}}" class="ent-item__unlimited">不限量</text>
+          <block wx:else>
+            <text class="ent-item__used">{{item.quotaUsed}} / {{item.quotaTotal}}</text>
+            <view class="ent-item__bar">
+              <view class="ent-item__bar-fill" style="width: {{item.quotaTotal > 0 ? (item.quotaUsed / item.quotaTotal * 100) : 0}}%"></view>
+            </view>
+          </block>
+        </view>
+        <text class="rh-text-light" wx:if="{{item.expireTime}}">到期：{{(item.expireTime + '').substring(0, 10)}}</text>
+      </view>
+    </view>
+  </block>
+</view>

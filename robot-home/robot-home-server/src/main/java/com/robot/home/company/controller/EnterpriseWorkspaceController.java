@@ -9,6 +9,11 @@ import com.robot.home.company.entity.CompanyProfileChange;
 import com.robot.home.company.mapper.CompanyMapper;
 import com.robot.home.company.service.CompanyMemberService;
 import com.robot.home.company.service.CompanyProfileChangeService;
+import com.robot.home.commercial.entity.EnterpriseEntitlement;
+import com.robot.home.commercial.entity.EnterpriseSubscription;
+import com.robot.home.commercial.service.CommercialOrderService;
+import com.robot.home.commercial.service.CommercialSubscriptionService;
+import com.robot.home.commercial.service.EntitlementService;
 import com.robot.home.security.LoginUser;
 import com.robot.home.security.UserContext;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +44,12 @@ public class EnterpriseWorkspaceController {
     private CompanyMemberService companyMemberService;
     @Resource
     private CompanyProfileChangeService profileChangeService;
+    @Resource
+    private CommercialSubscriptionService commercialSubscriptionService;
+    @Resource
+    private EntitlementService entitlementService;
+    @Resource
+    private CommercialOrderService commercialOrderService;
 
     /**
      * 我的企业工作台首页(企业信息+成员角色)
@@ -155,6 +166,46 @@ public class EnterpriseWorkspaceController {
         Long userId = SecurityUtils.requireUserId();
         companyMemberService.removeMember(userId, companyId, targetUserId);
         return Result.success();
+    }
+
+    /**
+     * 商业概览（订阅状态+权益使用+订单统计）
+     */
+    @GetMapping("/commercial-overview")
+    public Result<Map<String, Object>> commercialOverview(@RequestParam Long companyId) {
+        Long userId = SecurityUtils.requireUserId();
+        companyMemberService.requireActiveMember(userId, companyId);
+        Map<String, Object> overview = new HashMap<>();
+        // 订阅状态
+        EnterpriseSubscription subscription = commercialSubscriptionService.getSubscription(companyId);
+        if (subscription != null) {
+            Map<String, Object> subInfo = new HashMap<>();
+            subInfo.put("planName", subscription.getPlanName());
+            subInfo.put("status", subscription.getStatus());
+            subInfo.put("startTime", subscription.getStartTime());
+            subInfo.put("endTime", subscription.getEndTime());
+            subInfo.put("autoRenew", subscription.getAutoRenew());
+            overview.put("subscription", subInfo);
+        } else {
+            overview.put("subscription", null);
+        }
+        // 权益使用概要
+        List<EnterpriseEntitlement> entitlements = entitlementService.listEntitlements(companyId);
+        List<Map<String, Object>> entViews = new java.util.ArrayList<>();
+        for (EnterpriseEntitlement ent : entitlements) {
+            Map<String, Object> view = new HashMap<>();
+            view.put("entCode", ent.getEntCode());
+            view.put("quotaTotal", ent.getQuotaTotal());
+            view.put("quotaUsed", ent.getQuotaUsed());
+            view.put("status", ent.getStatus());
+            view.put("periodType", ent.getPeriodType());
+            view.put("expireTime", ent.getExpireTime());
+            entViews.add(view);
+        }
+        overview.put("entitlements", entViews);
+        // 订单统计
+        overview.put("orderStats", commercialOrderService.listCompanyOrders(companyId, null, 1, 1).getTotal());
+        return Result.success(overview);
     }
 
     // ==================== 私有方法 ====================

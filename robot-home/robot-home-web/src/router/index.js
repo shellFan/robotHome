@@ -27,6 +27,7 @@ const routes = [
   { path: '/qa/:id', name: 'qa-detail', component: () => import('@/views/QaDetail.vue'), meta: { title: '问题详情 - 机器人之家' } },
   { path: '/selection', name: 'selection', component: () => import('@/views/Selection.vue'), meta: { title: '智能选型 - 机器人之家' } },
   { path: '/procurement', name: 'procurement', component: () => import('@/views/ProcurementHall.vue'), meta: { title: '采购大厅 - 机器人之家' } },
+  { path: '/plans', name: 'plans', component: () => import('@/views/Plans.vue'), meta: { title: '套餐 - 机器人之家' } },
   { path: '/community/create', name: 'post-create', component: () => import('@/views/PostCreate.vue'), meta: { title: '发帖 - 机器人之家', auth: true } },
   { path: '/community/:id', name: 'post-detail', component: () => import('@/views/PostDetail.vue'), meta: { title: '帖子详情 - 机器人之家' } },
   { path: '/inquiry/:robotId', name: 'inquiry', component: () => import('@/views/Inquiry.vue'), meta: { title: '获取报价 - 机器人之家' } },
@@ -49,7 +50,10 @@ const routes = [
       { path: 'follows', name: 'user-follows', component: () => import('@/views/user/Follows.vue'), meta: { title: '我的关注 - 机器人之家' } },
       { path: 'inquiries', name: 'user-inquiries', component: () => import('@/views/user/Inquiries.vue'), meta: { title: '我的询价 - 机器人之家' } },
       { path: 'messages', name: 'user-messages', component: () => import('@/views/user/Messages.vue'), meta: { title: '我的消息 - 机器人之家' } },
-      { path: 'enterprise', name: 'user-enterprise', component: () => import('@/views/user/EnterpriseWorkspace.vue'), meta: { title: '企业工作台 - 机器人之家' } }
+      { path: 'enterprise', name: 'user-enterprise', component: () => import('@/views/user/EnterpriseWorkspace.vue'), meta: { title: '企业工作台 - 机器人之家' } },
+      { path: 'orders', name: 'user-orders', component: () => import('@/views/user/CommercialOrders.vue'), meta: { title: '商业订单 - 机器人之家' } },
+      { path: 'subscription', name: 'user-subscription', component: () => import('@/views/user/MySubscription.vue'), meta: { title: '我的订阅 - 机器人之家' } },
+      { path: 'advertising', name: 'user-advertising', component: () => import('@/views/user/EnterpriseAdvertising.vue'), meta: { title: '广告管理 - 机器人之家' } }
     ]
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFound.vue'), meta: { title: '页面不存在 - 机器人之家' } }

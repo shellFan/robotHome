@@ -248,6 +248,32 @@ const enterpriseApi = {
   fieldRisk: function (fieldName) { return get('/workspace/field-risk', { fieldName: fieldName }) }
 }
 
+// Phase14: Commercial API
+const commercialApi = {
+  plans: function () { return get('/plans') },
+  planDetail: function (planId) { return get('/plans/' + planId) },
+  createOrder: function (data) { return postForm('/commercial/orders', data) },
+  myOrders: function (params) { return get('/commercial/orders', params) },
+  orderDetail: function (orderId, companyId) { return get('/commercial/orders/' + orderId, { companyId: companyId }) },
+  cancelOrder: function (orderId, companyId) { return postForm('/commercial/orders/' + orderId + '/cancel', { companyId: companyId }) },
+  payOrder: function (orderId, companyId, channel) { return postForm('/commercial/orders/' + orderId + '/pay', { companyId: companyId, channel: channel || 'MOCK_SANDBOX' }) },
+  sandboxConfirm: function (orderId, companyId) { return postForm('/commercial/orders/' + orderId + '/sandbox-confirm', { companyId: companyId }) },
+  paymentChannels: function () { return get('/commercial/orders/payment-channels') },
+  mySubscription: function (companyId) { return get('/commercial/subscription', { companyId: companyId }) },
+  myEntitlements: function (companyId) { return get('/commercial/subscription/entitlements', { companyId: companyId }) },
+  cancelAutoRenew: function (companyId) { return postForm('/commercial/subscription/cancel', { companyId: companyId }) },
+  commercialOverview: function (companyId) { return get('/workspace/commercial-overview', { companyId: companyId }) }
+}
+
+// Phase14: Advertising API
+const advertisingApi = {
+  slotAds: function (slotCode) { return get('/advertising/slots/' + slotCode + '/ads') },
+  recordEvent: function (data) { return postForm('/advertising/events', data) },
+  slots: function () { return get('/advertising/slots') },
+  myCampaigns: function (params) { return get('/advertising/campaigns', params) },
+  campaignStats: function (campaignId) { return get('/advertising/campaigns/' + campaignId + '/stats') }
+}
+
 module.exports = {
   homeApi,
   robotApi,
@@ -278,5 +304,7 @@ module.exports = {
   feedApi,
   discoveryApi,
   recommendApi,
-  enterpriseApi
+  enterpriseApi,
+  commercialApi,
+  advertisingApi
 }

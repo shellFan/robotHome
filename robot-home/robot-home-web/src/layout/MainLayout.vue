@@ -169,7 +169,8 @@ const navList = [
   { path: '/community', name: '社区' },
   { path: '/feed', name: '关注动态' },
   { path: '/tutorials', name: '教程' },
-  { path: '/companies', name: '企业库' }
+  { path: '/companies', name: '企业库' },
+  { path: '/plans', name: '企业套餐' }
 ]
 
 function isActive (item) {

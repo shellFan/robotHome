@@ -103,3 +103,8 @@ admin:
   # 初始管理员账号
   init-username: admin
   init-password: ${ADMIN_INIT_PASSWORD}
+
+# 商业化支付配置
+payment:
+  # 沙箱支付开关：生产环境(spring.profiles.active=prod)强制禁用，仅开发/测试环境设为true
+  sandbox-enabled: ${PAYMENT_SANDBOX_ENABLED:true}

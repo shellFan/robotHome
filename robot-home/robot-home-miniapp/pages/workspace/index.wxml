@@ -42,7 +42,47 @@
         <text class="link-icon">📝</text>
         <text>认领记录</text>
       </view>
+      <view class="link" bindtap="goPlans">
+        <text class="link-icon">💎</text>
+        <text>企业套餐</text>
+      </view>
+      <view class="link" bindtap="goSubscription">
+        <text class="link-icon">📌</text>
+        <text>我的订阅</text>
+      </view>
+      <view class="link" bindtap="goOrders">
+        <text class="link-icon">🧾</text>
+        <text>商业订单</text>
+      </view>
     </view>
+
+    <!-- 商业概览 -->
+    <block wx:if="{{commercial}}">
+      <view class="section-title">商业概览</view>
+      <view class="rh-card commercial-overview">
+        <view class="co-row">
+          <text class="co-label">当前套餐</text>
+          <text class="co-value">{{commercial.subscription ? commercial.subscription.planName : '免费版'}}</text>
+        </view>
+        <view class="co-row" wx:if="{{commercial.subscription}}">
+          <text class="co-label">到期时间</text>
+          <text class="co-value">{{commercial.subscription.endTime ? (commercial.subscription.endTime + '').substring(0, 10) : '-'}}</text>
+        </view>
+        <view class="co-row">
+          <text class="co-label">商业订单</text>
+          <text class="co-value">{{commercial.orderStats || 0}} 笔</text>
+        </view>
+        <view class="co-ents" wx:if="{{commercial.entitlements && commercial.entitlements.length > 0}}">
+          <text class="co-label">权益使用</text>
+          <view class="co-ent-list">
+            <view wx:for="{{commercial.entitlements}}" wx:key="entCode" class="co-ent-item">
+              <text>{{item.entCode === 'LEAD_VIEW' ? '商机查看' : item.entCode === 'LEAD_RESPONSE' ? '商机响应' : item.entCode === 'PRODUCT_MANAGEMENT' ? '产品管理' : item.entCode === 'PRODUCT_FEATURED' ? '精选推荐位' : item.entCode === 'AD_CAMPAIGN' ? '广告投放' : item.entCode === 'ANALYTICS_ADVANCED' ? '高级数据分析' : item.entCode === 'COMPANY_PROFILE_ENHANCED' ? '企业主页增强' : item.entCode}}</text>
+              <text class="co-ent-quota">{{item.quotaTotal === 0 ? '不限' : item.quotaUsed + '/' + item.quotaTotal}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
 
     <view class="section-title" wx:if="{{claims.length > 0}}">最近认领申请</view>
     <view class="rh-card" wx:if="{{claims.length > 0}}">

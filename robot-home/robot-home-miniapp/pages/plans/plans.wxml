@@ -1,0 +1,43 @@
+<view class="page rh-container">
+  <view wx:if="{{loading}}" class="rh-empty">加载中...</view>
+  <view wx:elif="{{error}}" class="rh-empty" bindtap="refresh">{{error}}</view>
+  <block wx:else>
+    <view class="plans-header">
+      <text class="plans-title">企业套餐</text>
+      <view class="plans-links">
+        <text class="plans-link" bindtap="goOrders">我的订单</text>
+        <text class="plans-link" bindtap="goSubscription">我的订阅</text>
+      </view>
+    </view>
+
+    <view wx:if="{{plans.length === 0}}" class="rh-empty">暂无可购套餐</view>
+
+    <view wx:for="{{plans}}" wx:key="id" class="plan-card rh-card {{currentPlanCode === item.name ? 'plan-card--current' : ''}}">
+      <view class="plan-card__head">
+        <text class="plan-card__name">{{item.name}}</text>
+        <text wx:if="{{currentPlanCode === item.name}}" class="plan-card__badge">当前套餐</text>
+      </view>
+      <text class="plan-card__desc rh-clamp-2">{{item.description}}</text>
+      <view class="plan-card__price-row">
+        <text class="plan-card__price">{{item.priceCents !== null ? '¥' + (item.priceCents / 100).toFixed(2) : item.displayPrice || '暂无报价'}}</text>
+        <text class="plan-card__duration" wx:if="{{item.durationDays}}">{{item.durationDays}}天</text>
+      </view>
+      <view class="plan-card__ents" wx:if="{{item.entitlementConfig && item.entitlementConfig !== '[]'}}">
+        <text class="plan-card__ent-label">权益：</text>
+        <text class="plan-card__ent-text rh-clamp-2">{{item.entitlementConfig}}</text>
+      </view>
+      <view class="plan-card__actions">
+        <button wx:if="{{item.saleable === 1}}" class="rh-btn plan-card__btn" size="mini"
+                data-id="{{item.id}}" data-name="{{item.name}}" bindtap="buyPlan"
+                disabled="{{purchasing || currentPlanCode === item.name}}">
+          {{currentPlanCode === item.name ? '使用中' : '立即购买'}}
+        </button>
+        <text wx:else class="plan-card__unsaleable">暂不可购买</text>
+      </view>
+    </view>
+
+    <view class="plans-tip rh-card">
+      <text class="rh-text-light">套餐价格由服务端提供，支付仅支持沙箱环境。生产环境不提供模拟支付确认。</text>
+    </view>
+  </block>
+</view>

@@ -287,3 +287,57 @@ export const procurementApi = {
   /** 采购需求详情 */
   hallDetail: (id) => get(`/procurement/hall/${id}`)
 }
+
+/** Phase14: 商业化 */
+export const commercialApi = {
+  /** 公开套餐列表 */
+  plans: () => get('/plans'),
+  /** 套餐详情 */
+  planDetail: (planId) => get(`/plans/${planId}`),
+  /** 创建订单 */
+  createOrder: (data) => post('/commercial/orders', data),
+  /** 我的订单列表 */
+  myOrders: (params) => get('/commercial/orders', params),
+  /** 订单详情 */
+  orderDetail: (orderId) => get(`/commercial/orders/${orderId}`),
+  /** 取消订单 */
+  cancelOrder: (orderId) => postForm(`/commercial/orders/${orderId}/cancel`),
+  /** 发起支付 */
+  payOrder: (orderId, channel) => postForm(`/commercial/orders/${orderId}/pay`, { channel }),
+  /** 沙箱确认支付 */
+  sandboxConfirm: (orderId) => postForm(`/commercial/orders/${orderId}/sandbox-confirm`),
+  /** 可用支付渠道 */
+  paymentChannels: () => get('/commercial/orders/payment-channels'),
+  /** 当前订阅 */
+  mySubscription: () => get('/commercial/subscription'),
+  /** 我的权益列表 */
+  myEntitlements: () => get('/commercial/subscription/entitlements'),
+  /** 取消自动续费 */
+  cancelAutoRenew: () => postForm('/commercial/subscription/cancel'),
+  /** 企业商业概览（工作台） */
+  commercialOverview: (companyId) => get('/workspace/commercial-overview', { companyId })
+}
+
+/** Phase14: 企业端广告投放 */
+export const advertisingApi = {
+  /** 广告位列表 */
+  slots: () => get('/advertising/slots'),
+  /** 广告位展示内容（公开） */
+  slotAds: (slotCode) => get(`/advertising/slots/${slotCode}/ads`),
+  /** 创建投放计划 */
+  createCampaign: (data) => postForm('/advertising/campaigns', data),
+  /** 我的投放计划 */
+  myCampaigns: (params) => get('/advertising/campaigns', params),
+  /** 提交审核 */
+  submitCampaign: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/submit`, { companyId }),
+  /** 上线 */
+  goOnline: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/online`, { companyId }),
+  /** 下线 */
+  goOffline: (campaignId, companyId) => postForm(`/advertising/campaigns/${campaignId}/offline`, { companyId }),
+  /** 添加素材 */
+  createCreative: (data) => postForm(`/advertising/campaigns/${data.campaignId}/creatives`, data),
+  /** 素材列表 */
+  creatives: (campaignId) => get(`/advertising/campaigns/${campaignId}/creatives`),
+  /** 投放统计 */
+  campaignStats: (campaignId) => get(`/advertising/campaigns/${campaignId}/stats`)
+}
