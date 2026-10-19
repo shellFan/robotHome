@@ -347,10 +347,25 @@ class Phase14IntegrationTest {
         CommercialOrder refundedOrder = orderMapper.selectById(order.getId());
         assertEquals("REFUNDED", refundedOrder.getStatus());
 
-        // 4. 权益应被撤销
+        // 4. 权益降级验证：BASIC专属权益撤销，FREE级别权益重新激活为FREE配额（Fix1行为修正）
         List<EnterpriseEntitlement> entitlements = entitlementService.listEntitlements(companyId);
-        assertTrue(entitlements.stream().allMatch(e -> !"ACTIVE".equals(e.getStatus())),
-                "退款后所有BASIC权益必须被撤销（非ACTIVE）");
+        // 4a. BASIC专属权益（FREE计划不含）必须被撤销
+        entitlements.stream()
+                .filter(e -> "PRODUCT_MANAGEMENT".equals(e.getEntCode())
+                        || "COMPANY_PROFILE_ENHANCED".equals(e.getEntCode()))
+                .forEach(e -> assertFalse("ACTIVE".equals(e.getStatus()),
+                        "BASIC专属权益" + e.getEntCode() + "退款后必须撤销"));
+        // 4b. FREE级别权益重新激活，配额降级为FREE级别
+        EnterpriseEntitlement leadView = entitlements.stream()
+                .filter(e -> "LEAD_VIEW".equals(e.getEntCode())).findFirst().orElse(null);
+        assertNotNull(leadView, "LEAD_VIEW权益应存在");
+        assertEquals("ACTIVE", leadView.getStatus(), "退款后FREE级别LEAD_VIEW应重新激活为ACTIVE");
+        assertEquals(5, leadView.getQuotaTotal(), "退款后LEAD_VIEW配额应降级为FREE级别(5)");
+        EnterpriseEntitlement leadResponse = entitlements.stream()
+                .filter(e -> "LEAD_RESPONSE".equals(e.getEntCode())).findFirst().orElse(null);
+        assertNotNull(leadResponse, "LEAD_RESPONSE权益应存在");
+        assertEquals("ACTIVE", leadResponse.getStatus(), "退款后FREE级别LEAD_RESPONSE应重新激活为ACTIVE");
+        assertEquals(2, leadResponse.getQuotaTotal(), "退款后LEAD_RESPONSE配额应降级为FREE级别(2)");
 
         // 5. 订阅应降级
         EnterpriseSubscription sub = subscriptionService.getSubscription(companyId);

@@ -110,13 +110,17 @@ public class RefundServiceImpl implements RefundService {
         // CAS更新订单状态为REFUNDED
         CommercialOrder order = orderMapper.selectById(refund.getOrderId());
         if (order != null) {
-            orderMapper.update(null,
+            int orderUpdated = orderMapper.update(null,
                     Wrappers.<CommercialOrder>lambdaUpdate()
                             .set(CommercialOrder::getStatus, "REFUNDED")
                             .eq(CommercialOrder::getId, order.getId())
                             .eq(CommercialOrder::getStatus, "PAID"));
-            // 撤销权益+降级订阅
-            subscriptionService.handleRefund(order.getCompanyId(), order.getId());
+            if (orderUpdated > 0) {
+                // 撤销权益+降级订阅（仅当订单CAS成功，防止重复退款处理）
+                subscriptionService.handleRefund(order.getCompanyId(), order.getId());
+            } else {
+                log.warn("订单状态CAS失败(可能已退款)，跳过权益撤销: orderId={}", order.getId());
+            }
         }
         auditLog("ADMIN", operatorId, order != null ? order.getCompanyId() : null,
                 "REFUND_CONFIRM", "REFUND", refundId, "refundNo=" + refund.getRefundNo());

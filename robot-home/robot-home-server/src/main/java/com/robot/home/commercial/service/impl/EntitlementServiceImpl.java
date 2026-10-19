@@ -65,18 +65,44 @@ public class EntitlementServiceImpl implements EntitlementService {
             if (code == null || code.isEmpty()) {
                 continue;
             }
-            // 已存在则跳过（幂等）
+            int quotaTotal = toInt(config.get("quotaTotal"));
+            String periodType = config.getStr("periodType");
+            if (periodType == null || periodType.isEmpty()) {
+                periodType = "MONTHLY";
+            }
+            // 已存在：ACTIVE则幂等跳过；EXPIRED/REVOKED则重新激活（升级/续费/退款后恢复权益）
+            // 安全修复：原实现不分状态一律跳过，导致升级revokeAll后initEntitlements无法重建权益
             EnterpriseEntitlement existing = entitlementMapper.selectOne(
                     Wrappers.<EnterpriseEntitlement>lambdaQuery()
                             .eq(EnterpriseEntitlement::getCompanyId, companyId)
                             .eq(EnterpriseEntitlement::getEntCode, code));
             if (existing != null) {
+                if ("ACTIVE".equals(existing.getStatus())) {
+                    // 已激活：幂等跳过（expireTime由updateEntitlementExpiry统一维护）
+                    continue;
+                }
+                // EXPIRED/REVOKED：重新激活为新订阅配置（CAS仅从非ACTIVE状态激活，防并发）
+                LocalDateTime periodStart = null;
+                LocalDateTime periodEnd = null;
+                if ("MONTHLY".equals(periodType)) {
+                    periodStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+                    periodEnd = periodStart.plusMonths(1);
+                }
+                entitlementMapper.update(null,
+                        Wrappers.<EnterpriseEntitlement>lambdaUpdate()
+                                .set(EnterpriseEntitlement::getSubscriptionId, subscriptionId)
+                                .set(EnterpriseEntitlement::getEntConfig, entitlementConfig)
+                                .set(EnterpriseEntitlement::getQuotaTotal, quotaTotal)
+                                .set(EnterpriseEntitlement::getQuotaUsed, 0)
+                                .set(EnterpriseEntitlement::getPeriodType, periodType)
+                                .set(EnterpriseEntitlement::getPeriodStart, periodStart)
+                                .set(EnterpriseEntitlement::getPeriodEnd, periodEnd)
+                                .set(EnterpriseEntitlement::getStatus, "ACTIVE")
+                                .set(EnterpriseEntitlement::getExpireTime, expireTime)
+                                .eq(EnterpriseEntitlement::getId, existing.getId())
+                                .in(EnterpriseEntitlement::getStatus, "EXPIRED", "REVOKED"));
+                log.info("权益重新激活: companyId={}, entCode={}, subscriptionId={}", companyId, code, subscriptionId);
                 continue;
-            }
-            int quotaTotal = toInt(config.get("quotaTotal"));
-            String periodType = config.getStr("periodType");
-            if (periodType == null || periodType.isEmpty()) {
-                periodType = "MONTHLY";
             }
 
             EnterpriseEntitlement ent = new EnterpriseEntitlement();
@@ -211,14 +237,15 @@ public class EntitlementServiceImpl implements EntitlementService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void expireEntitlements(Long companyId) {
-        // 订阅到期/退款时，撤销该企业所有ACTIVE权益
-        // 不检查expireTime：订阅已到期/退款，其授予的权益必须全部撤销，
-        // 即使权益的expireTime仍在未来（权益expireTime基于订阅时长计算，订阅失效则权益失效）
+    public void expireEntitlements(Long companyId, Long subscriptionId) {
+        // 订阅到期时，仅撤销该订阅授予的ACTIVE权益
+        // 安全设计：按subscriptionId作用域，防止旧订阅到期事件误撤销续费/新订阅已激活的权益
+        // 配合processExpirations的endTime CAS，形成双重防护
         entitlementMapper.update(null,
                 Wrappers.<EnterpriseEntitlement>lambdaUpdate()
                         .set(EnterpriseEntitlement::getStatus, "EXPIRED")
                         .eq(EnterpriseEntitlement::getCompanyId, companyId)
+                        .eq(EnterpriseEntitlement::getSubscriptionId, subscriptionId)
                         .eq(EnterpriseEntitlement::getStatus, "ACTIVE"));
     }
 

@@ -66,9 +66,15 @@ public interface EntitlementService {
     void revokeAllEntitlements(Long companyId);
 
     /**
-     * 失效过期权益
+     * 失效指定订阅的权益（订阅到期时调用）
+     * <p>
+     * 安全设计：仅撤销属于该订阅的ACTIVE权益，防止旧订阅到期事件
+     * 误撤销新订阅/续费订阅已激活的权益。
+     *
+     * @param companyId       企业ID
+     * @param subscriptionId  到期的订阅ID（仅撤销该订阅授予的权益）
      */
-    void expireEntitlements(Long companyId);
+    void expireEntitlements(Long companyId, Long subscriptionId);
 
     /**
      * 月度配额重置（幂等）

@@ -221,33 +221,43 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void handleRefund(Long companyId, Long orderId) {
+        EnterpriseSubscription sub = getSubscription(companyId);
+        if (sub == null) {
+            return;
+        }
+        // 安全检查：仅当当前订阅来源就是被退款的订单时，才降级和撤销权益
+        // 防止退款确认与续费并发——用户已用新订单续费后，旧订单退款不应影响新订阅
+        if (!orderId.equals(sub.getSourceOrderId())) {
+            log.info("退款订单非当前订阅来源，跳过降级: companyId={}, refundOrderId={}, currentSourceOrderId={}",
+                    companyId, orderId, sub.getSourceOrderId());
+            auditLog("SYSTEM", null, companyId, "SUBSCRIPTION_REFUND_SKIPPED", "SUBSCRIPTION",
+                    sub.getId(), "refundOrderId=" + orderId + " != currentSourceOrderId=" + sub.getSourceOrderId());
+            return;
+        }
         // 撤销全部权益
         entitlementService.revokeAllEntitlements(companyId);
         // 订阅降级为FREE
-        EnterpriseSubscription sub = getSubscription(companyId);
-        if (sub != null) {
-            EnterprisePlan freePlan = planMapper.selectOne(
-                    Wrappers.<EnterprisePlan>lambdaQuery().eq(EnterprisePlan::getCode, "FREE"));
-            subscriptionMapper.update(null,
-                    Wrappers.<EnterpriseSubscription>lambdaUpdate()
-                            .set(EnterpriseSubscription::getStatus, "FREE")
-                            .set(EnterpriseSubscription::getPlanId, freePlan != null ? freePlan.getId() : sub.getPlanId())
-                            .set(EnterpriseSubscription::getPlanName, freePlan != null ? freePlan.getName() : sub.getPlanName())
-                            .set(EnterpriseSubscription::getEndTime, LocalDateTime.now().plusYears(100))
-                            .eq(EnterpriseSubscription::getId, sub.getId()));
-            // 重新初始化FREE权益
-            if (freePlan != null) {
-                EnterprisePlanVersion freeVersion = planVersionMapper.selectOne(
-                        Wrappers.<EnterprisePlanVersion>lambdaQuery()
-                                .eq(EnterprisePlanVersion::getPlanId, freePlan.getId())
-                                .eq(EnterprisePlanVersion::getStatus, "ACTIVE"));
-                if (freeVersion != null) {
-                    entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig(), LocalDateTime.now().plusYears(100));
-                }
+        EnterprisePlan freePlan = planMapper.selectOne(
+                Wrappers.<EnterprisePlan>lambdaQuery().eq(EnterprisePlan::getCode, "FREE"));
+        subscriptionMapper.update(null,
+                Wrappers.<EnterpriseSubscription>lambdaUpdate()
+                        .set(EnterpriseSubscription::getStatus, "FREE")
+                        .set(EnterpriseSubscription::getPlanId, freePlan != null ? freePlan.getId() : sub.getPlanId())
+                        .set(EnterpriseSubscription::getPlanName, freePlan != null ? freePlan.getName() : sub.getPlanName())
+                        .set(EnterpriseSubscription::getEndTime, LocalDateTime.now().plusYears(100))
+                        .eq(EnterpriseSubscription::getId, sub.getId()));
+        // 重新初始化FREE权益（Fix: initEntitlements现在会重新激活REVOKED权益）
+        if (freePlan != null) {
+            EnterprisePlanVersion freeVersion = planVersionMapper.selectOne(
+                    Wrappers.<EnterprisePlanVersion>lambdaQuery()
+                            .eq(EnterprisePlanVersion::getPlanId, freePlan.getId())
+                            .eq(EnterprisePlanVersion::getStatus, "ACTIVE"));
+            if (freeVersion != null) {
+                entitlementService.initEntitlements(companyId, sub.getId(), freeVersion.getEntitlementConfig(), LocalDateTime.now().plusYears(100));
             }
         }
         auditLog("SYSTEM", null, companyId, "SUBSCRIPTION_REFUND", "SUBSCRIPTION",
-                sub != null ? sub.getId() : null, "orderId=" + orderId);
+                sub.getId(), "orderId=" + orderId);
     }
 
     @Override
@@ -280,14 +290,19 @@ public class CommercialSubscriptionServiceImpl implements CommercialSubscription
                         .in(EnterpriseSubscription::getStatus, "ACTIVE", "EXPIRING")
                         .le(EnterpriseSubscription::getEndTime, now));
         for (EnterpriseSubscription sub : expired) {
+            // CAS：仅当订阅仍为ACTIVE/EXPIRING且endTime确实已过期时才标记EXPIRED
+            // 安全修复：增加endTime条件，防止续费并发竞争——
+            // 场景：到期任务读取列表后、执行CAS前，用户完成续费（endTime延至未来），
+            // 若无endTime条件，CAS仅凭status=ACTIVE就会成功，误杀刚续费的订阅
             int updated = subscriptionMapper.update(null,
                     Wrappers.<EnterpriseSubscription>lambdaUpdate()
                             .set(EnterpriseSubscription::getStatus, "EXPIRED")
                             .eq(EnterpriseSubscription::getId, sub.getId())
-                            .in(EnterpriseSubscription::getStatus, "ACTIVE", "EXPIRING"));
+                            .in(EnterpriseSubscription::getStatus, "ACTIVE", "EXPIRING")
+                            .le(EnterpriseSubscription::getEndTime, now));
             if (updated > 0) {
-                // 失效权益
-                entitlementService.expireEntitlements(sub.getCompanyId());
+                // 仅失效该订阅授予的权益（按subscriptionId作用域）
+                entitlementService.expireEntitlements(sub.getCompanyId(), sub.getId());
                 count++;
             }
         }
