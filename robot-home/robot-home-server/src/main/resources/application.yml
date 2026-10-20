@@ -108,3 +108,15 @@ admin:
 payment:
   # 沙箱支付开关：生产环境(spring.profiles.active=prod)强制禁用，仅开发/测试环境设为true
   sandbox-enabled: ${PAYMENT_SANDBOX_ENABLED:true}
+
+# Actuator 健康检查端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

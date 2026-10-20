@@ -36,6 +36,8 @@ services:
       - ./sql/14_phase10_ecosystem_growth.sql:/docker-entrypoint-initdb.d/14_phase10_ecosystem_growth.sql:ro
       - ./sql/15_phase12_real_data_growth.sql:/docker-entrypoint-initdb.d/15_phase12_real_data_growth.sql:ro
       - ./sql/16_phase12_data_quality_snapshot.sql:/docker-entrypoint-initdb.d/16_phase12_data_quality_snapshot.sql:ro
+      - ./sql/17_phase13_growth_enterprise.sql:/docker-entrypoint-initdb.d/17_phase13_growth_enterprise.sql:ro
+      - ./sql/18_phase14_commercialization.sql:/docker-entrypoint-initdb.d/18_phase14_commercialization.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
       interval: 10s

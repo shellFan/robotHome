@@ -24,3 +24,15 @@ cors:
 # 文件存储：生产环境默认使用 MinIO
 file:
   storage-type: ${FILE_STORAGE_TYPE:minio}
+
+# Actuator：生产环境仅暴露 health，不显示组件详情（防止信息泄露）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
