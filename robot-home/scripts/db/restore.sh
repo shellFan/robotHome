@@ -59,27 +59,73 @@ if [[ "${MODE}" == "docker" ]]; then
         echo "错误: MySQL 容器 ${CONTAINER_NAME} 未运行"
         exit 1
     fi
+
+    # 恢复前自动备份当前状态（安全网）
+    PRE_RESTORE_BACKUP="${BACKUP_DIR}/pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
+    echo "创建恢复前备份: ${PRE_RESTORE_BACKUP}"
+    if ! docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
+        mysqldump \
+        --host=127.0.0.1 \
+        --user=root \
+        --single-transaction \
+        --quick \
+        --lock-tables=false \
+        --connect-timeout=10 \
+        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"; then
+        echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
+        rm -f "${PRE_RESTORE_BACKUP}"
+    fi
+
     # 先解压再通过 docker exec 导入
     # --binary-mode: 避免字符编码问题
-    gunzip -c "${BACKUP_FILE}" | docker exec -i "${CONTAINER_NAME}" \
+    # --connect-timeout: 连接超时
+    echo "导入备份文件..."
+    if ! gunzip -c "${BACKUP_FILE}" | docker exec -i -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
         mysql \
         --host=127.0.0.1 \
         --user=root \
-        --password="${MYSQL_ROOT_PASSWORD:-root}" \
         --binary-mode \
-        "${DATABASE}"
+        --connect-timeout=10 \
+        "${DATABASE}"; then
+        echo "错误: 恢复失败！可使用恢复前备份回退: ${PRE_RESTORE_BACKUP}"
+        exit 1
+    fi
 else
     : "${MYSQL_HOST:?MYSQL_HOST 必须设置}"
     : "${MYSQL_USER:?MYSQL_USER 必须设置}"
     : "${MYSQL_PASSWORD:?MYSQL_PASSWORD 必须设置}"
     DATABASE="${MYSQL_DATABASE:-robot_home}"
-    gunzip -c "${BACKUP_FILE}" | mysql \
+
+    # 恢复前自动备份
+    PRE_RESTORE_BACKUP="${BACKUP_DIR}/pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
+    echo "创建恢复前备份: ${PRE_RESTORE_BACKUP}"
+    export MYSQL_PWD="${MYSQL_PASSWORD}"
+    if ! mysqldump \
         --host="${MYSQL_HOST}" \
         --port="${MYSQL_PORT:-3306}" \
         --user="${MYSQL_USER}" \
-        --password="${MYSQL_PASSWORD}" \
+        --single-transaction \
+        --quick \
+        --lock-tables=false \
+        --connect-timeout=10 \
+        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"; then
+        echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
+        rm -f "${PRE_RESTORE_BACKUP}"
+    fi
+
+    echo "导入备份文件..."
+    if ! gunzip -c "${BACKUP_FILE}" | mysql \
+        --host="${MYSQL_HOST}" \
+        --port="${MYSQL_PORT:-3306}" \
+        --user="${MYSQL_USER}" \
         --binary-mode \
-        "${DATABASE}"
+        --connect-timeout=10 \
+        "${DATABASE}"; then
+        echo "错误: 恢复失败！可使用恢复前备份回退: ${PRE_RESTORE_BACKUP}"
+        unset MYSQL_PWD
+        exit 1
+    fi
+    unset MYSQL_PWD
 fi
 
 echo "=== 恢复完成 ==="

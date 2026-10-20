@@ -14,7 +14,13 @@ import java.util.List;
 /**
  * 远程数据库迁移工具 — 应用Phase8-12 SQL迁移
  * 用法: mvn exec:java -Dexec.mainClass="com.robot.home.DbMigrationRunner" -Dexec.classpathScope=test
+ *
+ * @deprecated Phase15起 Server 已集成 Flyway 8.5.13 数据库版本管理。
+ *             应用启动时自动执行 baseline(18) + V19+ 迁移，无需手工运行此工具。
+ *             此工具保留仅作为历史参考和应急回退手段。
+ *             新迁移请添加到 src/main/resources/db/migration/V{N}__description.sql
  */
+@Deprecated
 public class DbMigrationRunner {
 
     private static final String DB_URL = System.getProperty("db.url",

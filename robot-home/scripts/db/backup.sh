@@ -43,40 +43,80 @@ if [[ "${MODE}" == "docker" ]]; then
         echo "提示: 使用 --standalone 模式直连远程数据库"
         exit 1
     fi
+
+    # 磁盘空间检查：至少需要 500MB 可用空间
+    AVAILABLE_MB=$(df -m "${BACKUP_DIR}" 2>/dev/null | awk 'NR==2{print $4}' || echo 999999)
+    if [[ "${AVAILABLE_MB}" -lt 500 ]]; then
+        echo "错误: 磁盘空间不足（可用 ${AVAILABLE_MB}MB，需要至少 500MB）"
+        exit 1
+    fi
+
     # MySQL 5.6 兼容：不使用 --set-gtid-purged（5.6 无 GTID）
     # --single-transaction: InnoDB 一致性快照，不锁表
     # --routines --triggers: 包含存储过程和触发器
     # --events: 包含事件调度
-    docker exec "${CONTAINER_NAME}" \
+    # --connect-timeout: 连接超时 10 秒，防止挂起
+    # MYSQL_PWD 环境变量避免密码出现在进程列表
+    echo "开始 mysqldump..."
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
         mysqldump \
         --host=127.0.0.1 \
         --user=root \
-        --password="${MYSQL_ROOT_PASSWORD:-root}" \
         --single-transaction \
         --routines \
         --triggers \
         --events \
         --quick \
         --lock-tables=false \
+        --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
+
+    # 管道错误传播检查：pipefail 已在 set -euo pipefail 中启用
+    # 如果 mysqldump 失败，pipefail 会使管道返回非零退出码，set -e 会终止脚本
+    # 但 gzip 可能先退出，需要显式检查
+    DUMP_EXIT=$?
+    if [[ ${DUMP_EXIT} -ne 0 ]]; then
+        echo "错误: mysqldump 管道失败（退出码 ${DUMP_EXIT}），删除不完整备份"
+        rm -f "${BACKUP_FILE}"
+        exit 1
+    fi
 else
     # standalone 模式：直连 MySQL
     : "${MYSQL_HOST:?MYSQL_HOST 必须设置}"
     : "${MYSQL_USER:?MYSQL_USER 必须设置}"
     : "${MYSQL_PASSWORD:?MYSQL_PASSWORD 必须设置}"
     DATABASE="${MYSQL_DATABASE:-robot_home}"
+
+    # 磁盘空间检查
+    AVAILABLE_MB=$(df -m "${BACKUP_DIR}" 2>/dev/null | awk 'NR==2{print $4}' || echo 999999)
+    if [[ "${AVAILABLE_MB}" -lt 500 ]]; then
+        echo "错误: 磁盘空间不足（可用 ${AVAILABLE_MB}MB，需要至少 500MB）"
+        exit 1
+    fi
+
+    echo "开始 mysqldump (standalone)..."
+    # MYSQL_PWD 避免密码出现在进程列表
+    export MYSQL_PWD="${MYSQL_PASSWORD}"
     mysqldump \
         --host="${MYSQL_HOST}" \
         --port="${MYSQL_PORT:-3306}" \
         --user="${MYSQL_USER}" \
-        --password="${MYSQL_PASSWORD}" \
         --single-transaction \
         --routines \
         --triggers \
         --events \
         --quick \
         --lock-tables=false \
+        --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
+    unset MYSQL_PWD
+
+    DUMP_EXIT=$?
+    if [[ ${DUMP_EXIT} -ne 0 ]]; then
+        echo "错误: mysqldump 管道失败（退出码 ${DUMP_EXIT}），删除不完整备份"
+        rm -f "${BACKUP_FILE}"
+        exit 1
+    fi
 fi
 
 # 验证备份文件

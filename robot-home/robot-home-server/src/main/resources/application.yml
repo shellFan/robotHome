@@ -24,6 +24,20 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-timeout: 30000
+  flyway:
+    enabled: true
+    # 已有数据库（01-18 SQL 已执行）使用 baseline-on-migrate，基线版本 18
+    # 全新部署：docker-entrypoint-initdb.d 执行 01-18 后 Flyway 自动 baseline 到 18
+    # 已有部署：Flyway 检测到非空库无 flyway_schema_history 时 baseline 到 18
+    baseline-on-migrate: true
+    baseline-version: "18"
+    locations: classpath:db/migration
+    # 迁移失败时阻止应用启动
+    fail-fast: true
+    # 校验已执行迁移脚本的校验和（防篡改）
+    validate-on-migrate: true
+    # MySQL 5.6 兼容：使用 GET_LOCK 实现并发迁移互斥
+    lock-retry-timeout: 60
   redis:
     host: ${SPRING_REDIS_HOST}
     port: ${SPRING_REDIS_PORT:6379}
