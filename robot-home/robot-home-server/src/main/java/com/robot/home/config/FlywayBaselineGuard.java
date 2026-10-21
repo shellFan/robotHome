@@ -47,7 +47,7 @@ public class FlywayBaselineGuard {
 
     /** 核心业务表（Phase1-12）— baseline 前必须存在 */
     private static final String[] REQUIRED_CORE_TABLES = {
-            "robot", "brand", "company", "article"
+            "robot", "brand", "company", "article", "crawler_source"
     };
 
     @Bean

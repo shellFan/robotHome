@@ -48,7 +48,7 @@ class FlywayBaselineGuardTest {
     /** 创建全部必需表（核心+Phase13+Phase14） */
     private void createAllRequiredTables(Connection conn) throws Exception {
         // 核心
-        for (String t : new String[]{"robot", "brand", "company", "article"}) {
+        for (String t : new String[]{"robot", "brand", "company", "article", "crawler_source"}) {
             createTable(conn, t);
         }
         // Phase13
@@ -84,6 +84,7 @@ class FlywayBaselineGuardTest {
             createTable(conn, "brand");
             createTable(conn, "company");
             createTable(conn, "article");
+            createTable(conn, "crawler_source");
 
             IllegalStateException ex = assertThrows(IllegalStateException.class,
                     () -> FlywayBaselineGuard.validateDatabaseForBaseline(conn),
@@ -155,6 +156,32 @@ class FlywayBaselineGuardTest {
                         "`execution_time` INT, `success` BOOLEAN)");
             }
             assertDoesNotThrow(() -> FlywayBaselineGuard.validateDatabaseForBaseline(conn));
+        }
+    }
+
+    // ========== DB-16: 缺少crawler_source表 → 拒绝 baseline ==========
+    @Test
+    @DisplayName("DB-16: 缺少crawler_source表（采集系统核心表）→ 拒绝 baseline")
+    void testDb16_MissingCrawlerSourceRejectsBaseline() throws Exception {
+        try (Connection conn = DriverManager.getConnection(h2Url, "sa", "")) {
+            // 有其他核心表+Phase13/14表，但缺少crawler_source
+            for (String t : new String[]{"robot", "brand", "company", "article"}) {
+                createTable(conn, t);
+            }
+            for (String t : new String[]{"enterprise_company", "procurement_lead"}) {
+                createTable(conn, t);
+            }
+            for (String t : new String[]{"enterprise_plan", "enterprise_subscription",
+                    "enterprise_entitlement", "enterprise_order", "advertising_slot", "advertising_campaign"}) {
+                createTable(conn, t);
+            }
+            // 不创建 crawler_source
+
+            IllegalStateException ex = assertThrows(IllegalStateException.class,
+                    () -> FlywayBaselineGuard.validateDatabaseForBaseline(conn),
+                    "缺少 crawler_source 应拒绝 baseline");
+            assertTrue(ex.getMessage().contains("crawler_source"),
+                    "错误信息应列出缺失的 crawler_source: " + ex.getMessage());
         }
     }
 }

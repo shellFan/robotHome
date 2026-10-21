@@ -27,6 +27,7 @@ services:
       - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./sql/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
       - ./sql/03_demo_data.sql:/docker-entrypoint-initdb.d/03_demo_data.sql:ro
+      - ./sql/04_crawler_schema.sql:/docker-entrypoint-initdb.d/04_crawler_schema.sql:ro
       - ./sql/04_migration_source_url.sql:/docker-entrypoint-initdb.d/04_migration_source_url.sql:ro
       - ./sql/05_brand_alias_and_indexes.sql:/docker-entrypoint-initdb.d/05_brand_alias_and_indexes.sql:ro
       - ./sql/06_real_brands_companies.sql:/docker-entrypoint-initdb.d/06_real_brands_companies.sql:ro
