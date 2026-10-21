@@ -90,6 +90,10 @@ file:
     upload-dir: ./uploads
     # 访问前缀（Nginx 可反向代理到该路径）
     access-url: /files
+    # 私有文件上传目录（不通过 /files/ 公开暴露，须通过鉴权端点访问）
+    private-upload-dir: ./private-uploads
+    # 私有文件访问前缀（须登录鉴权）
+    private-access-url: /api/files/private
   minio:
     endpoint: ${FILE_MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${FILE_MINIO_ACCESS_KEY}

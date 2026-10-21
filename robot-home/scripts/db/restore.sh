@@ -10,6 +10,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_DIR="${SCRIPT_DIR}/../../backups"
 CONTAINER_NAME="robot-home-mysql"
 DATABASE="robot_home"
 MODE="docker"

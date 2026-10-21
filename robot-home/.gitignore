@@ -26,6 +26,8 @@ uploads/
 **/uploads/
 test-uploads/
 **/test-uploads/
+private-uploads/
+**/private-uploads/
 
 # 环境与密钥
 .env
