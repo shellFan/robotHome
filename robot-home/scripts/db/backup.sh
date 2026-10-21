@@ -59,6 +59,8 @@ if [[ "${MODE}" == "docker" ]]; then
     # MYSQL_PWD 环境变量避免密码出现在进程列表
     echo "开始 mysqldump..."
     # 临时关闭 set -e 以捕获管道退出码（否则失败时脚本直接退出，无法清理不完整备份）
+    # 注意：$? 捕获的是管道最后一个命令(gzip)的退出码，mysqldump 失败时 gzip 仍可能成功
+    # 因此使用 PIPESTATUS[0] 精确捕获 mysqldump 退出码
     set +e
     MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
         mysqldump \
@@ -72,7 +74,7 @@ if [[ "${MODE}" == "docker" ]]; then
         --lock-tables=false \
         --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
-    DUMP_EXIT=$?
+    DUMP_EXIT=${PIPESTATUS[0]}
     set -e
     if [[ ${DUMP_EXIT} -ne 0 ]]; then
         echo "错误: mysqldump 管道失败（退出码 ${DUMP_EXIT}），删除不完整备份"
@@ -96,7 +98,7 @@ else
     echo "开始 mysqldump (standalone)..."
     # MYSQL_PWD 避免密码出现在进程列表
     export MYSQL_PWD="${MYSQL_PASSWORD}"
-    # 临时关闭 set -e 以捕获管道退出码
+    # 临时关闭 set -e 以捕获管道退出码，PIPESTATUS[0] 精确捕获 mysqldump 退出码
     set +e
     mysqldump \
         --host="${MYSQL_HOST}" \
@@ -110,7 +112,7 @@ else
         --lock-tables=false \
         --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
-    DUMP_EXIT=$?
+    DUMP_EXIT=${PIPESTATUS[0]}
     set -e
     unset MYSQL_PWD
     if [[ ${DUMP_EXIT} -ne 0 ]]; then

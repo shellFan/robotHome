@@ -64,7 +64,9 @@ if [[ "${MODE}" == "docker" ]]; then
     # 恢复前自动备份当前状态（安全网）
     PRE_RESTORE_BACKUP="${BACKUP_DIR}/pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
     echo "创建恢复前备份: ${PRE_RESTORE_BACKUP}"
-    if ! docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
+    # PIPESTATUS[0] 精确捕获 mysqldump 退出码（gzip 成功不代表 mysqldump 成功）
+    set +e
+    docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
         mysqldump \
         --host=127.0.0.1 \
         --user=root \
@@ -72,7 +74,10 @@ if [[ "${MODE}" == "docker" ]]; then
         --quick \
         --lock-tables=false \
         --connect-timeout=10 \
-        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"; then
+        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"
+    PRE_DUMP_EXIT=${PIPESTATUS[0]}
+    set -e
+    if [[ ${PRE_DUMP_EXIT} -ne 0 ]]; then
         echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
         rm -f "${PRE_RESTORE_BACKUP}"
     fi
@@ -101,7 +106,9 @@ else
     PRE_RESTORE_BACKUP="${BACKUP_DIR}/pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
     echo "创建恢复前备份: ${PRE_RESTORE_BACKUP}"
     export MYSQL_PWD="${MYSQL_PASSWORD}"
-    if ! mysqldump \
+    # PIPESTATUS[0] 精确捕获 mysqldump 退出码
+    set +e
+    mysqldump \
         --host="${MYSQL_HOST}" \
         --port="${MYSQL_PORT:-3306}" \
         --user="${MYSQL_USER}" \
@@ -109,7 +116,10 @@ else
         --quick \
         --lock-tables=false \
         --connect-timeout=10 \
-        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"; then
+        "${DATABASE}" | gzip > "${PRE_RESTORE_BACKUP}"
+    PRE_DUMP_EXIT=${PIPESTATUS[0]}
+    set -e
+    if [[ ${PRE_DUMP_EXIT} -ne 0 ]]; then
         echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
         rm -f "${PRE_RESTORE_BACKUP}"
     fi
