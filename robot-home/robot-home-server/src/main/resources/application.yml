@@ -83,6 +83,8 @@ jwt:
 file:
   # local / minio
   storage-type: local
+  # MinIO故障时降级到本地存储（生产环境建议true，保证业务可用性）
+  fallback-to-local: true
   local:
     # 上传根目录（请保证可写）
     upload-dir: ./uploads

@@ -24,6 +24,8 @@ hs_err_pid*
 # 上传与本地数据
 uploads/
 **/uploads/
+test-uploads/
+**/test-uploads/
 
 # 环境与密钥
 .env

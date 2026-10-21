@@ -829,6 +829,7 @@ public class CrawlerEngine {
         article.setPublishTime(parseDateTime(data.getPublishDate()));
         article.setContentHash(contentHash);
         article.setArticleStatus("PENDING_REVIEW");
+        article.setMatchStatus("PENDING");
         article.setCrawlTime(LocalDateTime.now());
 
         if (brandMatch != null) {
@@ -862,6 +863,7 @@ public class CrawlerEngine {
         product.setDescription(data.getContentHtml());
         product.setContentHash(contentHash);
         product.setProductStatus("PENDING_REVIEW");
+        product.setMatchStatus("PENDING");
         product.setCrawlTime(LocalDateTime.now());
 
         if (brandMatch != null) {
@@ -869,11 +871,24 @@ public class CrawlerEngine {
             product.setBrandName(brandMatch.brandName);
         }
 
+        // 摘要
+        if (StringUtils.isNotBlank(data.getSummary())) {
+            product.setSummary(data.getSummary());
+        }
+
         // 参数标准化
         if (data.getParams() != null && !data.getParams().isEmpty()) {
             Map<String, String> normalized = paramNormalizeService.normalizeParams(data.getParams());
             product.setNormalizedParams(toJsonString(normalized));
             product.setRawParams(toJsonString(data.getParams()));
+
+            // 从参数中提取结构化字段（原始key + 标准化key双重匹配）
+            extractProductFields(product, data.getParams(), normalized);
+        }
+
+        // 从metadata中补充提取（适配器可能直接放入metadata）
+        if (data.getMetadata() != null && !data.getMetadata().isEmpty()) {
+            extractFromMetadata(product, data.getMetadata());
         }
 
         if (data.getImages() != null && !data.getImages().isEmpty()) {
@@ -882,7 +897,123 @@ public class CrawlerEngine {
         }
 
         storageService.saveProduct(product);
-        log.info("Saved product: name={}, brand={}", product.getProductName(), product.getBrandName());
+        log.info("Saved product: name={}, brand={}, model={}, price={}, category={}",
+                product.getProductName(), product.getBrandName(),
+                product.getModel(), product.getPrice(), product.getCategory());
+    }
+
+    /** 型号相关key（按优先级排序） */
+    private static final String[] MODEL_KEYS = {"型号", "产品型号", "model", "Model", "MODEL", "机器人型号", "设备型号"};
+    /** 价格相关key */
+    private static final String[] PRICE_KEYS = {"价格", "参考价格", "售价", "price", "Price", "PRICE", "产品价格", "市场价"};
+    /** 分类相关key */
+    private static final String[] CATEGORY_KEYS = {"分类", "类别", "产品分类", "产品类型", "类型", "category", "Category", "机器人类型"};
+    /** 发布日期相关key */
+    private static final String[] RELEASE_DATE_KEYS = {"发布日期", "上市时间", "发布时间", "上市日期", "release", "Release", "发布年份"};
+    /** 官方链接相关key */
+    private static final String[] OFFICIAL_URL_KEYS = {"官网", "官方链接", "官方网站", "official", "Official", "官方网址"};
+
+    /**
+     * 从参数Map中提取结构化产品字段（型号/价格/分类/发布日期/官方链接）
+     * 同时检查原始key和标准化后的key
+     */
+    private void extractProductFields(CrawlerProduct product, Map<String, String> rawParams, Map<String, String> normalizedParams) {
+        // 型号
+        if (product.getModel() == null) {
+            product.setModel(findParamValue(rawParams, normalizedParams, MODEL_KEYS));
+        }
+        // 价格
+        if (product.getPrice() == null) {
+            product.setPrice(findParamValue(rawParams, normalizedParams, PRICE_KEYS));
+        }
+        // 分类
+        if (product.getCategory() == null) {
+            product.setCategory(findParamValue(rawParams, normalizedParams, CATEGORY_KEYS));
+        }
+        // 发布日期
+        if (product.getReleaseDate() == null) {
+            String dateStr = findParamValue(rawParams, normalizedParams, RELEASE_DATE_KEYS);
+            if (StringUtils.isNotBlank(dateStr)) {
+                try {
+                    java.util.Date parsed = dateParser.parse(dateStr);
+                    if (parsed != null) {
+                        product.setReleaseDate(parsed.toInstant()
+                                .atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+                    }
+                } catch (Exception ignored) {
+                    // 尝试直接解析年份
+                    String yearOnly = dateStr.replaceAll("[^0-9]", "");
+                    if (yearOnly.length() >= 4) {
+                        try {
+                            product.setReleaseDate(LocalDate.of(Integer.parseInt(yearOnly.substring(0, 4)), 1, 1));
+                        } catch (Exception ignored2) {
+                        }
+                    }
+                }
+            }
+        }
+        // 官方链接
+        if (product.getOfficialUrl() == null) {
+            String urlVal = findParamValue(rawParams, normalizedParams, OFFICIAL_URL_KEYS);
+            if (StringUtils.isNotBlank(urlVal) && urlVal.startsWith("http")) {
+                product.setOfficialUrl(urlVal);
+            }
+        }
+    }
+
+    /**
+     * 从metadata中提取产品字段
+     */
+    private void extractFromMetadata(CrawlerProduct product, Map<String, String> metadata) {
+        if (product.getModel() == null && metadata.containsKey("model")) {
+            product.setModel(metadata.get("model"));
+        }
+        if (product.getPrice() == null && metadata.containsKey("price")) {
+            product.setPrice(metadata.get("price"));
+        }
+        if (product.getCategory() == null && metadata.containsKey("category")) {
+            product.setCategory(metadata.get("category"));
+        }
+        if (product.getOfficialUrl() == null && metadata.containsKey("officialUrl")) {
+            String urlVal = metadata.get("officialUrl");
+            if (urlVal != null && urlVal.startsWith("http")) {
+                product.setOfficialUrl(urlVal);
+            }
+        }
+    }
+
+    /**
+     * 在原始参数和标准化参数中查找匹配key的值
+     */
+    private String findParamValue(Map<String, String> rawParams, Map<String, String> normalizedParams, String[] candidateKeys) {
+        // 先在原始key中精确匹配（大小写不敏感）
+        for (String key : candidateKeys) {
+            String lowerKey = key.toLowerCase();
+            for (Map.Entry<String, String> entry : rawParams.entrySet()) {
+                if (entry.getKey().toLowerCase().equals(lowerKey) && StringUtils.isNotBlank(entry.getValue())) {
+                    return entry.getValue().trim();
+                }
+            }
+        }
+        // 再在原始key中包含匹配
+        for (String key : candidateKeys) {
+            String lowerKey = key.toLowerCase();
+            for (Map.Entry<String, String> entry : rawParams.entrySet()) {
+                if (entry.getKey().toLowerCase().contains(lowerKey) && StringUtils.isNotBlank(entry.getValue())) {
+                    return entry.getValue().trim();
+                }
+            }
+        }
+        // 最后在标准化key中匹配
+        for (String key : candidateKeys) {
+            String lowerKey = key.toLowerCase();
+            for (Map.Entry<String, String> entry : normalizedParams.entrySet()) {
+                if (entry.getKey().toLowerCase().contains(lowerKey) && StringUtils.isNotBlank(entry.getValue())) {
+                    return entry.getValue().trim();
+                }
+            }
+        }
+        return null;
     }
 
     /**
