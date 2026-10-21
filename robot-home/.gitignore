@@ -32,6 +32,7 @@ private-uploads/
 # 环境与密钥
 .env
 .env.*
+!.env.rehearsal.example
 
 # 数据库备份
 *.sql.backup

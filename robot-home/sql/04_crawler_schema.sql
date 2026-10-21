@@ -39,6 +39,22 @@ CREATE TABLE `crawler_source` (
   `total_articles` INT DEFAULT 0 COMMENT '累计文章数',
   `total_products` INT DEFAULT 0 COMMENT '累计产品数',
   `total_errors` INT DEFAULT 0 COMMENT '累计错误数',
+  `health_status` VARCHAR(16) DEFAULT 'UNKNOWN' COMMENT '健康状态: HEALTHY/DEGRADED/FAILED/DISABLED/UNKNOWN',
+  `consecutive_failures` INT DEFAULT 0 COMMENT '连续失败次数',
+  `avg_latency_ms` INT DEFAULT NULL COMMENT '平均延迟(毫秒)',
+  `last_success_time` DATETIME DEFAULT NULL COMMENT '最后成功时间',
+  `last_fail_time` DATETIME DEFAULT NULL COMMENT '最后失败时间',
+  `last_fail_reason` VARCHAR(512) DEFAULT NULL COMMENT '最后失败原因',
+  `total_crawls` INT DEFAULT 0 COMMENT '累计采集次数',
+  `total_success_crawls` INT DEFAULT 0 COMMENT '累计成功采集次数',
+  `robots_checked` TINYINT DEFAULT 0 COMMENT '是否已检查robots.txt',
+  `robots_allowed` TINYINT DEFAULT 1 COMMENT 'robots.txt是否允许抓取',
+  `robots_checked_time` DATETIME DEFAULT NULL COMMENT 'robots.txt检查时间',
+  `rss_url` VARCHAR(512) DEFAULT NULL COMMENT 'RSS/Atom Feed URL',
+  `language` VARCHAR(8) DEFAULT 'zh' COMMENT '站点语言: zh/en/ja/ko等',
+  `region` VARCHAR(16) DEFAULT 'CN' COMMENT '站点地区: CN/US/JP/KR/EU等',
+  `priority` INT DEFAULT 5 COMMENT '采集优先级(1-10, 10最高)',
+  `tags` VARCHAR(512) DEFAULT NULL COMMENT '标签(逗号分隔)',
   `status` TINYINT DEFAULT 1 COMMENT '0禁用 1正常',
   `seed_urls` TEXT COMMENT '种子URL列表(换行分隔)',
   `sitemap_url` VARCHAR(512) DEFAULT NULL COMMENT 'Sitemap URL',
@@ -52,7 +68,9 @@ CREATE TABLE `crawler_source` (
   PRIMARY KEY (`id`),
   KEY `idx_type` (`source_type`),
   KEY `idx_enabled` (`crawl_enabled`),
-  KEY `idx_brand` (`brand_id`)
+  KEY `idx_brand` (`brand_id`),
+  KEY `idx_health` (`health_status`),
+  KEY `idx_priority` (`priority`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集数据源';
 
 -- ---------------------------
@@ -296,6 +314,8 @@ CREATE TABLE `crawler_error` (
   `error_message` VARCHAR(1024) DEFAULT NULL,
   `error_detail` TEXT COMMENT '详细错误信息',
   `http_status` INT DEFAULT NULL,
+  `response_time_ms` INT DEFAULT NULL COMMENT '响应时间(毫秒)',
+  `error_category` VARCHAR(32) DEFAULT NULL COMMENT '错误分类: NETWORK/DNS/TIMEOUT/HTTP_4XX/HTTP_5XX/ROBOTS/PARSE/DUPLICATE/OTHER',
   `retry_count` INT DEFAULT 0,
   `resolved` TINYINT DEFAULT 0 COMMENT '0未解决 1已解决',
   `resolve_note` VARCHAR(512) DEFAULT NULL COMMENT '解决备注',
@@ -306,7 +326,8 @@ CREATE TABLE `crawler_error` (
   KEY `idx_source` (`source_id`),
   KEY `idx_type` (`error_type`),
   KEY `idx_resolved` (`resolved`),
-  KEY `idx_time` (`create_time`)
+  KEY `idx_time` (`create_time`),
+  KEY `idx_error_category` (`error_category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集错误';
 
 -- ---------------------------
