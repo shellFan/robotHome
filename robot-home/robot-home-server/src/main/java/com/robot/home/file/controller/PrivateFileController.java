@@ -4,6 +4,7 @@ import com.robot.home.common.exception.BusinessException;
 import com.robot.home.common.util.SecurityUtils;
 import com.robot.home.file.LocalFileStorageServiceImpl;
 import com.robot.home.file.MinioFileStorageServiceImpl;
+import com.robot.home.file.PrivateFileAccessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -44,8 +45,11 @@ public class PrivateFileController {
     @Autowired
     private MinioFileStorageServiceImpl minioFileStorageService;
 
+    @Autowired
+    private PrivateFileAccessService privateFileAccessService;
+
     /**
-     * 私有文件下载（须登录）
+     * 私有文件下载（须登录 + 业务归属授权）
      * @param url 私有文件URL（本地: /api/files/private/... 或 MinIO: minio://bucket/object）
      */
     @GetMapping("/private")
@@ -56,6 +60,9 @@ public class PrivateFileController {
             throw new BusinessException("缺少文件地址");
         }
         String trimmed = url.trim();
+
+        // 业务归属授权：验证当前用户对该文件的所有权（管理员/申请人/企业成员）
+        privateFileAccessService.checkAccess(userId, trimmed);
 
         // MinIO 私有文件: minio://bucket/objectName
         if (trimmed.startsWith(MINIO_URL_SCHEME)) {
