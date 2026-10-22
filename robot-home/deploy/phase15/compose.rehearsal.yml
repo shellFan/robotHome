@@ -1,0 +1,157 @@
+# 机器人之家 — Phase15 Night4 隔离排练环境
+# 用于 MySQL 5.6 + Flyway + Nginx 真实运行时验证
+#
+# ⚠️ 仅用于隔离测试，禁止用于生产
+# ⚠️ 所有资源以 robot-home-rehearsal- 前缀隔离，不与开发/生产冲突
+# ⚠️ 使用测试凭据，不含任何真实凭据
+#
+# 使用方式：
+#   cd robot-home
+#   cp deploy/phase15/.env.rehearsal.example deploy/phase15/.env.rehearsal
+#   docker compose -f deploy/phase15/compose.rehearsal.yml --env-file deploy/phase15/.env.rehearsal up -d --build
+#   bash scripts/phase15/verify-runtime.sh
+#   bash scripts/phase15/cleanup-rehearsal.sh
+
+services:
+  mysql-rehearsal:
+    image: mysql:5.6
+    container_name: robot-home-rehearsal-mysql
+    restart: "no"
+    ports:
+      - "13306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rehearsal_root_pw
+      MYSQL_DATABASE: robot_home_rehearsal
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --max-connections=50
+    volumes:
+      # 完整SQL初始化链（含04_crawler_schema.sql）
+      - ../../sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../../sql/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
+      - ../../sql/03_demo_data.sql:/docker-entrypoint-initdb.d/03_demo_data.sql:ro
+      - ../../sql/04_crawler_schema.sql:/docker-entrypoint-initdb.d/04_crawler_schema.sql:ro
+      - ../../sql/04_migration_source_url.sql:/docker-entrypoint-initdb.d/04_migration_source_url.sql:ro
+      - ../../sql/05_brand_alias_and_indexes.sql:/docker-entrypoint-initdb.d/05_brand_alias_and_indexes.sql:ro
+      - ../../sql/06_real_brands_companies.sql:/docker-entrypoint-initdb.d/06_real_brands_companies.sql:ro
+      - ../../sql/07_real_robot_products.sql:/docker-entrypoint-initdb.d/07_real_robot_products.sql:ro
+      - ../../sql/08_search_indexes.sql:/docker-entrypoint-initdb.d/08_search_indexes.sql:ro
+      - ../../sql/09_crawler_sources.sql:/docker-entrypoint-initdb.d/09_crawler_sources.sql:ro
+      - ../../sql/10_phase6_beta.sql:/docker-entrypoint-initdb.d/10_phase6_beta.sql:ro
+      - ../../sql/11_phase7_content_community_growth.sql:/docker-entrypoint-initdb.d/11_phase7_content_community_growth.sql:ro
+      - ../../sql/12_phase8_community_procurement_growth.sql:/docker-entrypoint-initdb.d/12_phase8_community_procurement_growth.sql:ro
+      - ../../sql/13_phase9_product_growth.sql:/docker-entrypoint-initdb.d/13_phase9_product_growth.sql:ro
+      - ../../sql/14_phase10_ecosystem_growth.sql:/docker-entrypoint-initdb.d/14_phase10_ecosystem_growth.sql:ro
+      - ../../sql/15_phase12_real_data_growth.sql:/docker-entrypoint-initdb.d/15_phase12_real_data_growth.sql:ro
+      - ../../sql/16_phase12_data_quality_snapshot.sql:/docker-entrypoint-initdb.d/16_phase12_data_quality_snapshot.sql:ro
+      - ../../sql/17_phase13_growth_enterprise.sql:/docker-entrypoint-initdb.d/17_phase13_growth_enterprise.sql:ro
+      - ../../sql/18_phase14_commercialization.sql:/docker-entrypoint-initdb.d/18_phase14_commercialization.sql:ro
+      - rehearsal_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prehearsal_root_pw"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  mysql-rehearsal-upgrade:
+    # 模拟Phase14历史库（仅执行01-18，不含V19 Flyway，用于Upgrade路径验证）
+    image: mysql:5.6
+    container_name: robot-home-rehearsal-mysql-upgrade
+    restart: "no"
+    ports:
+      - "13307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rehearsal_upgrade_pw
+      MYSQL_DATABASE: robot_home_upgrade
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - ../../sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../../sql/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
+      - ../../sql/03_demo_data.sql:/docker-entrypoint-initdb.d/03_demo_data.sql:ro
+      - ../../sql/04_crawler_schema.sql:/docker-entrypoint-initdb.d/04_crawler_schema.sql:ro
+      - ../../sql/04_migration_source_url.sql:/docker-entrypoint-initdb.d/04_migration_source_url.sql:ro
+      - ../../sql/05_brand_alias_and_indexes.sql:/docker-entrypoint-initdb.d/05_brand_alias_and_indexes.sql:ro
+      - ../../sql/06_real_brands_companies.sql:/docker-entrypoint-initdb.d/06_real_brands_companies.sql:ro
+      - ../../sql/07_real_robot_products.sql:/docker-entrypoint-initdb.d/07_real_robot_products.sql:ro
+      - ../../sql/08_search_indexes.sql:/docker-entrypoint-initdb.d/08_search_indexes.sql:ro
+      - ../../sql/09_crawler_sources.sql:/docker-entrypoint-initdb.d/09_crawler_sources.sql:ro
+      - ../../sql/10_phase6_beta.sql:/docker-entrypoint-initdb.d/10_phase6_beta.sql:ro
+      - ../../sql/11_phase7_content_community_growth.sql:/docker-entrypoint-initdb.d/11_phase7_content_community_growth.sql:ro
+      - ../../sql/12_phase8_community_procurement_growth.sql:/docker-entrypoint-initdb.d/12_phase8_community_procurement_growth.sql:ro
+      - ../../sql/13_phase9_product_growth.sql:/docker-entrypoint-initdb.d/13_phase9_product_growth.sql:ro
+      - ../../sql/14_phase10_ecosystem_growth.sql:/docker-entrypoint-initdb.d/14_phase10_ecosystem_growth.sql:ro
+      - ../../sql/15_phase12_real_data_growth.sql:/docker-entrypoint-initdb.d/15_phase12_real_data_growth.sql:ro
+      - ../../sql/16_phase12_data_quality_snapshot.sql:/docker-entrypoint-initdb.d/16_phase12_data_quality_snapshot.sql:ro
+      - ../../sql/17_phase13_growth_enterprise.sql:/docker-entrypoint-initdb.d/17_phase13_growth_enterprise.sql:ro
+      - ../../sql/18_phase14_commercialization.sql:/docker-entrypoint-initdb.d/18_phase14_commercialization.sql:ro
+      - rehearsal_mysql_upgrade_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prehearsal_upgrade_pw"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  redis-rehearsal:
+    image: redis:7.2
+    container_name: robot-home-rehearsal-redis
+    restart: "no"
+    ports:
+      - "16379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - rehearsal_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  minio-rehearsal:
+    image: minio/minio:RELEASE.2024-01-31T20-20-58Z
+    container_name: robot-home-rehearsal-minio
+    restart: "no"
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    environment:
+      MINIO_ROOT_USER: rehearsal_minio
+      MINIO_ROOT_PASSWORD: rehearsal_minio_pw
+    command: server /data --console-address ":9001"
+    volumes:
+      - rehearsal_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  nginx-rehearsal:
+    image: nginx:1.27-alpine
+    container_name: robot-home-rehearsal-nginx
+    restart: "no"
+    ports:
+      - "18080:80"
+    volumes:
+      - ../nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  rehearsal_mysql_data:
+    name: robot-home-rehearsal-mysql-data
+  rehearsal_mysql_upgrade_data:
+    name: robot-home-rehearsal-mysql-upgrade-data
+  rehearsal_redis_data:
+    name: robot-home-rehearsal-redis-data
+  rehearsal_minio_data:
+    name: robot-home-rehearsal-minio-data

@@ -24,14 +24,24 @@ hs_err_pid*
 # 上传与本地数据
 uploads/
 **/uploads/
+test-uploads/
+**/test-uploads/
+private-uploads/
+**/private-uploads/
 
 # 环境与密钥
 .env
 .env.*
+!.env.rehearsal.example
 
 # 数据库备份
 *.sql.backup
 robot_home_before_*.sql
+backups/
+*.sql.gz
+
+# SSL 证书（切勿提交）
+deploy/ssl/
 !.env.example
 application-local.yml
 application-local.yaml

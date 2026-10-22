@@ -276,9 +276,9 @@ export const qaApi = {
 
 export const selectionApi = {
   /** 选型搜索 */
-  search: (data) => post('/selection/search', data),
+  search: (data) => post('/robot-selection/search', data),
   /** 选型筛选条件 */
-  filters: () => get('/selection/filters')
+  filters: () => get('/robot-selection/filters')
 }
 
 export const procurementApi = {

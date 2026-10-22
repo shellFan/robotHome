@@ -9,9 +9,11 @@ spring:
       matching-strategy: ant_path_matcher
   flyway:
     enabled: true
-    # 已有数据库使用 baseline-on-migrate，新数据库从 V1 开始
+    # baseline-version=5: V1-V5的列已包含在initdb SQL链(04_crawler_schema.sql)中
+    # Server的baseline=18 > Collector的baseline=5，确保Server-first启动时V5列不缺失
+    # 已有部署：flyway_schema_history已存在，baseline-on-migrate不触发，无影响
     baseline-on-migrate: true
-    baseline-version: "1"
+    baseline-version: "5"
     # 迁移脚本位置
     locations: classpath:db/migration
     # 迁移失败时阻止应用启动

@@ -117,13 +117,13 @@ const inquiryApi = {
 }
 
 const feedbackApi = {
-  submit: function (data) { return post('/feedback', data) }
+  submit: function (data) { return post('/feedback/submit', data) }
 }
 
 const behaviorApi = {
-  track: function (action, bizType, bizId, extra) {
-    return post('/behaviors', {
-      action: action, bizType: bizType, bizId: bizId, extra: extra || {}
+  track: function (eventType, bizType, bizId, extra) {
+    return post('/behavior/event', {
+      eventType: eventType, bizType: bizType, bizId: bizId, extra: extra || {}
     }).catch(function () {})
   }
 }

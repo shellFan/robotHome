@@ -72,6 +72,7 @@ public final class CollectorTestSqlSupport {
         List<String> out = new ArrayList<>();
         String currentTable = "";
         boolean inProcedure = false;
+        boolean inMySQLDynamicSQL = false;
         for (String line : sql.split("\n")) {
             String trimmed = line.trim();
 
@@ -111,6 +112,27 @@ public final class CollectorTestSqlSupport {
 
             // 跳过 ALTER TABLE ADD INDEX/KEY（H2 不支持）
             if (ALTER_ADD_INDEX.matcher(trimmed).find()) {
+                continue;
+            }
+
+            // 跳过 MySQL PREPARE/EXECUTE 幂等模式（SET @var / PREPARE / EXECUTE / DEALLOCATE）
+            // H2 不支持用户变量和动态SQL，且这些列已在 04_crawler_schema.sql CREATE TABLE 中定义
+            // 注意：SET语句可能跨多行，需跟踪直到语句结束（行尾分号）
+            if (trimmed.toUpperCase().startsWith("SET @")
+                    || trimmed.toUpperCase().startsWith("PREPARE ")
+                    || trimmed.toUpperCase().startsWith("EXECUTE ")
+                    || trimmed.toUpperCase().startsWith("DEALLOCATE ")) {
+                // 如果当前行不以分号结尾，进入多行跳过模式
+                if (!trimmed.endsWith(";")) {
+                    inMySQLDynamicSQL = true;
+                }
+                continue;
+            }
+            // 多行跳过模式：跳过直到行尾分号
+            if (inMySQLDynamicSQL) {
+                if (trimmed.endsWith(";")) {
+                    inMySQLDynamicSQL = false;
+                }
                 continue;
             }
 

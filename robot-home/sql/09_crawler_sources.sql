@@ -7,13 +7,56 @@ USE robot_home;
 
 -- ============================================================
 -- 采集源扩展字段（兼容MySQL 5.6，幂等添加）
+-- 04_crawler_schema.sql已包含这些列时自动跳过
 -- ============================================================
-ALTER TABLE `crawler_source` ADD COLUMN `rss_url` VARCHAR(512) DEFAULT NULL COMMENT 'RSS URL' AFTER `sitemap_url`;
-ALTER TABLE `crawler_source` ADD COLUMN `language` VARCHAR(16) DEFAULT 'zh' COMMENT '语言: zh/en/ja' AFTER `follow_external`;
-ALTER TABLE `crawler_source` ADD COLUMN `region` VARCHAR(16) DEFAULT 'CN' COMMENT '地区: CN/US/JP/EU' AFTER `language`;
-ALTER TABLE `crawler_source` ADD COLUMN `priority` INT DEFAULT 5 COMMENT '优先级: 1-10' AFTER `region`;
-ALTER TABLE `crawler_source` ADD COLUMN `tags` VARCHAR(512) DEFAULT NULL COMMENT '标签(逗号分隔)' AFTER `priority`;
-ALTER TABLE `crawler_source` ADD COLUMN `health_status` VARCHAR(32) DEFAULT 'UNKNOWN' COMMENT '健康状态: UNKNOWN/HEALTHY/DEGRADED/FAILED/DISABLED' AFTER `tags`;
+
+-- rss_url（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'rss_url');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `rss_url` VARCHAR(512) DEFAULT NULL COMMENT ''RSS URL'' AFTER `sitemap_url`',
+    'SELECT ''rss_url already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- language（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'language');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `language` VARCHAR(16) DEFAULT ''zh'' COMMENT ''语言: zh/en/ja'' AFTER `follow_external`',
+    'SELECT ''language already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- region（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'region');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `region` VARCHAR(16) DEFAULT ''CN'' COMMENT ''地区: CN/US/JP/EU'' AFTER `language`',
+    'SELECT ''region already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- priority（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'priority');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `priority` INT DEFAULT 5 COMMENT ''优先级: 1-10'' AFTER `region`',
+    'SELECT ''priority already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- tags（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'tags');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `tags` VARCHAR(512) DEFAULT NULL COMMENT ''标签(逗号分隔)'' AFTER `priority`',
+    'SELECT ''tags already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- health_status（如果不存在则添加）
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'crawler_source' AND COLUMN_NAME = 'health_status');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE `crawler_source` ADD COLUMN `health_status` VARCHAR(32) DEFAULT ''UNKNOWN'' COMMENT ''健康状态: UNKNOWN/HEALTHY/DEGRADED/FAILED/DISABLED'' AFTER `tags`',
+    'SELECT ''health_status already exists, skipping''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 中国人形机器人企业官网（10个）
