@@ -67,17 +67,18 @@ public class PrivateFileAccessService {
             return;
         }
 
-        // 2. 提取文件唯一路径段用于业务记录反查
+        // 2. 提取文件唯一路径段用于业务记录反查（转义LIKE通配符防注入）
         String fileSegment = extractFileSegment(fileUrl);
         if (fileSegment == null || fileSegment.isEmpty()) {
             log.warn("私有文件访问拒绝: 无法解析文件路径段 userId={}, url={}", userId, fileUrl);
             throw new BusinessException("无权访问该文件");
         }
+        String escapedSegment = escapeLike(fileSegment);
 
         // 3. 反查企业认领申请（proofMaterials JSON数组包含文件URL）
         List<CompanyClaim> claims = companyClaimMapper.selectList(
                 Wrappers.<CompanyClaim>lambdaQuery()
-                        .like(CompanyClaim::getProofMaterials, fileSegment));
+                        .like(CompanyClaim::getProofMaterials, escapedSegment));
         for (CompanyClaim claim : claims) {
             // 申请人可访问自己上传的认证材料
             if (userId.equals(claim.getApplicantUserId())) {
@@ -93,7 +94,7 @@ public class PrivateFileAccessService {
         // 4. 反查企业资料变更（newValue 可能包含文件URL，如 logo 变更）
         List<CompanyProfileChange> changes = companyProfileChangeMapper.selectList(
                 Wrappers.<CompanyProfileChange>lambdaQuery()
-                        .like(CompanyProfileChange::getNewValue, fileSegment));
+                        .like(CompanyProfileChange::getNewValue, escapedSegment));
         for (CompanyProfileChange change : changes) {
             // 提交人可访问自己上传的文件
             if (userId.equals(change.getApplicantUserId())) {
@@ -133,6 +134,18 @@ public class PrivateFileAccessService {
             return fileUrl.substring(idx + LOCAL_PRIVATE_PREFIX.length());
         }
         return null;
+    }
+
+    /**
+     * 转义LIKE通配符（%、_、\），防止用户构造含通配符的URL扩大匹配范围
+     *
+     * MySQL LIKE默认转义符为\，转义后%和_作为字面量匹配
+     */
+    String escapeLike(String input) {
+        if (input == null) {
+            return null;
+        }
+        return input.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private boolean isAdmin() {

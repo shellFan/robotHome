@@ -354,4 +354,57 @@ class PrivateFileAccessServiceTest {
     void extractSegmentMinioNoSlashReturnsNull() {
         assertNull(service.extractFileSegment("minio://nobucketseparator"));
     }
+
+    // ========== LIKE通配符转义测试 ==========
+
+    @Test
+    @DisplayName("escapeLike: 百分号转义为字面量")
+    void escapeLikePercent() {
+        assertEquals("enterprise/100\\%", service.escapeLike("enterprise/100%"));
+    }
+
+    @Test
+    @DisplayName("escapeLike: 下划线转义为字面量")
+    void escapeLikeUnderscore() {
+        assertEquals("enterprise/file\\_1.jpg", service.escapeLike("enterprise/file_1.jpg"));
+    }
+
+    @Test
+    @DisplayName("escapeLike: 反斜杠转义")
+    void escapeLikeBackslash() {
+        assertEquals("enterprise/a\\\\b", service.escapeLike("enterprise/a\\b"));
+    }
+
+    @Test
+    @DisplayName("escapeLike: null输入返回null")
+    void escapeLikeNull() {
+        assertNull(service.escapeLike(null));
+    }
+
+    @Test
+    @DisplayName("escapeLike: 正常路径不受影响")
+    void escapeLikeNormalPath() {
+        assertEquals("private/enterprise/uuid.jpg", service.escapeLike("private/enterprise/uuid.jpg"));
+    }
+
+    @Test
+    @DisplayName("FILE-16: 含%通配符的URL不能扩大匹配范围")
+    void wildcardPercentUrlDenied() {
+        loginUser(200L, "USER");
+        when(claimMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(changeMapper.selectList(any())).thenReturn(Collections.emptyList());
+        // 构造含%的URL，escapeLike后%作为字面量，不匹配任何记录→fail-closed拒绝
+        assertThrows(BusinessException.class, () ->
+                service.checkAccess(200L, "minio://bucket/private/%"));
+    }
+
+    @Test
+    @DisplayName("FILE-17: 含_通配符的URL不能匹配相似文件名")
+    void wildcardUnderscoreUrlDenied() {
+        loginUser(200L, "USER");
+        when(claimMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(changeMapper.selectList(any())).thenReturn(Collections.emptyList());
+        assertThrows(BusinessException.class, () ->
+                service.checkAccess(200L, "minio://bucket/private/enterprise/file_1.jpg"));
+    }
 }
