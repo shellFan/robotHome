@@ -14,12 +14,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.jsoup.Jsoup;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 发布事务服务：独立 Bean，确保 @Transactional(REQUIRES_NEW) 通过 Spring 代理生效。
@@ -112,6 +119,17 @@ public class PublishTransactionService {
         }
 
         try {
+            // Do not let a manually approved but obviously broken scrape overwrite or
+            // create public news. Preserve the crawl record for an editor to review.
+            PublishResult validation = preValidateArticleData(ca);
+            if (validation.needsReview) {
+                String reason = String.join("; ", validation.warnings);
+                markArticlePendingReview(ca.getId(), reason);
+                log.warn("Article marked PENDING_REVIEW before publishing: crawlerId={}, reasons={}",
+                        ca.getId(), validation.warnings);
+                return true;
+            }
+
             // 检查是否已有发布记录（重复发布场景）
             if (ca.getArticleId() != null && ca.getArticleId() > 0) {
                 PublishArticle existing = publishArticleMapper.selectById(ca.getArticleId());
@@ -603,6 +621,79 @@ public class PublishTransactionService {
         }
 
         return result;
+    }
+
+    /**
+     * Validate article provenance and extraction quality before writing to the public table.
+     * Suspicious records stay in the collector queue for human review.
+     */
+    private PublishResult preValidateArticleData(CrawlerArticle article) {
+        PublishResult result = new PublishResult();
+        String title = article.getTitle() == null ? "" : article.getTitle().trim();
+        if (!StringUtils.hasText(title)) {
+            result.warnings.add("EMPTY_TITLE");
+            result.needsReview = true;
+        } else if (isFrameworkPlaceholderTitle(title)) {
+            result.warnings.add("INVALID_TITLE: framework placeholder");
+            result.needsReview = true;
+        }
+
+        String sourceUrl = article.getSourceUrl();
+        if (!StringUtils.hasText(sourceUrl)) {
+            result.warnings.add("MISSING_SOURCE_URL");
+            result.needsReview = true;
+        } else if (!isHttpUrl(sourceUrl)) {
+            result.warnings.add("INVALID_SOURCE_URL");
+            result.needsReview = true;
+        }
+
+        String content = article.getContentText();
+        if (!StringUtils.hasText(content) && StringUtils.hasText(article.getContentHtml())) {
+            content = Jsoup.parse(article.getContentHtml()).text();
+        }
+        if (!StringUtils.hasText(content)) {
+            result.warnings.add("EMPTY_CONTENT");
+            result.needsReview = true;
+        } else if (containsCookieConsentNotice(content)) {
+            result.warnings.add("COOKIE_CONTENT: consent banner text");
+            result.needsReview = true;
+        }
+
+        return result;
+    }
+
+    private boolean isFrameworkPlaceholderTitle(String title) {
+        String normalized = title.toLowerCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+        Set<String> placeholders = new HashSet<>(Arrays.asList(
+                "nuxt-app", "nuxt app", "vite", "vite + vue", "react app", "create react app", "next.js app"
+        ));
+        return placeholders.contains(normalized);
+    }
+
+    private boolean isHttpUrl(String value) {
+        try {
+            URL url = new URL(value.trim());
+            String protocol = url.getProtocol();
+            return ("http".equalsIgnoreCase(protocol) || "https".equalsIgnoreCase(protocol))
+                    && StringUtils.hasText(url.getHost());
+        } catch (MalformedURLException e) {
+            return false;
+        }
+    }
+
+    private boolean containsCookieConsentNotice(String content) {
+        String normalized = content.toLowerCase(Locale.ROOT);
+        boolean consentIntroduction = normalized.contains("we use cookies")
+                || normalized.contains("this website uses cookies")
+                || normalized.contains("本网站使用cookie")
+                || normalized.contains("我们使用cookie");
+        boolean consentAction = normalized.contains("accept all cookies")
+                || normalized.contains("cookie preferences")
+                || normalized.contains("cookie settings")
+                || normalized.contains("接受所有cookie")
+                || normalized.contains("cookie偏好")
+                || normalized.contains("隐私设置");
+        return consentIntroduction && consentAction;
     }
 
     private PublishArticle convertToArticle(CrawlerArticle ca, Long defaultCategoryId) {

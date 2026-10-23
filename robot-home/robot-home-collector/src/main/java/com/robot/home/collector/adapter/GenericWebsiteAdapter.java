@@ -99,6 +99,7 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
 
             // Phase12: 提取封面图(og:image/twitter:image)并合并到images列表
             Document fullDoc = Jsoup.parse(fetchResult.getHtml(), fetchResult.getUrl());
+            removeConsentOverlays(fullDoc);
             String coverImage = extractCoverImage(fullDoc);
             List<String> images = new ArrayList<>();
             if (StringUtils.isNotBlank(coverImage)) {
@@ -256,6 +257,15 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
         }
 
         return null;
+    }
+
+    private void removeConsentOverlays(Document doc) {
+        doc.select("[id*=cookie-consent], [class*=cookie-consent], " +
+                "[id*=cookie-banner], [class*=cookie-banner], " +
+                "[id*=cookie-notice], [class*=cookie-notice], " +
+                "[id*=consent-banner], [class*=consent-banner], " +
+                "[id*=consent-dialog], [class*=consent-dialog], " +
+                "[id*=onetrust-consent], [class*=onetrust-consent]").remove();
     }
 
     /**

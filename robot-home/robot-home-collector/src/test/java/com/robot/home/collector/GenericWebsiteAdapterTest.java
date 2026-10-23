@@ -62,6 +62,30 @@ class GenericWebsiteAdapterTest {
         }
 
         @Test
+        @DisplayName("parse() removes cookie consent overlay from article body")
+        void parseRemovesCookieConsentOverlay() {
+            String articleText = "协作机器人面向工业场景，强调安全、灵活和易于部署。" +
+                    "企业可以根据工作空间、负载、精度和节拍选择合适的型号。" +
+                    "在实际部署中，还需要评估末端工具、工位布局和人员培训，确保机器人能够稳定地融入生产流程。" +
+                    "本文介绍常见的选型因素，并说明如何通过小规模试点验证投资回报。";
+            String html = "<html><body><article><h1>协作机器人选型指南</h1>" +
+                    "<div id='cookie-consent-banner'>We use cookies to improve your experience. " +
+                    "Accept all cookies or change your cookie preferences." +
+                    "<img src='/cookie-banner.png' alt='cookie banner'></div>" +
+                    "<div class='article-content'><p>" + articleText + "</p></div>" +
+                    "</article></body></html>";
+            FetchResult fetchResult = FetchResult.success("https://www.example.com/news/consent", 200, html);
+
+            ParsedData data = adapter.parse(fetchResult, Collections.emptyMap());
+
+            assertTrue(data.isSuccess());
+            assertTrue(data.getContent().contains("协作机器人面向工业场景"));
+            assertFalse(data.getContent().toLowerCase().contains("we use cookies"));
+            assertFalse(data.getContent().toLowerCase().contains("accept all cookies"));
+            assertFalse(data.getImages().contains("https://www.example.com/cookie-banner.png"));
+        }
+
+        @Test
         @DisplayName("parse()非HTML返回fail")
         void parseFailsOnNonHtml() {
             FetchResult fr = new FetchResult();

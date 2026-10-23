@@ -123,12 +123,15 @@ public class ContentExtractor {
         result.setTags(extractTags(doc));
 
         // 3. 提取正文（多策略）
+        // Clean the document body before locating the article so overlays outside
+        // the chosen content node cannot leak their images into the result.
+        if (doc.body() != null) {
+            cleanNoise(doc.body());
+        }
         Element contentElement = findContentElement(doc);
         if (contentElement != null) {
-            // 提取图片
+            // Extract images after cleanup so media inside consent overlays or ads is ignored.
             result.setImages(extractImages(contentElement, url));
-            // 清理噪声
-            cleanNoise(contentElement);
             // HTML正文
             result.setContentHtml(contentElement.html());
             // 纯文本
@@ -445,6 +448,14 @@ public class ContentExtractor {
         for (String tag : NOISE_TAGS) {
             el.select(tag).remove();
         }
+        // Remove common consent overlays before extracting body text. These are often
+        // rendered inside the selected article container and otherwise pollute summaries.
+        el.select("[id*=cookie-consent], [class*=cookie-consent], " +
+                "[id*=cookie-banner], [class*=cookie-banner], " +
+                "[id*=cookie-notice], [class*=cookie-notice], " +
+                "[id*=consent-banner], [class*=consent-banner], " +
+                "[id*=consent-dialog], [class*=consent-dialog], " +
+                "[id*=onetrust-consent], [class*=onetrust-consent]").remove();
         // 移除广告
         el.select("[class*=ad-], [class*=advert], [id*=ad-], [id*=advert], [class*=share], [class*=social]")
                 .remove();

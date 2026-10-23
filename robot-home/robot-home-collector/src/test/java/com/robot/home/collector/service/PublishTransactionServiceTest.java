@@ -92,6 +92,71 @@ public class PublishTransactionServiceTest {
         }
 
         @Test
+        @DisplayName("framework placeholder title is held for review instead of publication")
+        void publishArticle_frameworkPlaceholderTitleNeedsReview() {
+            CrawlerArticle ca = createCrawlerArticle(11L, "nuxt-app", "AUTO_APPROVED", 0);
+            ca.setArticleId(null);
+
+            when(crawlerArticleMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+            boolean result = txService.publishSingleArticle(ca, 1L);
+
+            assertTrue(result);
+            verify(publishArticleMapper, never()).insert(any(PublishArticle.class));
+            verify(crawlerArticleMapper, times(2)).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("cookie consent text is held for review instead of publication")
+        void publishArticle_cookieConsentNeedsReview() {
+            CrawlerArticle ca = createCrawlerArticle(12L, "协作机器人新品发布", "AUTO_APPROVED", 0);
+            ca.setArticleId(null);
+            ca.setContentText("We use cookies to improve your experience. Accept all cookies or change your cookie preferences.");
+
+            when(crawlerArticleMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+            boolean result = txService.publishSingleArticle(ca, 1L);
+
+            assertTrue(result);
+            verify(publishArticleMapper, never()).insert(any(PublishArticle.class));
+            verify(crawlerArticleMapper, times(2)).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("missing source URL is held for review instead of publication")
+        void publishArticle_missingSourceNeedsReview() {
+            CrawlerArticle ca = createCrawlerArticle(14L, "协作机器人新品发布", "AUTO_APPROVED", 0);
+            ca.setArticleId(null);
+            ca.setSourceUrl(null);
+
+            when(crawlerArticleMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+            boolean result = txService.publishSingleArticle(ca, 1L);
+
+            assertTrue(result);
+            verify(publishArticleMapper, never()).insert(any(PublishArticle.class));
+            verify(crawlerArticleMapper, times(2)).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("empty article content is held for review instead of publication")
+        void publishArticle_emptyContentNeedsReview() {
+            CrawlerArticle ca = createCrawlerArticle(15L, "协作机器人新品发布", "AUTO_APPROVED", 0);
+            ca.setArticleId(null);
+            ca.setContentText("");
+            ca.setContentHtml("");
+
+            when(crawlerArticleMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
+
+            boolean result = txService.publishSingleArticle(ca, 1L);
+
+            assertTrue(result);
+            verify(publishArticleMapper, never()).insert(any(PublishArticle.class));
+            verify(crawlerArticleMapper, times(2)).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+
+        @Test
         @DisplayName("CAS失败-已被其他线程发布")
         void publishArticle_casFailed() {
             CrawlerArticle ca = createCrawlerArticle(1L, "测试文章", "AUTO_APPROVED", 0);
