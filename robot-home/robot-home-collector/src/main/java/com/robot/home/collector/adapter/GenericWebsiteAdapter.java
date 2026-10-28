@@ -2,6 +2,7 @@ package com.robot.home.collector.adapter;
 
 import com.robot.home.collector.extractor.ContentExtractor;
 import com.robot.home.collector.fetcher.FetchResult;
+import com.robot.home.collector.parser.PageClassifier;
 import com.robot.home.collector.util.UrlNormalizer;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
@@ -26,6 +27,10 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
     private static final Logger log = LoggerFactory.getLogger(GenericWebsiteAdapter.class);
 
     private final ContentExtractor contentExtractor;
+    private final PageClassifier pageClassifier;
+
+    private static final Pattern NON_EDITORIAL_URL_PATH = Pattern.compile(
+            "(?i)(?:^|[/_-])(privacy|cookie|cookies|terms|legal|disclaimer|policy)(?:[/_.-]|$)");
 
     /** 文件扩展名黑名单 */
     private static final Set<String> IGNORE_EXTENSIONS = new HashSet<>(Arrays.asList(
@@ -38,11 +43,16 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
     ));
 
     public GenericWebsiteAdapter() {
-        this.contentExtractor = new ContentExtractor();
+        this(new ContentExtractor(), new PageClassifier());
     }
 
     public GenericWebsiteAdapter(ContentExtractor contentExtractor) {
+        this(contentExtractor, new PageClassifier());
+    }
+
+    GenericWebsiteAdapter(ContentExtractor contentExtractor, PageClassifier pageClassifier) {
         this.contentExtractor = contentExtractor;
+        this.pageClassifier = pageClassifier;
     }
 
     @Override
@@ -86,7 +96,7 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
                     contentExtractor.extract(fetchResult.getHtml(), fetchResult.getUrl());
 
             ParsedData data = new ParsedData();
-            data.setType(detectType(fetchResult.getUrl(), config));
+            data.setType(detectType(fetchResult.getUrl(), config, fetchResult.getHtml()));
             data.setTitle(extractResult.getTitle());
             data.setContent(extractResult.getContent());
             data.setContentHtml(extractResult.getContentHtml());
@@ -179,6 +189,11 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
             return false;
         }
 
+        String path = url.replaceFirst("(?i)^https?://[^/]*", "").split("[?#]", 2)[0];
+        if (NON_EDITORIAL_URL_PATH.matcher(path).find()) {
+            return false;
+        }
+
         // 应用包含/排除规则
         if (config != null) {
             String includePattern = config.get("includePattern");
@@ -197,7 +212,11 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
     /**
      * 检测内容类型
      */
-    private String detectType(String url, Map<String, String> config) {
+    private String detectType(String url, Map<String, String> config, String html) {
+        if (pageClassifier.classify(url, html) == PageClassifier.PageType.PRODUCT) {
+            return "product";
+        }
+
         if (config != null && config.containsKey("type")) {
             return config.get("type");
         }

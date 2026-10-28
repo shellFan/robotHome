@@ -49,7 +49,7 @@ if docker ps --format '{{.Names}}' | grep -q "robot-home-rehearsal-mysql$"; then
     done
 
     # 1.2 Phase13表
-    P13_TABLES="enterprise_company procurement_lead"
+    P13_TABLES="company_claim company_profile_change"
     for tbl in $P13_TABLES; do
         COUNT=$($MYSQL_FRESH "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='robot_home_rehearsal' AND table_name='$tbl'" 2>/dev/null || echo "0")
         if [ "$COUNT" -ge 1 ]; then
@@ -60,7 +60,7 @@ if docker ps --format '{{.Names}}' | grep -q "robot-home-rehearsal-mysql$"; then
     done
 
     # 1.3 Phase14表
-    P14_TABLES="enterprise_plan enterprise_subscription enterprise_entitlement enterprise_order advertising_slot advertising_campaign"
+    P14_TABLES="enterprise_plan enterprise_subscription enterprise_entitlement commercial_order advertising_slot advertising_campaign"
     for tbl in $P14_TABLES; do
         COUNT=$($MYSQL_FRESH "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='robot_home_rehearsal' AND table_name='$tbl'" 2>/dev/null || echo "0")
         if [ "$COUNT" -ge 1 ]; then
@@ -112,7 +112,7 @@ if docker ps --format '{{.Names}}' | grep -q "robot-home-rehearsal-mysql-upgrade
     check "容器运行中" "true"
 
     # 2.1 验证Phase14历史库完整性(13张必需表)
-    ALL_REQUIRED="robot brand company article crawler_source enterprise_company procurement_lead enterprise_plan enterprise_subscription enterprise_entitlement enterprise_order advertising_slot advertising_campaign"
+    ALL_REQUIRED="robot brand company article crawler_source company_claim company_profile_change enterprise_plan enterprise_subscription enterprise_entitlement commercial_order advertising_slot advertising_campaign"
     REQUIRED_OK=0
     for tbl in $ALL_REQUIRED; do
         COUNT=$($MYSQL_UPGRADE "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='robot_home_upgrade' AND table_name='$tbl'" 2>/dev/null || echo "0")

@@ -22,8 +22,8 @@ import java.util.Set;
  * Flyway Baseline 安全守卫
  *
  * 防止不完整的数据库被错误 baseline 到 V18：
- * - 空数据库 → 允许（全新部署，docker-entrypoint-initdb.d 先执行 01-18）
- * - 非空库 + 已有 flyway_schema_history → 正常 migrate
+ * - 空数据库 → 拒绝（Server 仅包含 V19，必须先执行外部 01-18 SQL 初始化链）
+ * - 非空库 + 已有 flyway_schema_history → 校验指纹后 migrate
  * - 非空库 + 无 flyway_schema_history → 校验 Schema 指纹：
  *   - 指纹完整（Phase13/14 关键表齐全）→ 允许 baseline
  *   - 指纹不完整 → 拒绝启动，抛出明确错误
@@ -37,17 +37,60 @@ public class FlywayBaselineGuard {
 
     /** Phase13/14 商业化必需表 — baseline 前必须全部存在 */
     private static final String[] REQUIRED_PHASE13_TABLES = {
-            "enterprise_company", "procurement_lead"
+            "company_claim", "company_profile_change"
     };
 
     private static final String[] REQUIRED_PHASE14_TABLES = {
             "enterprise_plan", "enterprise_subscription", "enterprise_entitlement",
-            "enterprise_order", "advertising_slot", "advertising_campaign"
+            "commercial_order", "advertising_slot", "advertising_campaign"
     };
 
     /** 核心业务表（Phase1-12）— baseline 前必须存在 */
     private static final String[] REQUIRED_CORE_TABLES = {
             "robot", "brand", "company", "article", "crawler_source"
+    };
+
+    /** 安全/幂等关键列，防止同名空壳表绕过 baseline 指纹。 */
+    private static final String[][] REQUIRED_COLUMNS = {
+            {"company_claim", "company_id"},
+            {"company_claim", "applicant_user_id"},
+            {"company_claim", "proof_materials"},
+            {"company_claim", "pending_company_id"},
+            {"company_claim", "pending_applicant_user_id"},
+            {"company_profile_change", "company_id"},
+            {"company_profile_change", "submitter_user_id"},
+            {"company_profile_change", "new_value"},
+            {"enterprise_plan", "code"},
+            {"enterprise_plan", "current_version"},
+            {"enterprise_plan", "saleable"},
+            {"enterprise_subscription", "company_id"},
+            {"enterprise_subscription", "plan_version_id"},
+            {"enterprise_subscription", "source_order_id"},
+            {"enterprise_subscription", "status"},
+            {"enterprise_entitlement", "subscription_id"},
+            {"enterprise_entitlement", "ent_code"},
+            {"enterprise_entitlement", "quota_used"},
+            {"enterprise_entitlement", "status"},
+            {"commercial_order", "order_no"},
+            {"commercial_order", "idempotent_key"},
+            {"commercial_order", "status"},
+            {"advertising_slot", "slot_code"},
+            {"advertising_slot", "status"},
+            {"advertising_campaign", "company_id"},
+            {"advertising_campaign", "slot_id"},
+            {"advertising_campaign", "status"}
+    };
+
+    /** 并发安全/业务幂等依赖的唯一索引。 */
+    private static final String[][] REQUIRED_INDEXES = {
+            {"company_claim", "uk_company_active_claim"},
+            {"company_claim", "uk_applicant_active_claim"},
+            {"enterprise_plan", "uk_plan_code"},
+            {"enterprise_subscription", "uk_company_subscription"},
+            {"enterprise_entitlement", "uk_company_ent"},
+            {"commercial_order", "uk_order_no"},
+            {"commercial_order", "uk_order_idem"},
+            {"advertising_slot", "uk_slot_code"}
     };
 
     @Bean
@@ -77,21 +120,24 @@ public class FlywayBaselineGuard {
      * 校验数据库是否允许 baseline（包级可见，供测试直接调用）
      *
      * 规则：
-     * - 空数据库 → 允许（全新初始化）
-     * - 已有 flyway_schema_history → 允许（增量迁移）
+     * - 空数据库 → 拒绝，要求先执行完整 SQL 初始化链
+     * - 已有 flyway_schema_history → 仍需通过 Schema 指纹校验
      * - 非空库无 Flyway 历史 → 必须通过 Schema 指纹校验
      */
     static void validateDatabaseForBaseline(Connection conn) throws Exception {
         boolean hasFlywayHistory = tableExists(conn, "flyway_schema_history");
         boolean databaseEmpty = isDatabaseEmpty(conn);
 
-        if (databaseEmpty) {
-            log.info("Flyway Baseline Guard: 数据库为空，允许全新初始化");
-            return;
+        if (databaseEmpty && !hasFlywayHistory) {
+            throw new IllegalStateException(
+                    "Flyway Baseline Guard: 数据库为空，但 Server 仅包含 V19 迁移，不能自动创建 V1-V18 Schema。" +
+                    "请先按顺序执行完整的 01-18 SQL 初始化链，且必须包含 " +
+                    "04_crawler_schema.sql 和 04_migration_source_url.sql，然后再启动 Server。");
         }
 
         if (hasFlywayHistory) {
-            log.info("Flyway Baseline Guard: 已有 flyway_schema_history，执行增量迁移");
+            log.info("Flyway Baseline Guard: 已有 flyway_schema_history，先校验 Schema 指纹再执行增量迁移");
+            validateSchemaFingerprint(conn);
             return;
         }
 
@@ -131,7 +177,33 @@ public class FlywayBaselineGuard {
                     missing));
         }
 
-        log.info("Flyway Baseline Guard: Schema 指纹校验通过（核心+Phase13+Phase14 必需表齐全），允许 baseline");
+        List<String> missingColumns = new ArrayList<>();
+        for (String[] required : REQUIRED_COLUMNS) {
+            if (!columnExists(conn, required[0], required[1])) {
+                missingColumns.add(required[0] + "." + required[1]);
+            }
+        }
+        if (!missingColumns.isEmpty()) {
+            throw new IllegalStateException(String.format(
+                    "Flyway Baseline Guard: 数据库表名齐全但缺少必需列 %s。" +
+                    "拒绝 baseline，防止不完整 Schema 进入生产。请先执行或修复完整的 01-18 SQL 初始化链。",
+                    missingColumns));
+        }
+
+        List<String> missingIndexes = new ArrayList<>();
+        for (String[] required : REQUIRED_INDEXES) {
+            if (!indexExists(conn, required[0], required[1])) {
+                missingIndexes.add(required[0] + "." + required[1]);
+            }
+        }
+        if (!missingIndexes.isEmpty()) {
+            throw new IllegalStateException(String.format(
+                    "Flyway Baseline Guard: 数据库缺少并发安全/幂等必需索引 %s。" +
+                    "拒绝 baseline，请先修复索引后重试。",
+                    missingIndexes));
+        }
+
+        log.info("Flyway Baseline Guard: Schema 指纹校验通过（核心+Phase13+Phase14 必需表/列/索引齐全），允许 baseline");
     }
 
     /**
@@ -179,6 +251,40 @@ public class FlywayBaselineGuard {
             try (ResultSet rs = meta.getTables(catalog, null, candidate, new String[]{"TABLE"})) {
                 if (rs.next()) {
                     return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean columnExists(Connection conn, String tableName, String columnName) throws Exception {
+        DatabaseMetaData meta = conn.getMetaData();
+        String catalog = conn.getCatalog();
+        String[] tableCandidates = {tableName, tableName.toUpperCase(), tableName.toLowerCase()};
+        String[] columnCandidates = {columnName, columnName.toUpperCase(), columnName.toLowerCase()};
+        for (String tableCandidate : tableCandidates) {
+            for (String columnCandidate : columnCandidates) {
+                try (ResultSet rs = meta.getColumns(catalog, null, tableCandidate, columnCandidate)) {
+                    if (rs.next()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean indexExists(Connection conn, String tableName, String indexName) throws Exception {
+        DatabaseMetaData meta = conn.getMetaData();
+        String catalog = conn.getCatalog();
+        String[] tableCandidates = {tableName, tableName.toUpperCase(), tableName.toLowerCase()};
+        for (String tableCandidate : tableCandidates) {
+            try (ResultSet rs = meta.getIndexInfo(catalog, null, tableCandidate, false, false)) {
+                while (rs.next()) {
+                    String actualName = rs.getString("INDEX_NAME");
+                    if (actualName != null && indexName.equalsIgnoreCase(actualName)) {
+                        return true;
+                    }
                 }
             }
         }

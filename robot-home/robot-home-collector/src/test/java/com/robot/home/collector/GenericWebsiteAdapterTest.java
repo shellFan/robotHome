@@ -81,6 +81,25 @@ class GenericWebsiteAdapterTest {
             ParsedData data = adapter.parse(fr, Collections.emptyMap());
             assertNotNull(data);
         }
+
+        @Test
+        @DisplayName("parse()移除叠加在正文中的Cookie同意浮层")
+        void parseRemovesCookieConsentOverlayFromExtractedContent() {
+            String html = "<html><body><main role='main'>" +
+                    "<div class='xz_clo'><h3>我们如何使用cookie</h3>" +
+                    "我们的网站使用Cookie和其他类似技术。只接受必要的cookie</div>" +
+                    "<h1>机器人行业观察</h1><p>机器人行业近期出现了多项值得关注的技术进展。" +
+                    "本文梳理了产业链变化、产品能力、真实应用场景和后续发展趋势，" +
+                    "并结合企业公开资料说明技术路线与市场需求之间的关系，帮助读者理解行业变化。</p>" +
+                    "</main></body></html>";
+            FetchResult fr = FetchResult.success("https://www.example.com/news/robotics", 200, html);
+
+            ParsedData data = adapter.parse(fr, Collections.emptyMap());
+
+            assertTrue(data.isSuccess());
+            assertTrue(data.getContent().contains("机器人行业近期"));
+            assertFalse(data.getContent().contains("只接受必要的cookie"));
+        }
     }
 
     // ==================== 封面图提取与URL规范化 ====================
@@ -220,6 +239,16 @@ class GenericWebsiteAdapterTest {
         }
 
         @Test
+        @DisplayName("shouldFollow排除隐私、Cookie和条款页面")
+        void shouldFollowRejectsLegalAndCookiePages() {
+            Map<String, String> config = Collections.emptyMap();
+
+            assertFalse(adapter.shouldFollow("https://example.com/privacy/cookie-policy", 0, 3, config));
+            assertFalse(adapter.shouldFollow("https://example.com/legal/terms-of-use", 0, 3, config));
+            assertTrue(adapter.shouldFollow("https://example.com/news/robotics-update", 0, 3, config));
+        }
+
+        @Test
         @DisplayName("shouldFollow过滤锚点和特殊协议")
         void shouldFollowFiltersAnchors() {
             Map<String, String> config = Collections.emptyMap();
@@ -252,6 +281,23 @@ class GenericWebsiteAdapterTest {
                     "</article></body></html>";
             FetchResult fr = FetchResult.success("https://www.example.com/product/xr10", 200, html);
             ParsedData data = adapter.parse(fr, Collections.emptyMap());
+
+            assertEquals("product", data.getType());
+        }
+
+        @Test
+        @DisplayName("DOM产品参数页覆盖来源级article默认类型")
+        void productDomOverridesSourceArticleDefault() {
+            String html = "<html><body><div class='product-info'>" +
+                    "<h1>Walker C 商用服务人形机器人</h1>" +
+                    "<table class='spec-table'><tr><th>身高</th><td>163cm</td></tr>" +
+                    "<tr><th>体重</th><td>43kg</td></tr></table>" +
+                    "</div></body></html>";
+            Map<String, String> config = new HashMap<>();
+            config.put("type", "article");
+            FetchResult fr = FetchResult.success("https://www.example.com/cn/walker-c", 200, html);
+
+            ParsedData data = adapter.parse(fr, config);
 
             assertEquals("product", data.getType());
         }

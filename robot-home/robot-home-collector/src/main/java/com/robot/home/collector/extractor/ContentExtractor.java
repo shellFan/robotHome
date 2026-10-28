@@ -57,6 +57,9 @@ public class ContentExtractor {
     /** 图片选择器 */
     private static final Pattern DATE_PATTERN = Pattern.compile(
             "\\d{4}[-/.年]\\d{1,2}[-/.月]\\d{1,2}[日号]?");
+    private static final Pattern COOKIE_CONSENT_TEXT = Pattern.compile(
+            "我们如何使用cookies?|只接受必要的cookies?|仅接受必要的cookies?|accept only necessary cookies|cookie consent",
+            Pattern.CASE_INSENSITIVE);
 
     private int minContentLength = 200;
     private double minTextDensity = 0.1;
@@ -442,6 +445,7 @@ public class ContentExtractor {
      * 清理噪声元素
      */
     private void cleanNoise(Element el) {
+        removeCookieConsentOverlays(el);
         for (String tag : NOISE_TAGS) {
             el.select(tag).remove();
         }
@@ -454,6 +458,29 @@ public class ContentExtractor {
                 p.remove();
             }
         }
+    }
+
+    private void removeCookieConsentOverlays(Element contentElement) {
+        List<Element> elements = new ArrayList<>(contentElement.getAllElements());
+        for (Element candidate : elements) {
+            if (candidate == contentElement) {
+                continue;
+            }
+            String text = candidate.text();
+            if (text.length() <= 500 && COOKIE_CONSENT_TEXT.matcher(text).find()
+                    && !containsEditorialBlock(candidate)) {
+                candidate.remove();
+            }
+        }
+    }
+
+    private boolean containsEditorialBlock(Element candidate) {
+        for (Element block : candidate.select("h1, h2, h3, p, li, article, main")) {
+            if (!COOKIE_CONSENT_TEXT.matcher(block.text()).find()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

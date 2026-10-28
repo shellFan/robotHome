@@ -5,7 +5,7 @@ spring:
     enabled: false
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:robot_home;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,VALUE
+    url: jdbc:h2:mem:robot_home;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     username: sa
     password:
     hikari:

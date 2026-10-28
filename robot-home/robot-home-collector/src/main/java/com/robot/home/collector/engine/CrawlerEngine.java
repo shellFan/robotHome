@@ -492,18 +492,29 @@ public class CrawlerEngine {
         }
 
         // 规范化并加入队列
+        Map<String, String> sourceConfig = buildConfig(source);
+        CrawlerAdapter seedAdapter = selectAdapter(source.getBaseUrl(), source, sourceConfig);
         int addedCount = 0;
+        int filteredCount = 0;
         for (String url : seedUrls) {
             String normalized = UrlNormalizer.normalize(url.trim());
-            if (StringUtils.isNotBlank(normalized)) {
-                UrlTask urlTask = new UrlTask(normalized, 0, 10, task.getId()); // 种子URL高优先级
-                if (ctx.enqueue(urlTask)) {
-                    addedCount++;
-                }
+            if (StringUtils.isBlank(normalized)) {
+                continue;
+            }
+            if (!seedAdapter.shouldFollow(normalized, 0, 10, sourceConfig)) {
+                filteredCount++;
+                continue;
+            }
+            UrlTask urlTask = new UrlTask(normalized, 0, 10, task.getId()); // 种子URL高优先级
+            if (ctx.enqueue(urlTask)) {
+                addedCount++;
             }
         }
 
         ctx.addUrlsDiscovered(addedCount);
+        if (filteredCount > 0) {
+            log.info("Filtered {} seed URLs by source URL policy: source={}", filteredCount, source.getSourceName());
+        }
         log.info("Initialized {} seed URLs for source: {} (total {} raw seeds)", addedCount, source.getSourceName(), seedUrls.size());
     }
 

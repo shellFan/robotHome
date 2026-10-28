@@ -9,9 +9,10 @@ spring:
       matching-strategy: ant_path_matcher
   flyway:
     enabled: true
+    # Server与Collector共享业务数据库，但必须使用独立历史表，避免V18/V19与V1-V5互相校验冲突
+    table: collector_flyway_schema_history
     # baseline-version=5: V1-V5的列已包含在initdb SQL链(04_crawler_schema.sql)中
-    # Server的baseline=18 > Collector的baseline=5，确保Server-first启动时V5列不缺失
-    # 已有部署：flyway_schema_history已存在，baseline-on-migrate不触发，无影响
+    # 已有完整01-18 Schema首次启动Collector时，在独立历史表中baseline到V5
     baseline-on-migrate: true
     baseline-version: "5"
     # 迁移脚本位置

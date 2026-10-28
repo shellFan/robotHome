@@ -55,16 +55,11 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- Flyway 数据库版本管理（与 Collector 保持同版本 8.5.13，兼容 Java 8 + MySQL 5.6） -->
+        <!-- Flyway 7 保留 MySQL 5.7 Community 支持并兼容服务器的 Java 8 运行时。 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-            <version>8.5.13</version>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
-            <version>8.5.13</version>
+            <version>7.15.0</version>
         </dependency>
 
         <!-- MySQL -->
@@ -148,7 +143,7 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>2.2.224</version>
+            <version>1.4.200</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
