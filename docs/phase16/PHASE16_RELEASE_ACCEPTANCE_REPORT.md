@@ -21,7 +21,7 @@
 - 对比：本地基准提交相对 `origin/main` 领先 1 个提交、落后 0 个提交。
 - 工作分支：`codex/phase16-content-quality`；工作区未清理，原有改动均予保留。未跟踪的 `robot-home/phase15_diff_stat.txt` 和 `robot-home/phase15_name_status.txt` 未纳入本次提交。
 - 本阶段代码与验收报告已提交：`d3c12c0`（`fix(collector): improve content classification and release safety`）。
-- 推送状态：**BLOCKED**。HTTPS Git push 需要交互式 GitHub 凭据，但当前终端没有可用的凭据对话；GitHub SSH 也未通过主机密钥验证。提交保留在本地开发分支，未改动远程 `main`。
+- 推送状态：**BLOCKED**。Git Credential Manager 已完成 GitHub 登录，但当前账号 `fanliangquan2-cell` 推送 `shellFan/robotHome` 收到 HTTP 403（无仓库写权限）。远端开发分支尚不存在；提交保留在本地开发分支，远程 `main` 未改动。需由有权限的账号登录，或为该账号授予仓库写权限后再推送。
 - 线上 Server 与 Collector 的 systemd ExecStart 均指向 `/www/wwwroot/robot-home/releases/20261023-launch/` 下的 JAR。SHA256 分别为：
   - Server：`ad33f87e7287bca434849dcf031581461f8b8b991c6dd055197428f803d378b9`
   - Collector：`dcacb894e76dc34a83aa2cb20cf8d15d8aba0b98975f98bbf2d2c71b03185aa2`
