@@ -8,7 +8,7 @@ Production writes: **none**. Production JARs/services were not changed.
 
 | Item | Result | Evidence |
 |---|---|---|
-| Git push | Pending | Git Credential Manager lists the authorized `shellFan` account; origin is HTTPS `shellFan/robotHome`. No token was read or stored. |
+| Git push | PASS | Commits pushed over HTTPS to `origin/codex/phase16-content-quality`; remote `main` was not changed. Git Credential Manager lists the authorized `shellFan` account. No token was read or stored. |
 | Server tests | PASS, 208 tests, 0 failures/errors | Fresh Maven/Surefire run, Java 8.0.511 and available Maven 3.3.9. |
 | Collector tests | PASS, 151 tests, 0 failures/errors | Fresh Maven/Surefire run, Java 8.0.511 and available Maven 3.3.9. |
 | Web | PASS | `pnpm run build`, Vite production build. |
@@ -62,11 +62,38 @@ actual_deletes: 0
 ## Readiness
 
 ```yaml
-Code Ready: YES (local commits verified; development branch push pending)
+Code Ready: YES (tests/builds passed and development branch pushed)
 Deployment Verified: NO (production commit SHA remains UNKNOWN; no deployment was performed)
 Runtime Ready: PARTIAL (public APIs respond, but no runtime deployment/version proof)
 Content Ready: NO (content issues remain; drafts are unpublished)
 Production Ready: NO
+```
+
+## Final ledger
+
+```yaml
+Git Push: PASS (origin/codex/phase16-content-quality)
+Artifact Build Source SHA: 6d759543159f784dea022b0866b398e7f1098c24
+Production Server Deployed SHA: UNKNOWN
+Production Collector Deployed SHA: UNKNOWN
+News Before/After: 37/37
+Categorized News: 0
+Products Before/After: 56/56
+Products With Covers: 0
+Videos: 0 online; 10 candidates prepared, none published
+Tutorials: 0 online; 12 drafts prepared, none published
+Community Posts: 0 online; 3 official drafts prepared, none published
+Data Backup: NOT CREATED (no production mutation)
+Dry Run: news classification SQL/CSV and product image audit prepared
+Production Write Authorization: NOT GRANTED
+Actual Inserts: 0
+Actual Updates: 0
+Actual Deletes: 0
+Server Tests: 208 passed, 0 failures, 0 errors
+Collector Tests: 151 passed, 0 failures, 0 errors
+Web: PASS
+Admin: PASS (direct Vite build; pnpm build blocked by ignored build-script policy)
+MiniApp: Static PASS; WeChat Developer Tools/device UNKNOWN
 ```
 
 ## Remaining blockers
