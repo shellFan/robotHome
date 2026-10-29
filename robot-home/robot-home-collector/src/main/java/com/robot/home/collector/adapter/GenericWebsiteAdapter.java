@@ -213,7 +213,8 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
      * 检测内容类型
      */
     private String detectType(String url, Map<String, String> config, String html) {
-        if (pageClassifier.classify(url, html) == PageClassifier.PageType.PRODUCT) {
+        PageClassifier.PageType pageType = pageClassifier.classify(url, html);
+        if (pageType == PageClassifier.PageType.PRODUCT) {
             return "product";
         }
 
@@ -221,21 +222,10 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
             return config.get("type");
         }
 
-        String lowerUrl = url.toLowerCase();
-        if (lowerUrl.contains("/news") || lowerUrl.contains("/article") ||
-                lowerUrl.contains("/blog") || lowerUrl.contains("/press")) {
+        if (pageType == PageClassifier.PageType.ARTICLE) {
             return "article";
         }
-        if (lowerUrl.contains("/product") || lowerUrl.contains("/robot") ||
-                lowerUrl.contains("/device") || lowerUrl.contains("/solution")) {
-            return "product";
-        }
-        if (lowerUrl.contains("/about") || lowerUrl.contains("/company") ||
-                lowerUrl.contains("/contact")) {
-            return "company";
-        }
-
-        return "article"; // 默认
+        return "other";
     }
 
     /**

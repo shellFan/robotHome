@@ -1,0 +1,15 @@
+<project name="robot-home-provenance" default="ensure-provenance">
+    <target name="ensure-provenance">
+        <available file="${outputDirectory}/git.properties" property="git.provenance.present"/>
+        <antcall target="write-unknown-provenance"/>
+    </target>
+
+    <target name="write-unknown-provenance" unless="git.provenance.present">
+        <echo file="${outputDirectory}/git.properties" encoding="UTF-8"># Git metadata unavailable in a detached source archive; no SHA was inferred.
+git.commit.id.full=UNKNOWN
+git.branch=UNKNOWN
+git.commit.time=UNKNOWN
+git.dirty=UNKNOWN
+</echo>
+    </target>
+</project>

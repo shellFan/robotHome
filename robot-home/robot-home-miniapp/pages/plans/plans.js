@@ -15,7 +15,10 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const plans = await commercialApi.plans()
-      this.setData({ plans: plans || [] })
+      const normalizedPlans = (plans || []).map((plan) => Object.assign({}, plan, {
+        priceText: this.formatPrice(plan.priceCents, plan.displayPrice)
+      }))
+      this.setData({ plans: normalizedPlans })
       if (getToken()) {
         try {
           const ws = await enterpriseApi.myCompany()
@@ -43,9 +46,11 @@ Page({
       return (arr || []).map(function (e) { return labels[e.code] || e.code })
     } catch (e) { return [] }
   },
-  formatPrice(cents) {
-    if (cents === null || cents === undefined) return '暂无报价'
-    return '¥' + (cents / 100).toFixed(2)
+  formatPrice(cents, displayPrice) {
+    if (cents === null || cents === undefined || cents === '') return displayPrice || '暂无报价'
+    var amount = Number(cents)
+    if (isNaN(amount)) return displayPrice || '暂无报价'
+    return '¥' + (amount / 100).toFixed(2)
   },
   async buyPlan(e) {
     if (this.data.purchasing) return

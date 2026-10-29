@@ -316,5 +316,20 @@ class GenericWebsiteAdapterTest {
 
             assertEquals("product", data.getType());
         }
+
+        @Test
+        @DisplayName("首页、新闻列表和解决方案页面不得默认当作资讯或产品")
+        void nonEditorialPagesAreNotPersistableContent() {
+            String html = "<html><body><h1>企业机器人解决方案</h1>" +
+                    "<p>这是一个包含足够长度的公司方案页面正文，用于覆盖一般站点首页、导航页和方案页的类型判断。</p>" +
+                    "</body></html>";
+
+            assertEquals("other", adapter.parse(
+                    FetchResult.success("https://www.example.com/", 200, html), Collections.emptyMap()).getType());
+            assertEquals("other", adapter.parse(
+                    FetchResult.success("https://www.example.com/about/news", 200, html), Collections.emptyMap()).getType());
+            assertEquals("other", adapter.parse(
+                    FetchResult.success("https://www.example.com/solutions/industry", 200, html), Collections.emptyMap()).getType());
+        }
     }
 }

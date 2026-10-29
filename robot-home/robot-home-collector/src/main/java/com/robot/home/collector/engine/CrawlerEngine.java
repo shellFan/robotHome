@@ -789,6 +789,10 @@ public class CrawlerEngine {
     private void processParsedData(ParsedData data, String url, CrawlerSource source,
                                     CrawlerTask task, int depth, CrawlTaskContext ctx) {
         String contentType = data.getType();
+        if (!"article".equals(contentType) && !"product".equals(contentType)) {
+            log.debug("Skipping non-editorial page: url={}, type={}", url, contentType);
+            return;
+        }
 
         // 内容去重检查
         String contentText = TextCleanUtils.htmlToText(
@@ -815,7 +819,6 @@ public class CrawlerEngine {
             storeProduct(data, url, source, task, brandMatch, contentHash);
             ctx.incrementProductsNew();
         } else {
-            // 默认作为文章处理
             storeArticle(data, url, source, task, brandMatch, contentHash);
             ctx.incrementArticlesNew();
         }

@@ -39,7 +39,7 @@ public class PageClassifier {
     /** 产品详情URL关键词 */
     private static final Set<String> PRODUCT_URL_KEYWORDS = new HashSet<>(Arrays.asList(
             "/product/", "/products/", "/robot/", "/robots/", "/device/", "/model/",
-            "/item/", "/detail/", "/goods/", "/equipment/", "/solution/"
+            "/item/", "/detail/", "/goods/", "/equipment/"
     ));
 
     /** 产品详情URL正则（含ID模式） */

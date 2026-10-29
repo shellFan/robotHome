@@ -19,7 +19,7 @@
       </view>
       <text class="plan-card__desc rh-clamp-2">{{item.description}}</text>
       <view class="plan-card__price-row">
-        <text class="plan-card__price">{{item.priceCents !== null ? '¥' + (item.priceCents / 100).toFixed(2) : item.displayPrice || '暂无报价'}}</text>
+        <text class="plan-card__price">{{item.priceText}}</text>
         <text class="plan-card__duration" wx:if="{{item.durationDays}}">{{item.durationDays}}天</text>
       </view>
       <view class="plan-card__ents" wx:if="{{item.entitlementConfig && item.entitlementConfig !== '[]'}}">
