@@ -66,7 +66,7 @@
         </view>
         <view class="co-row" wx:if="{{commercial.subscription}}">
           <text class="co-label">到期时间</text>
-          <text class="co-value">{{commercial.subscription.endTime ? (commercial.subscription.endTime + '').substring(0, 10) : '-'}}</text>
+          <text class="co-value">{{commercial.subscription.endTimeText}}</text>
         </view>
         <view class="co-row">
           <text class="co-label">商业订单</text>

@@ -33,9 +33,16 @@ Page({
         commercialApi.mySubscription(ws.company.id),
         commercialApi.myEntitlements(ws.company.id)
       ])
+      const normalizedSubscription = sub ? Object.assign({}, sub, {
+        startDateText: this.formatDate(sub.startTime),
+        endDateText: this.formatDate(sub.endTime)
+      }) : null
+      const normalizedEntitlements = (ents || []).map((item) => Object.assign({}, item, {
+        expireDateText: this.formatDate(item.expireTime)
+      }))
       this.setData({
-        subscription: sub || null,
-        entitlements: ents || []
+        subscription: normalizedSubscription,
+        entitlements: normalizedEntitlements
       })
     } catch (e) {
       this.setData({ error: '订阅信息加载失败' })

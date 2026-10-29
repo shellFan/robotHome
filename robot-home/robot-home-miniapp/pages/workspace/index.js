@@ -48,7 +48,10 @@ Page({
     try {
       const { commercialApi } = require('../../api/index')
       const overview = await commercialApi.commercialOverview(this.data.company.id)
-      this.setData({ commercial: overview })
+      const subscription = overview && overview.subscription ? Object.assign({}, overview.subscription, {
+        endTimeText: this.formatDate(overview.subscription.endTime)
+      }) : null
+      this.setData({ commercial: Object.assign({}, overview, { subscription }) })
     } catch (e) { /* 商业概览加载失败不阻塞 */ }
   },
   async loadClaims() {
@@ -86,5 +89,9 @@ Page({
   statusText(status) {
     var map = { PENDING: '审核中', APPROVED: '已通过', REJECTED: '已拒绝', CANCELLED: '已取消' }
     return map[status] || status
+  },
+  formatDate(val) {
+    if (!val) return '-'
+    return String(val).replace('T', ' ').substring(0, 10)
   }
 })

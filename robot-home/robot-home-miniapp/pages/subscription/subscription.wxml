@@ -8,8 +8,8 @@
         <text class="sub-header__status sub-header__status--{{subscription ? subscription.status : 'FREE'}}">{{subscription ? (subscription.status === 'ACTIVE' ? '使用中' : subscription.status === 'EXPIRING' ? '即将到期' : subscription.status === 'EXPIRED' ? '已过期' : subscription.status === 'SUSPENDED' ? '已暂停' : subscription.status === 'FREE' ? '免费版' : subscription.status) : '免费版'}}</text>
       </view>
       <view class="sub-header__meta" wx:if="{{subscription}}">
-        <text class="rh-text-light">生效：{{subscription.startTime ? (subscription.startTime + '').substring(0, 10) : '-'}}</text>
-        <text class="rh-text-light">到期：{{subscription.endTime ? (subscription.endTime + '').substring(0, 10) : '-'}}</text>
+        <text class="rh-text-light">生效：{{subscription.startDateText}}</text>
+        <text class="rh-text-light">到期：{{subscription.endDateText}}</text>
         <text class="rh-text-light">自动续费：{{subscription.autoRenew === 1 ? '已开启' : '未开启'}}</text>
       </view>
       <view class="sub-header__actions">
@@ -38,7 +38,7 @@
             </view>
           </block>
         </view>
-        <text class="rh-text-light" wx:if="{{item.expireTime}}">到期：{{(item.expireTime + '').substring(0, 10)}}</text>
+        <text class="rh-text-light" wx:if="{{item.expireTime}}">到期：{{item.expireDateText}}</text>
       </view>
     </view>
   </block>
