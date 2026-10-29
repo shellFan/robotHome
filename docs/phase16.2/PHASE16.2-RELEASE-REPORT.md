@@ -8,18 +8,20 @@ Production writes: **none**. Production JARs/services were not changed.
 
 | Item | Result | Evidence |
 |---|---|---|
-| Git push | Pending final commit and push | Git Credential Manager lists the authorized `shellFan` account; origin is HTTPS `shellFan/robotHome`. No token was read or stored. |
+| Git push | Pending | Git Credential Manager lists the authorized `shellFan` account; origin is HTTPS `shellFan/robotHome`. No token was read or stored. |
 | Server tests | PASS, 208 tests, 0 failures/errors | Fresh Maven/Surefire run, Java 8.0.511 and available Maven 3.3.9. |
 | Collector tests | PASS, 151 tests, 0 failures/errors | Fresh Maven/Surefire run, Java 8.0.511 and available Maven 3.3.9. |
 | Web | PASS | `pnpm run build`, Vite production build. |
 | Admin | PASS | Direct existing Vite production build passed. `pnpm run build` itself was blocked by pnpm's ignored-build-script policy for `es5-ext`, `esbuild`, and `vue-demi`; no dependency scripts were approved or installed. |
 | MiniApp | Static checks PASS; WeChat compiler/device UNKNOWN | Page JS syntax and regression checks pass. WeChat Developer Tools was not found on this machine; no simulator or physical-device result is claimed. |
-| Local JAR provenance | PASS, verification-only | Server and Collector JARs contain Git commit, branch, build time, and artifact version. Local manifest script was exercised and its paths/property parsing corrected. Build happened with a dirty working tree; final clean artifacts still need rebuilding after commit. |
+| Local JAR provenance | PASS, verification-only | Clean Server and Collector JARs were rebuilt from `6d759543159f784dea022b0866b398e7f1098c24`. The manifest records each SHA256, Git SHA/branch, build time, version `1.0.0`, and `NOT_DEPLOYED`; see `deployment-manifest.local.json`. |
 | Production deployment | NOT DONE | Existing production JAR Git SHA remains **UNKNOWN**. No JAR replacement or service restart was performed. |
 
 ## Online data, read-only HTTP verification
 
 All listed GET endpoints returned HTTP 200 on `https://jqr.21zuo.com` during this audit. Counts were read from complete first-page responses (`pageSize=100`):
+
+The site root, `/admin/`, `/robots`, and `/articles` also returned HTTP 200 HTML responses. This verifies HTTP delivery only; no authenticated admin workflow or browser-rendered interaction was exercised.
 
 | Content | Before | After | Additional evidence |
 |---|---:|---:|---|
@@ -60,7 +62,7 @@ actual_deletes: 0
 ## Readiness
 
 ```yaml
-Code Ready: PENDING final clean artifact manifest and push
+Code Ready: YES (local commits verified; development branch push pending)
 Deployment Verified: NO (production commit SHA remains UNKNOWN; no deployment was performed)
 Runtime Ready: PARTIAL (public APIs respond, but no runtime deployment/version proof)
 Content Ready: NO (content issues remain; drafts are unpublished)
@@ -69,7 +71,7 @@ Production Ready: NO
 
 ## Remaining blockers
 
-1. Rebuild clean Server/Collector artifacts after the code commit, generate the final local artifact manifest, and push the development branch.
+1. Push the committed development branch; no `main` changes or force push are planned.
 2. Production deployment and production database writes require separate explicit authorization; the existing production JAR must first be backed up and its deployment recorded.
 3. Approve and execute the news dry-run only after row-level human review; prepare a restorable production backup first.
 4. Obtain permissible product-image sources/licensing; do not use random placeholders as product photos.
