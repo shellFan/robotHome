@@ -23,6 +23,8 @@ All listed GET endpoints returned HTTP 200 on `https://jqr.21zuo.com` during thi
 
 The site root, `/admin/`, `/robots`, and `/articles` also returned HTTP 200 HTML responses. This verifies HTTP delivery only; no authenticated admin workflow or browser-rendered interaction was exercised.
 
+Keyword GETs returned 23 news matches and 55 product matches for `机器人`; the news results still include company-profile/after-sales pages and Cookie/template text. `GET /api/admin/articles?pageNum=1&pageSize=1` returned HTTP 200 with application code 401 (`请先登录`), so authentication enforcement was observed but the signed-in moderation flow remains unverified.
+
 | Content | Before | After | Additional evidence |
 |---|---:|---:|---|
 | News | 37 | 37 | 0 categorized; all 12 category counts returned as 0. |
@@ -33,7 +35,7 @@ The site root, `/admin/`, `/robots`, and `/articles` also returned HTTP 200 HTML
 | Community posts | 0 | 0 | No production records. |
 | Community circles | 9 | 9 | Circle list endpoint returned all 9. |
 
-Read-only GET paths checked: `/api/articles/categories`, `/api/articles`, `/api/robots`, `/api/brands`, `/api/videos`, `/api/tutorials`, `/api/community/circles`, `/api/community/posts`. No POST/PUT/PATCH/DELETE request was sent. The earlier database audit used a read-only transaction and rollback; its exports and row-level audit files are in `docs/phase16.2/data/`.
+Read-only GET paths checked: `/api/articles/categories`, `/api/articles`, `/api/robots`, `/api/brands`, `/api/videos`, `/api/tutorials`, `/api/community/circles`, `/api/community/posts`, and `/api/admin/articles`. No POST/PUT/PATCH/DELETE request was sent. The earlier database audit used a read-only transaction and rollback; its exports and row-level audit files are in `docs/phase16.2/data/`.
 
 ## Data preparation and root causes
 
@@ -94,6 +96,8 @@ Collector Tests: 151 passed, 0 failures, 0 errors
 Web: PASS
 Admin: PASS (direct Vite build; pnpm build blocked by ignored build-script policy)
 MiniApp: Static PASS; WeChat Developer Tools/device UNKNOWN
+Search: PASS at API response level; results confirm contaminated news records remain
+Admin moderation: BLOCKED (endpoint requires login; signed-in review flow not exercised)
 ```
 
 ## Remaining blockers
