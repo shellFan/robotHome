@@ -98,9 +98,8 @@ MiniApp: Static PASS; WeChat Developer Tools/device UNKNOWN
 
 ## Remaining blockers
 
-1. Push the committed development branch; no `main` changes or force push are planned.
-2. Production deployment and production database writes require separate explicit authorization; the existing production JAR must first be backed up and its deployment recorded.
-3. Approve and execute the news dry-run only after row-level human review; prepare a restorable production backup first.
-4. Obtain permissible product-image sources/licensing; do not use random placeholders as product photos.
-5. Verify video embed/deep-link behavior, send tutorial/community drafts through the existing review flow, then recheck HTTP/UI counts.
-6. Run the MiniApp in WeChat Developer Tools and on a physical device.
+1. Production deployment and production database writes require separate explicit authorization; the existing production JAR must first be backed up and its deployment recorded.
+2. Approve and execute the news dry-run only after row-level human review; prepare a restorable production backup first.
+3. Obtain permissible product-image sources/licensing; do not use random placeholders as product photos.
+4. Verify video embed/deep-link behavior, send tutorial/community drafts through the existing review flow, then recheck HTTP/UI counts.
+5. Run the MiniApp in WeChat Developer Tools and on a physical device.
