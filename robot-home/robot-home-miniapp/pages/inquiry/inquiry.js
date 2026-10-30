@@ -8,6 +8,7 @@ Page({
     // Phase7 V2
     inquiryType: 'PRICE',
     procurementScene: '',
+    procurementSceneLabel: '',
     purchaseTime: '',
     typeOptions: [
       { value: 'PRICE', label: '获取底价' },
@@ -38,7 +39,11 @@ Page({
     this.setData({ inquiryType: this.data.typeOptions[e.detail.value].value })
   },
   onSceneChange(e) {
-    this.setData({ procurementScene: this.data.sceneValues[e.detail.value] || '' })
+    const index = Number(e.detail.value)
+    this.setData({
+      procurementScene: this.data.sceneValues[index] || '',
+      procurementSceneLabel: this.data.sceneOptions[index] || ''
+    })
   },
   async submit() {
     if (!getToken()) {

@@ -100,6 +100,25 @@ class GenericWebsiteAdapterTest {
             assertTrue(data.getContent().contains("机器人行业近期"));
             assertFalse(data.getContent().contains("只接受必要的cookie"));
         }
+
+        @Test
+        @DisplayName("采集策略不会被误当成文章内容类型")
+        void parseDoesNotTreatCrawlStrategiesAsContentTypes() {
+            String html = "<html><body><article><h1>机器人行业动态</h1>" +
+                    "<p>这是一篇包含足够正文的机器人行业文章，用于验证采集策略和页面内容类型可以分开处理。</p>" +
+                    "</article></body></html>";
+            FetchResult fr = FetchResult.success("https://www.example.com/news/robotics-update", 200, html);
+
+            for (String strategy : new String[]{"GENERIC", "NEWS", "RSS", "SITEMAP", "PRODUCT"}) {
+                Map<String, String> config = new HashMap<>();
+                config.put("crawlStrategy", strategy);
+
+                ParsedData data = adapter.parse(fr, config);
+
+                assertTrue(data.isSuccess(), strategy);
+                assertEquals("article", data.getType(), strategy);
+            }
+        }
     }
 
     // ==================== 封面图提取与URL规范化 ====================

@@ -29,8 +29,7 @@
         <el-table-column label="品牌" min-width="200">
           <template #default="{ row }">
             <div class="brand-cell">
-              <el-image v-if="row.logo" :src="row.logo" fit="contain" class="brand-cell__logo" />
-              <div v-else class="brand-cell__empty">无</div>
+              <el-image :src="imageSource(row.logo)" :alt="row.name" fit="contain" class="brand-cell__logo" />
               <span>{{ row.name }}</span>
             </div>
           </template>
@@ -151,6 +150,7 @@ import {
 import { getCompanyAll } from '@/api/company'
 import ImageUpload from '@/components/ImageUpload.vue'
 import { cleanParams } from '@/utils'
+import { imageSource } from '@/utils/image'
 
 const loading = ref(false)
 const saving = ref(false)

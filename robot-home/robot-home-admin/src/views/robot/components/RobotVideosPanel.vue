@@ -32,7 +32,7 @@
       <el-table-column label="封面" width="220">
         <template #default="{ row }">
           <div class="cell-row">
-            <el-image v-if="row.cover" :src="row.cover" :preview-src-list="[row.cover]" fit="contain" class="thumb" />
+            <el-image :src="imageSource(row.cover)" :preview-src-list="[imageSource(row.cover)]" fit="contain" class="thumb" />
             <el-input v-model="row.cover" placeholder="封面地址" />
             <el-upload
               :show-file-list="false"
@@ -67,6 +67,7 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getRobotVideos, saveRobotVideos } from '@/api/robot'
 import { uploadFile } from '@/api/file'
+import { imageSource } from '@/utils/image'
 
 const props = defineProps({
   robotId: { type: [Number, String], required: true }

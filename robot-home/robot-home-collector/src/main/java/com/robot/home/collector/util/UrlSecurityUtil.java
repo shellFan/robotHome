@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -115,6 +117,10 @@ public class UrlSecurityUtil {
      */
     public static boolean isPrivateAddress(InetAddress addr) {
         if (addr == null) return true; // null视为不安全
+        if (addr.isAnyLocalAddress() || addr.isLoopbackAddress() || addr.isLinkLocalAddress()
+                || addr.isSiteLocalAddress() || addr.isMulticastAddress()) {
+            return true;
+        }
         byte[] bytes = addr.getAddress();
         if (bytes.length == 4) {
             return isPrivateIPv4(bytes);
@@ -161,58 +167,7 @@ public class UrlSecurityUtil {
      * @return true=允许访问，false=禁止访问
      */
     public static boolean isAllowedUrl(String url) {
-        if (StringUtils.isBlank(url)) {
-            return false;
-        }
-
-        // 1. URL长度限制
-        if (url.length() > MAX_URL_LENGTH) {
-            return false;
-        }
-
-        // 2. 解析URL
-        URL parsedUrl;
-        try {
-            parsedUrl = new URL(url);
-        } catch (MalformedURLException e) {
-            return false;
-        }
-
-        // 3. 协议白名单
-        String scheme = parsedUrl.getProtocol();
-        if (!ALLOWED_SCHEMES.contains(scheme.toLowerCase())) {
-            return false;
-        }
-
-        // 4. 获取主机名
-        String host = parsedUrl.getHost();
-        if (StringUtils.isBlank(host)) {
-            return false;
-        }
-
-        // 5. 拦截主机名（localhost, 0.0.0.0等）
-        if (isBlockedHostname(host)) {
-            return false;
-        }
-
-        // 6. 云元数据端点拦截
-        if (isCloudMetadataEndpoint(host)) {
-            return false;
-        }
-
-        // 7. DNS解析后IP校验（DNS Rebinding基础防护）
-        try {
-            InetAddress[] addresses = InetAddress.getAllByName(host);
-            for (InetAddress addr : addresses) {
-                if (isPrivateAddress(addr)) {
-                    return false;
-                }
-            }
-        } catch (UnknownHostException e) {
-            // DNS解析失败 — 允许继续（后续fetch会失败）
-        }
-
-        return true;
+        return getRejectionReason(url) == null;
     }
 
     /**
@@ -255,6 +210,9 @@ public class UrlSecurityUtil {
         if (StringUtils.isBlank(host)) {
             return "URL缺少主机名";
         }
+        if (parsedUrl.getUserInfo() != null) {
+            return "URL不允许包含用户凭据";
+        }
         if (isBlockedHostname(host)) {
             return "被拦截的主机名: " + host;
         }
@@ -264,15 +222,43 @@ public class UrlSecurityUtil {
 
         try {
             InetAddress[] addresses = InetAddress.getAllByName(host);
+            if (addresses == null || addresses.length == 0) {
+                return "DNS解析未返回地址: " + host;
+            }
             for (InetAddress addr : addresses) {
                 if (isPrivateAddress(addr)) {
                     return "解析到内网IP: " + addr.getHostAddress();
                 }
             }
         } catch (UnknownHostException e) {
-            return null; // DNS解析失败，暂不拒绝
+            return "DNS解析失败: " + host;
         }
 
         return null;
+    }
+
+    /**
+     * Resolve and validate a redirect target before issuing the next request.
+     * Relative Location values are resolved against the current response URL.
+     */
+    public static String resolveAndValidateRedirect(String currentUrl, String location) {
+        if (StringUtils.isBlank(currentUrl) || StringUtils.isBlank(location)) {
+            throw new SecurityException("重定向地址为空");
+        }
+        try {
+            URI current = new URI(currentUrl);
+            URI resolved = current.resolve(new URI(location)).normalize();
+            if ("https".equalsIgnoreCase(current.getScheme())
+                    && "http".equalsIgnoreCase(resolved.getScheme())) {
+                throw new SecurityException("HTTPS重定向降级不允许");
+            }
+            String target = resolved.toASCIIString();
+            validateUrl(target);
+            return target;
+        } catch (SecurityException e) {
+            throw e;
+        } catch (URISyntaxException e) {
+            throw new SecurityException("重定向地址格式错误", e);
+        }
     }
 }

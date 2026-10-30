@@ -5,6 +5,7 @@ Page({
   data: {
     category: '',
     usageScene: '',
+    usageSceneLabel: '',
     categories: ['工业制造', '物流仓储', '医疗健康', '教育培训', '服务行业', '其他'],
     scenes: ['INDUSTRIAL', 'LOGISTICS', 'MEDICAL', 'EDUCATION', 'SERVICE', 'OTHER'],
     inquiries: [],
@@ -22,7 +23,11 @@ Page({
     this.reload()
   },
   onSceneChange(e) {
-    this.setData({ usageScene: this.data.scenes[e.detail.value] })
+    const index = Number(e.detail.value)
+    this.setData({
+      usageScene: this.data.scenes[index] || '',
+      usageSceneLabel: this.data.categories[index] || ''
+    })
     this.reload()
   },
   async reload() {
@@ -43,13 +48,17 @@ Page({
         pageNum: this.data.page,
         pageSize: 10
       })
+      const sceneValues = this.data.scenes
+      const sceneLabels = this.data.categories
       const records = unwrapList(data).map(function (item) {
+        const sceneIndex = sceneValues.indexOf(item.usageScene)
         return Object.assign({}, item, {
           timeText: fromNow(item.createTime),
           dateText: formatDate(item.createTime),
           statusText: item.statusName || '待处理',
           quantityText: item.quantity ? item.quantity + '台' : '面议',
-          budgetText: item.budget || '预算面议'
+          budgetText: item.budget || '预算面议',
+          usageSceneLabel: item.usageSceneName || sceneLabels[sceneIndex] || item.usageScene || '未指定'
         })
       })
       const list = append ? this.data.inquiries.concat(records) : records

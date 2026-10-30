@@ -210,37 +210,49 @@ public class PublishTransactionService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markArticleFailed(Long crawlerArticleId, String reason) {
-        // 先查询当前重试次数
         CrawlerArticle current = crawlerArticleMapper.selectById(crawlerArticleId);
-        int newRetryCount = (current != null && current.getRetryCount() != null)
-                ? current.getRetryCount() + 1 : 1;
+        if (current == null || Integer.valueOf(1).equals(current.getSynced())) {
+            log.info("Article failure update skipped because the record is missing or already published: crawlerId={}",
+                    crawlerArticleId);
+            return;
+        }
+        int currentRetryCount = current.getRetryCount() != null ? current.getRetryCount() : 0;
+        int newRetryCount = currentRetryCount + 1;
+        LambdaUpdateWrapper<CrawlerArticle> update = new LambdaUpdateWrapper<CrawlerArticle>()
+                .eq(CrawlerArticle::getId, crawlerArticleId)
+                .and(wrapper -> wrapper.eq(CrawlerArticle::getSynced, 0)
+                        .or().isNull(CrawlerArticle::getSynced));
+        if (current.getRetryCount() == null) {
+            update.isNull(CrawlerArticle::getRetryCount);
+        } else {
+            update.eq(CrawlerArticle::getRetryCount, currentRetryCount);
+        }
 
         if (newRetryCount > maxRetryCount) {
-            // 超过最大重试次数，标记为需人工介入
-            crawlerArticleMapper.update(null,
-                    new LambdaUpdateWrapper<CrawlerArticle>()
-                            .eq(CrawlerArticle::getId, crawlerArticleId)
-                            .set(CrawlerArticle::getArticleStatus, "MANUAL_REVIEW")
-                            .set(CrawlerArticle::getSynced, 0)
-                            .set(CrawlerArticle::getFailReason, reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
-                            .set(CrawlerArticle::getRetryCount, newRetryCount)
-                            .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
-            );
+            update.set(CrawlerArticle::getArticleStatus, "MANUAL_REVIEW")
+                    .set(CrawlerArticle::getSynced, 0)
+                    .set(CrawlerArticle::getFailReason,
+                            reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
+                    .set(CrawlerArticle::getRetryCount, newRetryCount)
+                    .set(CrawlerArticle::getUpdateTime, LocalDateTime.now());
+            if (crawlerArticleMapper.update(null, update) == 0) {
+                log.info("Article failure update lost a compare-and-set race: crawlerId={}", crawlerArticleId);
+                return;
+            }
             log.warn("Article exceeded max retry count ({}), marked MANUAL_REVIEW: crawlerId={}, retryCount={}",
                     maxRetryCount, crawlerArticleId, newRetryCount);
         } else {
-            // 计算指数退避：next_retry_time = NOW() + baseInterval * 2^(retryCount-1)
             LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
-            crawlerArticleMapper.update(null,
-                    new LambdaUpdateWrapper<CrawlerArticle>()
-                            .eq(CrawlerArticle::getId, crawlerArticleId)
-                            .set(CrawlerArticle::getArticleStatus, "FAILED")
-                            .set(CrawlerArticle::getSynced, 0)
-                            .set(CrawlerArticle::getFailReason, reason)
-                            .setSql("retry_count = retry_count + 1")
-                            .set(CrawlerArticle::getNextRetryTime, nextRetryTime)
-                            .set(CrawlerArticle::getUpdateTime, LocalDateTime.now())
-            );
+            update.set(CrawlerArticle::getArticleStatus, "FAILED")
+                    .set(CrawlerArticle::getSynced, 0)
+                    .set(CrawlerArticle::getFailReason, reason)
+                    .set(CrawlerArticle::getRetryCount, newRetryCount)
+                    .set(CrawlerArticle::getNextRetryTime, nextRetryTime)
+                    .set(CrawlerArticle::getUpdateTime, LocalDateTime.now());
+            if (crawlerArticleMapper.update(null, update) == 0) {
+                log.info("Article failure update lost a compare-and-set race: crawlerId={}", crawlerArticleId);
+                return;
+            }
             log.warn("Article marked FAILED: crawlerId={}, reason={}, retryCount={}/{}, nextRetry={}",
                     crawlerArticleId, reason, newRetryCount, maxRetryCount, nextRetryTime);
         }
@@ -253,37 +265,49 @@ public class PublishTransactionService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markProductFailed(Long crawlerProductId, String reason) {
-        // 先查询当前重试次数
         CrawlerProduct current = crawlerProductMapper.selectById(crawlerProductId);
-        int newRetryCount = (current != null && current.getRetryCount() != null)
-                ? current.getRetryCount() + 1 : 1;
+        if (current == null || Integer.valueOf(1).equals(current.getSynced())) {
+            log.info("Product failure update skipped because the record is missing or already published: crawlerId={}",
+                    crawlerProductId);
+            return;
+        }
+        int currentRetryCount = current.getRetryCount() != null ? current.getRetryCount() : 0;
+        int newRetryCount = currentRetryCount + 1;
+        LambdaUpdateWrapper<CrawlerProduct> update = new LambdaUpdateWrapper<CrawlerProduct>()
+                .eq(CrawlerProduct::getId, crawlerProductId)
+                .and(wrapper -> wrapper.eq(CrawlerProduct::getSynced, 0)
+                        .or().isNull(CrawlerProduct::getSynced));
+        if (current.getRetryCount() == null) {
+            update.isNull(CrawlerProduct::getRetryCount);
+        } else {
+            update.eq(CrawlerProduct::getRetryCount, currentRetryCount);
+        }
 
         if (newRetryCount > maxRetryCount) {
-            // 超过最大重试次数，标记为需人工介入
-            crawlerProductMapper.update(null,
-                    new LambdaUpdateWrapper<CrawlerProduct>()
-                            .eq(CrawlerProduct::getId, crawlerProductId)
-                            .set(CrawlerProduct::getProductStatus, "MANUAL_REVIEW")
-                            .set(CrawlerProduct::getSynced, 0)
-                            .set(CrawlerProduct::getFailReason, reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
-                            .set(CrawlerProduct::getRetryCount, newRetryCount)
-                            .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
-            );
+            update.set(CrawlerProduct::getProductStatus, "MANUAL_REVIEW")
+                    .set(CrawlerProduct::getSynced, 0)
+                    .set(CrawlerProduct::getFailReason,
+                            reason + " (已重试" + (newRetryCount - 1) + "次，需人工介入)")
+                    .set(CrawlerProduct::getRetryCount, newRetryCount)
+                    .set(CrawlerProduct::getUpdateTime, LocalDateTime.now());
+            if (crawlerProductMapper.update(null, update) == 0) {
+                log.info("Product failure update lost a compare-and-set race: crawlerId={}", crawlerProductId);
+                return;
+            }
             log.warn("Product exceeded max retry count ({}), marked MANUAL_REVIEW: crawlerId={}, retryCount={}",
                     maxRetryCount, crawlerProductId, newRetryCount);
         } else {
-            // 计算指数退避：next_retry_time = NOW() + baseInterval * 2^(retryCount-1)
             LocalDateTime nextRetryTime = calculateNextRetryTime(newRetryCount);
-            crawlerProductMapper.update(null,
-                    new LambdaUpdateWrapper<CrawlerProduct>()
-                            .eq(CrawlerProduct::getId, crawlerProductId)
-                            .set(CrawlerProduct::getProductStatus, "FAILED")
-                            .set(CrawlerProduct::getSynced, 0)
-                            .set(CrawlerProduct::getFailReason, reason)
-                            .setSql("retry_count = retry_count + 1")
-                            .set(CrawlerProduct::getNextRetryTime, nextRetryTime)
-                            .set(CrawlerProduct::getUpdateTime, LocalDateTime.now())
-            );
+            update.set(CrawlerProduct::getProductStatus, "FAILED")
+                    .set(CrawlerProduct::getSynced, 0)
+                    .set(CrawlerProduct::getFailReason, reason)
+                    .set(CrawlerProduct::getRetryCount, newRetryCount)
+                    .set(CrawlerProduct::getNextRetryTime, nextRetryTime)
+                    .set(CrawlerProduct::getUpdateTime, LocalDateTime.now());
+            if (crawlerProductMapper.update(null, update) == 0) {
+                log.info("Product failure update lost a compare-and-set race: crawlerId={}", crawlerProductId);
+                return;
+            }
             log.warn("Product marked FAILED: crawlerId={}, reason={}, retryCount={}/{}, nextRetry={}",
                     crawlerProductId, reason, newRetryCount, maxRetryCount, nextRetryTime);
         }

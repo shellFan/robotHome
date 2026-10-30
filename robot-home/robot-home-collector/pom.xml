@@ -85,6 +85,13 @@
             <version>${jsoup.version}</version>
         </dependency>
 
+        <!-- HTTP transport with DNS results pinned to the SSRF-validated addresses -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.9.3</version>
+        </dependency>
+
         <!-- Rome - RSS/Atom 解析 -->
         <dependency>
             <groupId>com.rometools</groupId>

@@ -42,8 +42,7 @@
         <el-table-column label="产品" min-width="240">
           <template #default="{ row }">
             <div class="robot-cell">
-              <el-image v-if="row.coverImage" :src="row.coverImage" fit="cover" class="robot-cell__cover" />
-              <div class="robot-cell__empty" v-else>无图</div>
+              <el-image :src="imageSource(row.coverImage)" :alt="row.name" fit="cover" class="robot-cell__cover" />
               <div class="robot-cell__info">
                 <span class="robot-cell__name">{{ row.name }}</span>
                 <span class="text-weak">{{ row.subtitle || row.model || '' }}</span>
@@ -300,6 +299,7 @@ import RobotVideosPanel from './components/RobotVideosPanel.vue'
 import RobotPricesPanel from './components/RobotPricesPanel.vue'
 import RobotTagsPanel from './components/RobotTagsPanel.vue'
 import { buildTree, cleanParams } from '@/utils'
+import { imageSource } from '@/utils/image'
 
 const loading = ref(false)
 const saving = ref(false)

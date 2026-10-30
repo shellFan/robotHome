@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -253,6 +254,8 @@ public class PublishTransactionServiceTest {
         @Test
         @DisplayName("markArticleFailed-重置synced=0")
         void markArticleFailed() {
+            when(crawlerArticleMapper.selectById(1L))
+                    .thenReturn(createCrawlerArticle(1L, "测试文章", "AUTO_APPROVED", 0));
             txService.markArticleFailed(1L, "模拟异常");
             verify(crawlerArticleMapper).update(isNull(), any(LambdaUpdateWrapper.class));
         }
@@ -260,8 +263,62 @@ public class PublishTransactionServiceTest {
         @Test
         @DisplayName("markProductFailed-重置synced=0")
         void markProductFailed() {
+            when(crawlerProductMapper.selectById(1L))
+                    .thenReturn(createCrawlerProduct(1L, "测试机器人", "AUTO_APPROVED", 0));
             txService.markProductFailed(1L, "模拟异常");
             verify(crawlerProductMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("文章已发布时失败回调不得降级状态")
+        void articleFailureCannotOverwritePublishedState() {
+            when(crawlerArticleMapper.selectById(1L))
+                    .thenReturn(createCrawlerArticle(1L, "测试文章", "PUBLISHED", 1));
+
+            txService.markArticleFailed(1L, "迟到的失败回调");
+
+            verify(crawlerArticleMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("文章失败更新使用synced和重试次数比较并交换")
+        void articleFailureUpdateUsesCompareAndSetPredicates() {
+            CrawlerArticle current = createCrawlerArticle(1L, "测试文章", "FAILED", 0);
+            current.setRetryCount(2);
+            when(crawlerArticleMapper.selectById(1L)).thenReturn(current);
+
+            txService.markArticleFailed(1L, "模拟异常");
+
+            ArgumentCaptor<LambdaUpdateWrapper> update = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+            verify(crawlerArticleMapper).update(isNull(), update.capture());
+            assertTrue(update.getValue().getSqlSegment().contains("synced"));
+            assertTrue(update.getValue().getSqlSegment().contains("retry_count"));
+        }
+
+        @Test
+        @DisplayName("产品已发布时失败回调不得降级状态")
+        void productFailureCannotOverwritePublishedState() {
+            when(crawlerProductMapper.selectById(1L))
+                    .thenReturn(createCrawlerProduct(1L, "测试机器人", "PUBLISHED", 1));
+
+            txService.markProductFailed(1L, "迟到的失败回调");
+
+            verify(crawlerProductMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+        }
+
+        @Test
+        @DisplayName("产品失败更新使用synced和重试次数比较并交换")
+        void productFailureUpdateUsesCompareAndSetPredicates() {
+            CrawlerProduct current = createCrawlerProduct(1L, "测试机器人", "FAILED", 0);
+            current.setRetryCount(2);
+            when(crawlerProductMapper.selectById(1L)).thenReturn(current);
+
+            txService.markProductFailed(1L, "模拟异常");
+
+            ArgumentCaptor<LambdaUpdateWrapper> update = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+            verify(crawlerProductMapper).update(isNull(), update.capture());
+            assertTrue(update.getValue().getSqlSegment().contains("synced"));
+            assertTrue(update.getValue().getSqlSegment().contains("retry_count"));
         }
     }
 

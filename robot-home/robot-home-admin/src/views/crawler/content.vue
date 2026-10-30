@@ -153,7 +153,7 @@
           <span v-if="articlePreview.publishTime" style="margin-left: 16px">发布: {{ articlePreview.publishTime }}</span>
           <span v-if="articlePreview.sourceName" style="margin-left: 16px">来源: {{ articlePreview.sourceName }}</span>
         </div>
-        <el-image v-if="articlePreview.coverImage" :src="articlePreview.coverImage" style="max-width: 100%; margin-bottom: 16px" fit="contain" />
+        <el-image :src="imageSource(articlePreview.coverImage)" alt="资讯封面" style="max-width: 100%; margin-bottom: 16px" fit="contain" />
         <div v-if="articlePreview.contentHtml" v-html="XssUtil.clean(articlePreview.contentHtml)" style="line-height: 1.8" />
         <div v-else-if="articlePreview.contentText" style="white-space: pre-wrap; line-height: 1.8">{{ articlePreview.contentText }}</div>
       </div>
@@ -173,9 +173,9 @@
           <span v-if="productPreview.model" style="margin-left: 16px">型号: {{ productPreview.model }}</span>
           <span v-if="productPreview.category" style="margin-left: 16px">分类: {{ productPreview.category }}</span>
         </div>
-        <el-image v-if="productPreview.coverImage" :src="productPreview.coverImage" style="max-width: 300px; margin-bottom: 16px" fit="contain" />
+        <el-image :src="imageSource(productPreview.coverImage)" :alt="productPreview.productName" style="max-width: 300px; margin-bottom: 16px" fit="contain" />
         <div v-if="productPreview.gallery" style="margin-bottom: 16px">
-          <el-image v-for="(img, i) in (productPreview.gallery || '').split(',').filter(Boolean)" :key="i" :src="img"
+          <el-image v-for="(img, i) in (productPreview.gallery || '').split(',').filter(Boolean)" :key="i" :src="imageSource(img)"
             style="width: 120px; height: 120px; margin-right: 8px" fit="cover" :preview-src-list="productPreview.gallery.split(',').filter(Boolean)" />
         </div>
         <div v-if="productPreview.description" style="white-space: pre-wrap; line-height: 1.8">{{ productPreview.description }}</div>
@@ -203,6 +203,7 @@ import {
 } from '@/api/crawler'
 import { cleanParams } from '@/utils'
 import { XssUtil } from '@/utils/xss'
+import { imageSource } from '@/utils/image'
 
 const activeTab = ref('article')
 const stats = ref({})

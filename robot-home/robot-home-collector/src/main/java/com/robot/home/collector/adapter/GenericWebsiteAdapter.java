@@ -217,13 +217,20 @@ public class GenericWebsiteAdapter implements CrawlerAdapter {
         if (pageType == PageClassifier.PageType.PRODUCT) {
             return "product";
         }
-
-        if (config != null && config.containsKey("type")) {
-            return config.get("type");
-        }
-
         if (pageType == PageClassifier.PageType.ARTICLE) {
             return "article";
+        }
+        if (config != null) {
+            String contentType = config.get("contentType");
+            if (StringUtils.isBlank(contentType)) {
+                contentType = config.get("type");
+            }
+            if ("product".equalsIgnoreCase(contentType)) {
+                return "product";
+            }
+            if ("article".equalsIgnoreCase(contentType)) {
+                return "article";
+            }
         }
         return "other";
     }

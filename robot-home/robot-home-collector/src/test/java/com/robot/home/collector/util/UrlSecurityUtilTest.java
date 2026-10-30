@@ -26,17 +26,15 @@ public class UrlSecurityUtilTest {
     class ProtocolWhitelistTests {
 
         @Test
-        @DisplayName("允许http协议 — 通过DNS解析失败路径验证")
+        @DisplayName("允许http协议和公网IP")
         void allowHttp() {
-            // 使用不存在的域名，DNS解析失败时isAllowedUrl返回true（允许继续，后续fetch会失败）
-            // 这验证了http协议不被协议白名单拦截
-            assertTrue(UrlSecurityUtil.isAllowedUrl("http://nonexistent-domain-test-xyz123.com/page"));
+            assertTrue(UrlSecurityUtil.isAllowedUrl("http://8.8.8.8/page"));
         }
 
         @Test
-        @DisplayName("允许https协议 — 通过DNS解析失败路径验证")
+        @DisplayName("允许https协议和公网IP")
         void allowHttps() {
-            assertTrue(UrlSecurityUtil.isAllowedUrl("https://nonexistent-domain-test-xyz123.com/page"));
+            assertTrue(UrlSecurityUtil.isAllowedUrl("https://8.8.8.8/page"));
         }
 
         @Test
@@ -212,10 +210,9 @@ public class UrlSecurityUtilTest {
         }
 
         @Test
-        @DisplayName("允许正常长度URL — 通过DNS解析失败路径验证")
+        @DisplayName("允许正常长度公网URL")
         void allowNormalLengthUrl() {
-            // 使用不存在的域名避免DNS解析到保留段IP
-            assertTrue(UrlSecurityUtil.isAllowedUrl("https://nonexistent-domain-test-xyz123.com/products/"));
+            assertTrue(UrlSecurityUtil.isAllowedUrl("https://8.8.8.8/products/"));
         }
     }
 
@@ -240,13 +237,12 @@ public class UrlSecurityUtilTest {
         }
 
         @Test
-        @DisplayName("允许公网URL — 通过DNS解析失败路径验证")
-        void allowPublicUrl() {
-            // 使用不存在的域名，DNS解析失败时isAllowedUrl返回true
-            // 这验证了URL格式、协议、主机名等前置检查均通过
-            assertTrue(UrlSecurityUtil.isAllowedUrl("https://nonexistent-test-unitree.com/"));
-            assertTrue(UrlSecurityUtil.isAllowedUrl("https://nonexistent-test-bd.com/"));
-            assertTrue(UrlSecurityUtil.isAllowedUrl("http://nonexistent-test-example.com/page.html?q=test"));
+        @DisplayName("DNS解析失败时拒绝URL")
+        void rejectUrlWhenDnsResolutionFails() {
+            assertFalse(UrlSecurityUtil.isAllowedUrl("https://robot-home-test.invalid/"));
+            assertNotNull(UrlSecurityUtil.getRejectionReason("https://robot-home-test.invalid/"));
+            assertThrows(SecurityException.class,
+                    () -> UrlSecurityUtil.validateUrl("https://robot-home-test.invalid/"));
         }
     }
 
@@ -265,10 +261,9 @@ public class UrlSecurityUtilTest {
         }
 
         @Test
-        @DisplayName("允许的URL不抛异常 — 通过DNS解析失败路径验证")
+        @DisplayName("允许的公网IP不抛异常")
         void noThrowOnAllowedUrl() {
-            // 使用不存在的域名，DNS解析失败时不抛异常
-            assertDoesNotThrow(() -> UrlSecurityUtil.validateUrl("https://nonexistent-domain-test-xyz123.com/"));
+            assertDoesNotThrow(() -> UrlSecurityUtil.validateUrl("https://8.8.8.8/"));
         }
     }
 
@@ -302,11 +297,29 @@ public class UrlSecurityUtilTest {
         }
 
         @Test
-        @DisplayName("允许的URL返回null — 通过DNS解析失败路径验证")
+        @DisplayName("允许的公网IP返回null")
         void nullForAllowedUrl() {
-            // 使用不存在的域名，DNS解析失败时返回null（允许）
-            assertNull(UrlSecurityUtil.getRejectionReason("https://nonexistent-domain-test-xyz123.com/"));
+            assertNull(UrlSecurityUtil.getRejectionReason("https://8.8.8.8/"));
         }
+
+        @Test
+        @DisplayName("重定向不能指向内网地址")
+        void rejectRedirectToPrivateAddress() {
+            assertThrows(SecurityException.class,
+                    () -> UrlSecurityUtil.resolveAndValidateRedirect(
+                            "https://8.8.8.8/news", "http://127.0.0.1/admin"));
+        }
+
+        @Test
+        @DisplayName("相对重定向保持公网主机并拒绝HTTPS降级")
+        void resolveRelativeRedirectAndRejectDowngrade() {
+            assertEquals("https://8.8.8.8/next",
+                    UrlSecurityUtil.resolveAndValidateRedirect("https://8.8.8.8/news", "/next"));
+            assertThrows(SecurityException.class,
+                    () -> UrlSecurityUtil.resolveAndValidateRedirect(
+                            "https://8.8.8.8/news", "http://8.8.8.8/next"));
+        }
+
     }
 
     // ==================== InetAddress私有地址检测测试 ====================
@@ -333,6 +346,13 @@ public class UrlSecurityUtilTest {
         void classAIsPrivate() throws Exception {
             InetAddress addr = InetAddress.getByName("10.0.0.1");
             assertTrue(UrlSecurityUtil.isPrivateAddress(addr));
+        }
+
+        @Test
+        @DisplayName("组播地址视为非公网地址")
+        void multicastIsNotPublic() throws Exception {
+            assertTrue(UrlSecurityUtil.isPrivateAddress(InetAddress.getByName("224.0.0.1")));
+            assertTrue(UrlSecurityUtil.isPrivateAddress(InetAddress.getByName("ff02::1")));
         }
 
         @Test

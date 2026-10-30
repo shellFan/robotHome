@@ -23,8 +23,7 @@
         <el-table-column label="产品" min-width="240">
           <template #default="{ row }">
             <div class="robot-cell">
-              <el-image v-if="row.coverImage" :src="row.coverImage" fit="cover" class="robot-cell__cover" />
-              <div v-else class="robot-cell__empty">无图</div>
+              <el-image :src="imageSource(row.coverImage)" :alt="row.name" fit="cover" class="robot-cell__cover" />
               <div class="robot-cell__info">
                 <span class="robot-cell__name">{{ row.name }}</span>
                 <span class="text-weak">{{ row.model || '' }}</span>
@@ -81,6 +80,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { getRobotPage } from '@/api/robot'
 import { cleanParams } from '@/utils'
+import { imageSource } from '@/utils/image'
 import RobotImagesPanel from './components/RobotImagesPanel.vue'
 
 const loading = ref(false)

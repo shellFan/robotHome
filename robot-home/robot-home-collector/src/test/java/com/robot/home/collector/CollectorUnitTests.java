@@ -205,14 +205,14 @@ public class CollectorUnitTests {
         }
 
         @Test
-        @DisplayName("真实parse()标记类型为ARTICLE")
+        @DisplayName("真实parse()标记类型为article")
         void parseSetsArticleType() {
             String html = "<html><head><meta property=\"og:title\" content=\"标题\">" +
                     "</head><body><div id=\"js_content\"><p>正文</p></div></body></html>";
             FetchResult fetchResult = FetchResult.success("https://mp.weixin.qq.com/s/test", 200, html);
             ParsedData data = adapter.parse(fetchResult, Collections.emptyMap());
 
-            assertEquals("ARTICLE", data.getType());
+            assertEquals("article", data.getType());
         }
 
         @Test

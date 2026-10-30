@@ -55,6 +55,7 @@ function Get-ArtifactManifest {
         sha256 = (Get-FileHash -LiteralPath $resolvedPath -Algorithm SHA256).Hash.ToLowerInvariant()
         gitSha = if ($git['git.commit.id.full']) { $git['git.commit.id.full'] } else { 'UNKNOWN' }
         gitBranch = if ($git['git.branch']) { $git['git.branch'] } else { 'UNKNOWN' }
+        gitDirty = if ($git.ContainsKey('git.dirty')) { $git['git.dirty'] } else { 'UNKNOWN' }
         buildTime = if ($build['build.time']) { $build['build.time'] } else { 'UNKNOWN' }
         artifactVersion = if ($build['build.version']) { $build['build.version'] } else { 'UNKNOWN' }
     }

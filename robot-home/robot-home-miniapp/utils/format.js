@@ -65,7 +65,8 @@ function parseMainParams(json, limit) {
 }
 
 function imageOf(url) {
-  return url || placeholderImage
+  if (!url || /picsum\.photos|loremflickr|unsplash\.com/i.test(url)) return placeholderImage
+  return url
 }
 
 function unwrapList(data) {

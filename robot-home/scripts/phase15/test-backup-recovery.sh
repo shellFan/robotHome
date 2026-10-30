@@ -37,15 +37,15 @@ echo ""
 # ========== 1. 静态检查: PIPESTATUS 使用 ==========
 echo "-- 1. PIPESTATUS 静态检查 --"
 
-BACKUP_PIPESTATUS=$(grep -c 'PIPESTATUS\[0\]' "$DB_SCRIPTS/backup.sh" 2>/dev/null || echo "0")
-check "backup.sh 包含PIPESTATUS[0] (${BACKUP_PIPESTATUS}处)" "$([ "$BACKUP_PIPESTATUS" -ge 2 ] && echo true || echo false)"
+BACKUP_PIPESTATUS=$(grep -F -c 'PIPESTATUS[@]' "$DB_SCRIPTS/backup.sh" 2>/dev/null || echo "0")
+check "backup.sh snapshots the full PIPESTATUS array (${BACKUP_PIPESTATUS}处)" "$([ "$BACKUP_PIPESTATUS" -ge 2 ] && echo true || echo false)"
 
 RESTORE_PIPESTATUS=$(grep -c 'PIPESTATUS\[0\]' "$DB_SCRIPTS/restore.sh" 2>/dev/null || echo "0")
 check "restore.sh 包含PIPESTATUS[0] (${RESTORE_PIPESTATUS}处)" "$([ "$RESTORE_PIPESTATUS" -ge 2 ] && echo true || echo false)"
 
 # 检查PIPESTATUS赋值给DUMP_EXIT并用于错误判断
-BACKUP_DUMP_EXIT_LOGIC=$(grep -c 'DUMP_EXIT=.*PIPESTATUS' "$DB_SCRIPTS/backup.sh" 2>/dev/null || echo "0")
-check "backup.sh PIPESTATUS赋值DUMP_EXIT (${BACKUP_DUMP_EXIT_LOGIC}处)" "$([ "$BACKUP_DUMP_EXIT_LOGIC" -ge 2 ] && echo true || echo false)"
+BACKUP_DUMP_EXIT_LOGIC=$(grep -c 'PIPE_STATUS=.*PIPESTATUS' "$DB_SCRIPTS/backup.sh" 2>/dev/null || echo "0")
+check "backup.sh immediately captures both pipeline statuses (${BACKUP_DUMP_EXIT_LOGIC}处)" "$([ "$BACKUP_DUMP_EXIT_LOGIC" -ge 2 ] && echo true || echo false)"
 
 BACKUP_DUMP_EXIT_CHECK=$(grep -c 'DUMP_EXIT.*-ne 0\|DUMP_EXIT.*ne 0' "$DB_SCRIPTS/backup.sh" 2>/dev/null || echo "0")
 check "backup.sh DUMP_EXIT非零时删除不完整备份 (${BACKUP_DUMP_EXIT_CHECK}处)" "$([ "$BACKUP_DUMP_EXIT_CHECK" -ge 2 ] && echo true || echo false)"

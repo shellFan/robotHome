@@ -1,0 +1,51 @@
+$ErrorActionPreference = 'Stop'
+$robotHome = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$failures = @()
+$sources = @{}
+
+foreach ($name in @('backup.sh', 'restore.sh')) {
+    $path = Join-Path $robotHome ("scripts/db/" + $name)
+    $source = Get-Content -LiteralPath $path -Raw
+    $sources[$name] = $source
+
+    if ($source.Contains('MYSQL_ROOT_PASSWORD:-root')) {
+        $failures += "$name has an insecure root password fallback."
+    }
+    if (-not $source.Contains('MYSQL_ROOT_PASSWORD:?')) {
+        $failures += "$name does not require an explicit Docker MySQL password."
+    }
+    if ($source -match '-e\s+MYSQL_PWD\s*=') {
+        $failures += "$name places the MySQL password in Docker command-line arguments."
+    }
+    if (-not $source.Contains('-e MYSQL_PWD ')) {
+        $failures += "$name does not inherit MYSQL_PWD from the process environment."
+    }
+    if (-not $source.Contains('umask 077')) {
+        $failures += "$name does not default backup artifacts to owner-only permissions."
+    }
+    if (-not $source.Contains('chmod 700')) {
+        $failures += "$name does not restrict the backup directory."
+    }
+    if (-not $source.Contains('chmod 600')) {
+        $failures += "$name does not restrict backup files."
+    }
+}
+
+$restoreSource = $sources['restore.sh']
+$preBackupFailure = [regex]::Match(
+    $restoreSource,
+    'if\s+\[\[\s+\$\{PRE_DUMP_EXIT\}\s+-ne\s+0\s+\]\];([\s\S]*?)\r?\n\s*fi'
+)
+if (-not $preBackupFailure.Success -or $preBackupFailure.Groups[1].Value -notmatch 'exit 1') {
+    $failures += 'restore.sh continues when the pre-restore backup fails.'
+}
+if (-not $restoreSource.Contains('gzip -t')) {
+    $failures += 'restore.sh does not validate the pre-restore backup gzip stream.'
+}
+
+if ($failures.Count -gt 0) {
+    $failures | ForEach-Object { Write-Error $_ }
+    exit 1
+}
+
+Write-Output 'PASS: backup credentials, owner-only files, and fail-closed restore safeguards are present.'

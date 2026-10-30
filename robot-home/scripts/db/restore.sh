@@ -8,6 +8,7 @@
 #   脚本会在恢复前要求二次确认，输入 YES 继续
 # ============================================================
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${SCRIPT_DIR}/../../backups"
@@ -36,6 +37,17 @@ if [[ ! -f "${BACKUP_FILE}" ]]; then
     echo "错误: 备份文件不存在: ${BACKUP_FILE}"
     exit 1
 fi
+
+if [[ "${MODE}" == "docker" ]]; then
+    : "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set for Docker mode}"
+fi
+
+if ! gzip -t "${BACKUP_FILE}"; then
+    echo "错误: 待恢复备份 gzip 校验失败"
+    exit 1
+fi
+mkdir -p "${BACKUP_DIR}"
+chmod 700 "${BACKUP_DIR}"
 
 # 安全确认
 echo "========================================"
@@ -66,7 +78,7 @@ if [[ "${MODE}" == "docker" ]]; then
     echo "创建恢复前备份: ${PRE_RESTORE_BACKUP}"
     # PIPESTATUS[0] 精确捕获 mysqldump 退出码（gzip 成功不代表 mysqldump 成功）
     set +e
-    docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" docker exec -e MYSQL_PWD "${CONTAINER_NAME}" \
         mysqldump \
         --host=127.0.0.1 \
         --user=root \
@@ -78,15 +90,27 @@ if [[ "${MODE}" == "docker" ]]; then
     PRE_DUMP_EXIT=${PIPESTATUS[0]}
     set -e
     if [[ ${PRE_DUMP_EXIT} -ne 0 ]]; then
-        echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
+        echo "错误: 恢复前备份失败，停止恢复操作"
         rm -f "${PRE_RESTORE_BACKUP}"
+        exit 1
     fi
+    if [[ ! -f "${PRE_RESTORE_BACKUP}" ]]; then
+        echo "错误: 恢复前备份文件不存在，停止恢复操作"
+        exit 1
+    fi
+    PRE_RESTORE_SIZE=$(stat -c%s "${PRE_RESTORE_BACKUP}" 2>/dev/null || stat -f%z "${PRE_RESTORE_BACKUP}")
+    if [[ "${PRE_RESTORE_SIZE}" -lt 1024 ]] || ! gzip -t "${PRE_RESTORE_BACKUP}"; then
+        echo "错误: 恢复前备份不完整，停止恢复操作"
+        rm -f "${PRE_RESTORE_BACKUP}"
+        exit 1
+    fi
+    chmod 600 "${PRE_RESTORE_BACKUP}"
 
     # 先解压再通过 docker exec 导入
     # --binary-mode: 避免字符编码问题
     # --connect-timeout: 连接超时
     echo "导入备份文件..."
-    if ! gunzip -c "${BACKUP_FILE}" | docker exec -i -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
+    if ! gunzip -c "${BACKUP_FILE}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" docker exec -i -e MYSQL_PWD "${CONTAINER_NAME}" \
         mysql \
         --host=127.0.0.1 \
         --user=root \
@@ -120,9 +144,21 @@ else
     PRE_DUMP_EXIT=${PIPESTATUS[0]}
     set -e
     if [[ ${PRE_DUMP_EXIT} -ne 0 ]]; then
-        echo "警告: 恢复前备份失败，继续恢复（当前状态将无法回退）"
+        echo "错误: 恢复前备份失败，停止恢复操作"
         rm -f "${PRE_RESTORE_BACKUP}"
+        exit 1
     fi
+    if [[ ! -f "${PRE_RESTORE_BACKUP}" ]]; then
+        echo "错误: 恢复前备份文件不存在，停止恢复操作"
+        exit 1
+    fi
+    PRE_RESTORE_SIZE=$(stat -c%s "${PRE_RESTORE_BACKUP}" 2>/dev/null || stat -f%z "${PRE_RESTORE_BACKUP}")
+    if [[ "${PRE_RESTORE_SIZE}" -lt 1024 ]] || ! gzip -t "${PRE_RESTORE_BACKUP}"; then
+        echo "错误: 恢复前备份不完整，停止恢复操作"
+        rm -f "${PRE_RESTORE_BACKUP}"
+        exit 1
+    fi
+    chmod 600 "${PRE_RESTORE_BACKUP}"
 
     echo "导入备份文件..."
     if ! gunzip -c "${BACKUP_FILE}" | mysql \

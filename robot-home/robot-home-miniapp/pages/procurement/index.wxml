@@ -5,7 +5,7 @@
       <view class="filter-chip">{{category || '全部分类'}} ▾</view>
     </picker>
     <picker mode="selector" range="{{categories}}" bindchange="onSceneChange">
-      <view class="filter-chip">{{usageScene ? categories[scenes.indexOf(usageScene)] : '全部场景'}} ▾</view>
+      <view class="filter-chip">{{usageSceneLabel || '全部场景'}} ▾</view>
     </picker>
   </view>
 
@@ -28,7 +28,7 @@
         <text wx:if="{{item.companyName}}"> · {{item.companyName}}</text>
       </view>
       <view class="inquiry__info rh-text-light" wx:if="{{item.usageScene}}">
-        使用场景: {{categories[scenes.indexOf(item.usageScene)] || item.usageScene}}
+        使用场景: {{item.usageSceneLabel}}
       </view>
       <view class="inquiry__footer rh-text-light">{{item.timeText}}</view>
     </view>

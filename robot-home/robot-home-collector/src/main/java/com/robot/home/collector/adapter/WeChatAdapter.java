@@ -110,7 +110,7 @@ public class WeChatAdapter implements CrawlerAdapter {
             }
 
             // 标记为文章类型
-            data.setType("ARTICLE");
+            data.setType("article");
 
             log.info("Parsed WeChat article: title={}, author={}, url={}",
                     title, author, fetchResult.getUrl());
@@ -131,8 +131,9 @@ public class WeChatAdapter implements CrawlerAdapter {
 
     @Override
     public boolean shouldFollow(String url, int currentDepth, int maxDepth, Map<String, String> config) {
-        // 微信文章不跟踪外部链接
-        return false;
+        // CrawlerEngine applies this predicate to seeds as well as discovered links.
+        // Accept only WeChat article hosts; this adapter itself extracts no further links.
+        return url != null && supports(url, config);
     }
 
     // ==================== 私有提取方法 ====================

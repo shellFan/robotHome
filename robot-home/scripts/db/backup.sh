@@ -5,11 +5,12 @@
 #   ./backup.sh                          # Docker compose 模式（默认）
 #   ./backup.sh --standalone             # 直连 MySQL 模式
 #   ./backup.sh --retain 7               # 保留最近 7 份备份（默认 30）
-# 环境变量（standalone 模式必须）：
+# Docker 模式必须设置 MYSQL_ROOT_PASSWORD；standalone 模式必须设置：
 #   MYSQL_HOST / MYSQL_PORT / MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE
 # 产出：./backups/robot_home_YYYYMMDD_HHMMSS.sql.gz
 # ============================================================
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${SCRIPT_DIR}/../../backups"
@@ -27,7 +28,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ "${MODE}" == "docker" ]]; then
+    : "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set for Docker mode}"
+fi
+
 mkdir -p "${BACKUP_DIR}"
+chmod 700 "${BACKUP_DIR}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/robot_home_${TIMESTAMP}.sql.gz"
 
@@ -60,9 +66,9 @@ if [[ "${MODE}" == "docker" ]]; then
     echo "开始 mysqldump..."
     # 临时关闭 set -e 以捕获管道退出码（否则失败时脚本直接退出，无法清理不完整备份）
     # 注意：$? 捕获的是管道最后一个命令(gzip)的退出码，mysqldump 失败时 gzip 仍可能成功
-    # 因此使用 PIPESTATUS[0] 精确捕获 mysqldump 退出码
+    # 因此立即复制整个 PIPESTATUS 数组，分别检查 mysqldump 与 gzip 的退出码
     set +e
-    MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" "${CONTAINER_NAME}" \
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" docker exec -e MYSQL_PWD "${CONTAINER_NAME}" \
         mysqldump \
         --host=127.0.0.1 \
         --user=root \
@@ -74,10 +80,12 @@ if [[ "${MODE}" == "docker" ]]; then
         --lock-tables=false \
         --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
-    DUMP_EXIT=${PIPESTATUS[0]}
+    PIPE_STATUS=("${PIPESTATUS[@]}")
+    DUMP_EXIT=${PIPE_STATUS[0]:-1}
+    GZIP_EXIT=${PIPE_STATUS[1]:-1}
     set -e
-    if [[ ${DUMP_EXIT} -ne 0 ]]; then
-        echo "错误: mysqldump 管道失败（退出码 ${DUMP_EXIT}），删除不完整备份"
+    if [[ ${DUMP_EXIT} -ne 0 || ${GZIP_EXIT} -ne 0 ]]; then
+        echo "错误: 备份管道失败（mysqldump=${DUMP_EXIT}, gzip=${GZIP_EXIT}），删除不完整备份"
         rm -f "${BACKUP_FILE}"
         exit 1
     fi
@@ -98,7 +106,7 @@ else
     echo "开始 mysqldump (standalone)..."
     # MYSQL_PWD 避免密码出现在进程列表
     export MYSQL_PWD="${MYSQL_PASSWORD}"
-    # 临时关闭 set -e 以捕获管道退出码，PIPESTATUS[0] 精确捕获 mysqldump 退出码
+    # 临时关闭 set -e；紧接着复制整个 PIPESTATUS 数组，分别检查 mysqldump 与 gzip
     set +e
     mysqldump \
         --host="${MYSQL_HOST}" \
@@ -112,11 +120,13 @@ else
         --lock-tables=false \
         --connect-timeout=10 \
         "${DATABASE}" | gzip > "${BACKUP_FILE}"
-    DUMP_EXIT=${PIPESTATUS[0]}
+    PIPE_STATUS=("${PIPESTATUS[@]}")
+    DUMP_EXIT=${PIPE_STATUS[0]:-1}
+    GZIP_EXIT=${PIPE_STATUS[1]:-1}
     set -e
     unset MYSQL_PWD
-    if [[ ${DUMP_EXIT} -ne 0 ]]; then
-        echo "错误: mysqldump 管道失败（退出码 ${DUMP_EXIT}），删除不完整备份"
+    if [[ ${DUMP_EXIT} -ne 0 || ${GZIP_EXIT} -ne 0 ]]; then
+        echo "错误: 备份管道失败（mysqldump=${DUMP_EXIT}, gzip=${GZIP_EXIT}），删除不完整备份"
         rm -f "${BACKUP_FILE}"
         exit 1
     fi
@@ -130,6 +140,7 @@ if [[ "${FILE_SIZE}" -lt 1024 ]]; then
     exit 1
 fi
 
+chmod 600 "${BACKUP_FILE}"
 echo "备份完成: ${BACKUP_FILE} ($(numfmt --to=iec ${FILE_SIZE} 2>/dev/null || echo ${FILE_SIZE} bytes))"
 
 # 备份轮转：保留最近 RETAIN 份

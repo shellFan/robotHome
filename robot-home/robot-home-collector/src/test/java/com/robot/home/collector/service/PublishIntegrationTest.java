@@ -203,16 +203,20 @@ public class PublishIntegrationTest {
     }
 
     @Test
-    @DisplayName("文章发布失败后标记 FAILED 并重置 synced 允许重试")
+    @DisplayName("发布事务回滚后标记 FAILED 并重置 synced 允许重试")
     void articlePublishFailureAllowsRetry() {
         CrawlerArticle ca = createCrawlerArticle("失败测试", "AUTO_APPROVED", 0);
         crawlerArticleMapper.insert(ca);
 
-        crawlerArticleMapper.update(null,
-                new LambdaUpdateWrapper<CrawlerArticle>()
-                        .eq(CrawlerArticle::getId, ca.getId())
-                        .set(CrawlerArticle::getSynced, 1)
-                        .set(CrawlerArticle::getArticleStatus, "PUBLISHING"));
+        // Force the downstream article insert to violate article.title NOT NULL.
+        // The reservation (PUBLISHING/synced=1) must roll back before the
+        // independent failure callback updates the original crawler row.
+        ca.setTitle(null);
+        assertThrows(RuntimeException.class, () -> txService.publishSingleArticle(ca, 1L));
+
+        CrawlerArticle rolledBack = crawlerArticleMapper.selectById(ca.getId());
+        assertEquals("AUTO_APPROVED", rolledBack.getArticleStatus(), "失败事务应回滚状态预留");
+        assertEquals(0, rolledBack.getSynced(), "失败事务应回滚 synced 预留");
 
         txService.markArticleFailed(ca.getId(), "模拟数据库异常");
 

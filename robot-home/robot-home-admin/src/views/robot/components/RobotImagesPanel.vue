@@ -12,8 +12,7 @@
       </el-table-column>
       <el-table-column label="图片" width="120">
         <template #default="{ row }">
-          <el-image v-if="row.url" :src="row.url" :preview-src-list="[row.url]" fit="contain" class="thumb" />
-          <span v-else class="text-weak">-</span>
+          <el-image :src="imageSource(row.url)" :preview-src-list="[imageSource(row.url)]" fit="contain" class="thumb" />
         </template>
       </el-table-column>
       <el-table-column label="地址" min-width="280">
@@ -64,6 +63,7 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getRobotImages, saveRobotImages } from '@/api/robot'
 import { uploadFile } from '@/api/file'
+import { imageSource } from '@/utils/image'
 
 const props = defineProps({
   robotId: { type: [Number, String], required: true }

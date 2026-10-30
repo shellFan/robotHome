@@ -738,7 +738,7 @@ public class CrawlerEngine {
         if (source == null) return config;
 
         if (StringUtils.isNotBlank(source.getCrawlStrategy())) {
-            config.put("type", source.getCrawlStrategy());
+            config.put("crawlStrategy", source.getCrawlStrategy());
         }
         if (StringUtils.isNotBlank(source.getIncludeRules())) {
             config.put("includePattern", source.getIncludeRules());

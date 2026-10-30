@@ -86,7 +86,7 @@
       <view class="form-item" wx:if="{{procureType === 'PURCHASE' || procureType === 'LEASE'}}">
         <text class="form-label">使用场景</text>
         <picker mode="selector" range="{{sceneOptions}}" bindchange="onSceneChange">
-          <view class="form-input picker">{{procureForm.procurementScene ? sceneOptions[sceneValues.indexOf(procureForm.procurementScene)] : '请选择'}}</view>
+          <view class="form-input picker">{{procureForm.procurementSceneLabel || '请选择'}}</view>
         </picker>
       </view>
       <view class="form-item" wx:if="{{procureType === 'PURCHASE'}}">

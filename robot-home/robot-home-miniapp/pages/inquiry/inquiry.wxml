@@ -20,7 +20,7 @@
     <view class="form-item" wx:if="{{inquiryType === 'PURCHASE' || inquiryType === 'LEASE'}}">
       <text class="form-label">使用场景</text>
       <picker mode="selector" range="{{sceneOptions}}" bindchange="onSceneChange">
-        <view class="form-input picker">{{procurementScene ? sceneOptions[sceneValues.indexOf(procurementScene)] : '请选择'}} ▾</view>
+        <view class="form-input picker">{{procurementSceneLabel || '请选择'}} ▾</view>
       </picker>
     </view>
     <!-- Phase7 V2: 采购时间 -->

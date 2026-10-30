@@ -10,7 +10,7 @@ Page({
     reviewSummary: null, similarRobots: [],
     showCorrection: false, correctionForm: { defId: '', newValue: '', reason: '' },
     showProcure: false, procureType: 'PRICE',
-    procureForm: { name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', procurementScene: '', purchaseTime: '' },
+    procureForm: { name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', procurementScene: '', procurementSceneLabel: '', purchaseTime: '' },
     procureTypeLabels: { PRICE: '获取底价', PURCHASE: '我要采购', LEASE: '租赁咨询', COOPERATE: '合作洽谈' },
     sceneOptions: ['工业制造', '物流仓储', '医疗健康', '教育培训', '服务行业', '其他'],
     sceneValues: ['INDUSTRIAL', 'LOGISTICS', 'MEDICAL', 'EDUCATION', 'SERVICE', 'OTHER']
@@ -87,7 +87,7 @@ Page({
   openProcure(e) {
     if (!ensureLogin()) return
     const type = e.currentTarget.dataset.type || 'PRICE'
-    this.setData({ showProcure: true, procureType: type, procureForm: { name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', procurementScene: '', purchaseTime: '' } })
+    this.setData({ showProcure: true, procureType: type, procureForm: { name: '', phone: '', region: '', customerType: 1, companyName: '', quantity: 1, budget: '', remark: '', procurementScene: '', procurementSceneLabel: '', purchaseTime: '' } })
   },
   closeProcure() { this.setData({ showProcure: false }) },
   onProcureInput(e) {
@@ -97,8 +97,10 @@ Page({
     this.setData({ procureForm: form })
   },
   onSceneChange(e) {
+    const index = Number(e.detail.value)
     const form = Object.assign({}, this.data.procureForm)
-    form.procurementScene = this.data.sceneValues[e.detail.value] || ''
+    form.procurementScene = this.data.sceneValues[index] || ''
+    form.procurementSceneLabel = this.data.sceneOptions[index] || ''
     this.setData({ procureForm: form })
   },
   async submitProcure() {
