@@ -339,15 +339,15 @@ Result: 8/8 integration cases pass, generated/copied detail JS parses, and the W
 
 ### Task 6: Full local verification, final report, and push
 
-- [ ] **Step 1: Run MiniApp and PC verification**
+- [x] **Step 1: Run MiniApp and PC verification**
 
 Run the MiniApp suite, both URL classifier suites, the Web production build, and the mall integration test. Confirm exact pass/fail counts and preserve output logs under `docs/phase16.3/logs/` (the directory is ignored by Git).
 
-- [ ] **Step 2: Verify all generated copies and working-tree boundaries**
+- [x] **Step 2: Verify all generated copies and working-tree boundaries**
 
 Compare canonical and generated target SHA values recorded in `localOverlays`. Confirm only `modules/robot-home/utils/video-url.js`, the three intended `modules/robot-home/pages/videos/detail.*` files, `source-manifest.json`, and `scripts/robot_home_integration_test.mjs` changed in the mall workspace. Do not stage any mall files because that workspace already has extensive user-owned modifications.
 
-- [ ] **Step 3: Update the Phase16.3 report and inspect the Robot Home diff**
+- [x] **Step 3: Update the Phase16.3 report and inspect the Robot Home diff**
 
 Record tests, builds, current branch SHA, overlay SHA values, and MiniApp Developer Tools/device status in `docs/phase16.3/CONTINUATION_AUDIT_2026-10-30.md`. Run `git diff --check` and review every staged path before commit.
 

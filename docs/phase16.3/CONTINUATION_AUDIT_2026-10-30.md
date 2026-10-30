@@ -129,3 +129,39 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - 用户目前仍无法从可信宝塔/云控制台核对 ED25519 指纹 `SHA256:niEFrPybZrWYn+fCBpwASJFL7M/hwXpqSGalEpWHRew`。本次没有尝试 SSH，也没有读取生产数据库、创建生产备份或部署。
 - 用户同意视频播放按已提出的方案设计：媒体直链走原生播放器；普通平台链接在 PC 打开官方页面，小程序复制官方链接并提示去原平台播放。播放器代码尚未修改，待视频播放设计文档经用户审阅后再进入实现。
 - 线上公开数据数字仍以 13:43 的 GET 快照为准；本次没有再次请求线上接口。生产插入、更新、删除仍为 0。
+
+## 14:41 视频播放兜底实施与续验
+
+### 代码与版本
+
+- 用户审阅通过 `docs/superpowers/specs/2026-10-30-video-playback-fallback-design.md` 后，完成 PC 视频详情、PC 机器人视频弹窗及小程序视频详情的直链/平台链接分流。PC 平台链接使用带 `noopener noreferrer` 的用户点击新标签；小程序仅在点击后复制官方链接；直链播放失败时分别提供链接兜底。
+- 小程序 URL 分类器原先依赖全局 `URL`。独立审查指出目标逻辑层没有运行时证据；新增无 `URL` 全局的回归用例，先观察到 `none` 与预期 `media` 不符，再改为本地保守校验 HTTP(S)、主机、端口和媒体路径。该修复已包含在 `1ca161a4a27f4aff235569d94d0659fba58b619c`。
+- `codex/phase16-content-quality` 本地 HEAD 与远端开发分支已核对为 `1ca161a4a27f4aff235569d94d0659fba58b619c`。从推送前远端 `9269db53b9c5ba6a411dd19963e9b0d07f57d8c5` 普通快进推送成功，未 force push；`origin/main` 推送前后均为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。
+- Mall 工作区只更新机器人之家视频 URL helper 和 `source-manifest.json` 的 `video-playback-fallback` overlay；未暂存或提交该工作区里的其他改动。Manifest 的基础来源仍是 `4e9f14efb25fc3dbc03f5d049261260d09bd913c`，overlay 来源提交是 `1ca161a4a27f4aff235569d94d0659fba58b619c`。JS/WXML/helper 的源与目标 SHA256 一致；WXSS 目标保留 Mall 的 `@import "../../app.wxss"`，因此只记录其各自哈希，不声称逐字节相同。
+
+### 本轮本地验收
+
+| 范围 | 结果 | 证据 |
+|---|---|---|
+| MiniApp Node 测试 | 11/11 PASS，包含无 `URL` 全局回归用例 | `logs/miniapp-video-tests-2026-10-30.log` |
+| MiniApp JS 语法与 WXML 绑定扫描 | PASS | 上述测试日志及 `node --check` |
+| PC 视频测试 | 6/6 PASS | `logs/web-video-tests-2026-10-30.log` |
+| Web 生产构建 | PASS | `logs/web-video-build-2026-10-30.log` |
+| Admin 图片测试 | 2/2 PASS | `logs/admin-image-video-2026-10-30.log` |
+| Admin 生产构建 | PASS | `logs/admin-video-build-2026-10-30.log` |
+| Mall 集成测试 | 8/8 PASS，包含 overlay 源/目标哈希核对 | `logs/mall-video-integration-2026-10-30.log` |
+
+- 本轮 Server 208/208 与 Collector 174/174 没有重跑：本次只改 MiniApp URL helper、测试和计划文档，没有后端或采集器文件变化。最近一次全套结果仍是前述 13:44 日志记录；不把它们算作本轮新测。
+- 小程序开发者工具、微信模拟器和真机编译/播放测试未运行。Node 模拟仅证明分类器不依赖全局 `URL`，不能代替微信运行时验收。
+
+### 线上边界与最终状态
+
+- 本轮没有 SSH 连接、生产数据库/Redis/MinIO 访问、线上 HTTP 复验、JAR 替换或发布。主机指纹尚未由可信控制台核验；服务器运行 SHA、JAR SHA 和 systemd 状态仍为 `UNKNOWN`。
+- 线上内容继续以 13:43 的只读快照为准：资讯 37、已分类资讯 0、产品 56/带封面 0、品牌 47、视频 0、教程 0、社区帖子 0、圈子 9。本轮生产插入、更新和删除均为 0；内容仍未补齐。
+- **Code Ready：YES（本次视频兜底实现及本地 Web/Admin/Mall 验收通过；小程序微信工具编译尚未验收）。**
+- **Deployment Verified：NO**（本轮未部署，服务器运行版本仍 `UNKNOWN`）。
+- **Runtime Ready：PARTIAL**（PC 构建和 Mall 静态集成通过；小程序真实运行环境未测，生产服务状态未核验）。
+- **Content Ready：NO**（资讯分类、产品封面、视频、教程和社区内容仍待处理/审核）。
+- **Production Ready：NO**。
+
+剩余阻塞仍包括可信 SSH 主机指纹核验、小程序开发者工具/真机验收、生产备份与隔离恢复、逐条内容审核及显式生产写入授权。旧的 13:17/13:43 数据快照没有被本轮结果替代。
