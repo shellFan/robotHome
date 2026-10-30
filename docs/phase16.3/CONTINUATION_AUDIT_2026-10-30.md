@@ -90,3 +90,9 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - TDD 红灯阶段回归失败，输出显示扫描阶段没有 FAIL 行且没有最终 `验证结果` 汇总；修复后验证器将无法完整读取 SQL 计为 FAIL，仍执行最后一项并输出 `2 PASS / 2 FAIL`，回归断言通过。完整验证器样本现在为 3/3 PASS。
 - 修复后重新运行：验证器回归 3/3 PASS；gzip 故障注入 PASS；凭据保护检查 PASS；5 个脚本 Bash 语法检查 PASS；`git diff --check` PASS。最新日志 `logs/backup-verifier-tests-current-2026-10-30.log` 已覆盖本次 3 个样本。
 - 本段代码和报告尚待提交与推送；上次确认的开发分支和 `main` SHA 仍见 13:28 补记。推送只针对 `origin/codex/phase16-content-quality`，不会改动 `main`。生产连接、备份、数据写入和服务替换仍均未执行。
+
+## 13:35 开发分支推送回执
+
+- 代码与本地验收记录已提交：`b5964b07ce545bbd82611ad357c221eb22953bb3`（`fix(phase16.3): harden backup verification and snapshots`）。
+- 使用普通快进推送至 `origin/codex/phase16-content-quality`，远端核对 SHA 与该提交一致。推送前远端开发分支是 `f1a871f368c9a598792a7f897c5f76a3aec0ebe7`；`origin/main` 推送前后均为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。没有 force push、合并或修改 `main`。
+- 推送后本地 HEAD 与 `origin/codex/phase16-content-quality` 一致，工作区干净。此回执记录本次代码提交的推送；本报告的后续文档修订仍需单独提交推送。
