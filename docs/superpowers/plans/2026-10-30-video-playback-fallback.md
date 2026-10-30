@@ -29,6 +29,7 @@ Robot Home repository (`D:/git/fan/AI项目/机器人之家`):
 - Modify `robot-home/robot-home-miniapp/pages/videos/detail.js`, `detail.wxml`, and `detail.wxss`: player, external-link, copy, and error states.
 - Create `robot-home/robot-home-web/src/utils/video-url.js`: ES-module classifier with the same contract.
 - Create `robot-home/robot-home-web/tests/video-url.test.js`: PC classifier cases.
+- Create `robot-home/robot-home-web/tests/video-player-markup.test.js`: guards that platform URLs cannot reach native players and external links remain isolated.
 - Modify `robot-home/robot-home-web/src/views/VideoDetail.vue` and `RobotVideos.vue`: media player and safe external-link behavior.
 - Update `docs/phase16.3/CONTINUATION_AUDIT_2026-10-30.md` with implementation and verification evidence.
 
@@ -135,7 +136,7 @@ Mirror Task 1's validation and return shape; do not add a dependency or change t
 
 Run: `node --test tests/video-url.test.js` from the PC project. Expected: all cases pass.
 
-- [ ] **Step 5: Commit the PC classifier and tests**
+- [x] **Step 5: Commit the PC classifier and tests**
 
 ```powershell
 git -C 'D:/git/fan/AI项目/机器人之家' add -- robot-home/robot-home-web/src/utils/video-url.js robot-home/robot-home-web/tests/video-url.test.js
@@ -148,27 +149,43 @@ git -C 'D:/git/fan/AI项目/机器人之家' commit -m "feat(web): classify vide
 
 - Modify: `robot-home/robot-home-web/src/views/VideoDetail.vue`
 - Modify: `robot-home/robot-home-web/src/views/RobotVideos.vue`
+- Create: `robot-home/robot-home-web/tests/video-player-markup.test.js`
 
-- [ ] **Step 1: Update video detail**
+- [x] **Step 1: Write the failing player-markup tests**
+
+The test reads both Vue files and asserts the required boundaries:
+
+```js
+assert.match(detailView, /videoSource\\.kind === 'media' && !playbackFailed/)
+assert.match(detailView, /target="_blank"[\\s\\S]*rel="noopener noreferrer"/)
+assert.match(robotVideosView, /player\\.kind === 'media' && !player\\.error/)
+assert.match(robotVideosView, /target="_blank"[\\s\\S]*rel="noopener noreferrer"/)
+```
+
+- [x] **Step 2: Run the markup tests and confirm they fail on the existing views**
+
+Run: `node --test tests/video-player-markup.test.js` from the PC project. Before the view changes, both tests failed because the old templates sent any URL directly to `<video>`.
+
+- [x] **Step 3: Update video detail**
 
 Resolve the displayed record through `resolveVideoSource(detail)`. Render `<video>` only when `kind === 'media'` and playback has not failed. For `kind === 'external'`, render the cover and an anchor using `target="_blank"` and `rel="noopener noreferrer"`. For `kind === 'none'`, show the cover and unavailable text. On a media `error`, retain the source and show a user-activated link fallback. Reset the failure state whenever a new route record loads.
 
-- [ ] **Step 2: Update the robot-video dialog**
+- [x] **Step 4: Update the robot-video dialog**
 
 Store the selected video's classified `{kind, url}` and cover in dialog state. Direct media remains in the dialog's native player. External pages show the cover/title and a safe new-tab anchor; opening the dialog itself never opens a new tab. Invalid values show the existing unavailable state. A player error exposes a link fallback.
 
-- [ ] **Step 3: Build PC and run focused tests**
+- [x] **Step 5: Build PC and run focused tests**
 
 Run from `robot-home/robot-home-web`:
 
 ```powershell
-node --test tests/video-url.test.js
+node --test tests/video-url.test.js tests/video-player-markup.test.js
 node node_modules/vite/bin/vite.js build
 ```
 
-Expected: all URL tests pass and Vite exits 0.
+Result: 6/6 PC tests pass; Vite production build exits 0.
 
-- [ ] **Step 4: Commit PC playback handling**
+- [ ] **Step 6: Commit PC playback handling**
 
 ```powershell
 git -C 'D:/git/fan/AI项目/机器人之家' add -- robot-home/robot-home-web/src/views/VideoDetail.vue robot-home/robot-home-web/src/views/RobotVideos.vue

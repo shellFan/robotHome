@@ -11,8 +11,30 @@
         <div>
           <section class="rh-card video-detail">
             <div class="video-detail__player">
-              <video v-if="detail.url" :src="detail.url" :poster="imageOf(detail.cover)" controls />
-              <img v-else :src="imageOf(detail.cover)" :alt="detail.title" loading="lazy" />
+              <video
+                v-if="videoSource.kind === 'media' && !playbackFailed"
+                :src="videoSource.url"
+                :poster="imageOf(detail.cover)"
+                controls
+                @error="onVideoError"
+              />
+              <div v-else class="video-detail__fallback">
+                <img :src="imageOf(detail.cover)" :alt="detail.title" loading="lazy" />
+                <div class="video-detail__fallback-content">
+                  <p v-if="videoSource.kind === 'none'">暂无可播放地址</p>
+                  <p v-else-if="playbackFailed">直接播放失败，可打开视频链接</p>
+                  <p v-else>该视频需前往来源平台观看</p>
+                  <a
+                    v-if="videoSource.kind === 'external' || playbackFailed"
+                    class="video-detail__external-link"
+                    :href="videoSource.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ playbackFailed ? '打开视频链接' : '在原平台观看' }}
+                  </a>
+                </div>
+              </div>
             </div>
             <h1 class="video-detail__title">{{ detail.title }}</h1>
             <div class="video-detail__meta rh-text-light">
@@ -71,6 +93,7 @@ import CommentPanel from '@/components/CommentPanel.vue'
 import { videoApi, favoriteApi, likeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { formatCount, formatDate, formatDuration, imageOf } from '@/utils/format'
+import { resolveVideoSource } from '@/utils/video-url'
 import { setPageMeta } from '@/utils/seo'
 
 const route = useRoute()
@@ -80,12 +103,15 @@ const userStore = useUserStore()
 const id = computed(() => Number(route.params.id))
 const detail = ref(null)
 const related = ref([])
+const videoSource = computed(() => resolveVideoSource(detail.value))
+const playbackFailed = ref(false)
 const liked = ref(false)
 const likeCount = ref(0)
 const error = ref('')
 
 async function load () {
   detail.value = null
+  playbackFailed.value = false
   error.value = ''
   try {
     const data = await videoApi.detail(id.value)
@@ -104,6 +130,10 @@ async function load () {
   } catch (e) {
     error.value = '视频加载失败或不存在'
   }
+}
+
+function onVideoError () {
+  playbackFailed.value = true
 }
 
 function requireLogin () {
@@ -142,6 +172,7 @@ watch(id, load, { immediate: true })
 }
 
 .video-detail__player {
+  position: relative;
   background: #000;
   border-radius: var(--rh-radius);
   overflow: hidden;
@@ -155,6 +186,48 @@ watch(id, load, { immediate: true })
   display: block;
   object-fit: contain;
   background: #000;
+}
+
+.video-detail__fallback {
+  position: relative;
+  min-height: 220px;
+  background: #111;
+}
+
+.video-detail__fallback img {
+  width: 100%;
+  max-height: 480px;
+  display: block;
+  object-fit: contain;
+  opacity: 0.48;
+}
+
+.video-detail__fallback-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: #fff;
+  text-align: center;
+}
+
+.video-detail__fallback-content p {
+  margin: 0;
+}
+
+.video-detail__external-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 20px;
+  color: #fff;
+  background: var(--rh-primary);
 }
 
 .video-detail__title {

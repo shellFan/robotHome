@@ -19,13 +19,30 @@
 
       <el-dialog v-model="player.visible" :title="player.title" width="800px" destroy-on-close>
         <video
-          v-if="player.url"
+          v-if="player.kind === 'media' && !player.error"
           :src="player.url"
+          :poster="player.cover"
           controls
           autoplay
           style="width: 100%; max-height: 460px; background: #000"
+          @error="onPlayerError"
         />
-        <div v-else class="rh-empty">视频地址无效</div>
+        <div v-else class="video-dialog-fallback">
+          <img v-if="player.cover" :src="player.cover" :alt="player.title" />
+          <div class="video-dialog-fallback__content">
+            <p v-if="player.kind === 'none'">视频地址无效</p>
+            <p v-else-if="player.error">直接播放失败，可打开视频链接</p>
+            <p v-else>该视频需前往来源平台观看</p>
+            <a
+              v-if="player.kind === 'external' || player.error"
+              :href="player.url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ player.error ? '打开视频链接' : '在原平台观看' }}
+            </a>
+          </div>
+        </div>
       </el-dialog>
     </div>
   </MainLayout>
@@ -39,18 +56,29 @@ import MainLayout from '@/layout/MainLayout.vue'
 import RobotSubNav from '@/components/RobotSubNav.vue'
 import { robotApi } from '@/api'
 import { imageOf } from '@/utils/format'
+import { resolveVideoSource } from '@/utils/video-url'
 import { setPageMeta } from '@/utils/seo'
 
 const route = useRoute()
 const id = computed(() => Number(route.params.id))
 const videos = ref([])
 const robotName = ref('机器人')
-const player = reactive({ visible: false, url: '', title: '' })
+const player = reactive({ visible: false, kind: 'none', url: '', title: '', cover: '', error: false })
 
 function play (video) {
-  player.url = video.url
-  player.title = video.title
-  player.visible = true
+  const source = resolveVideoSource(video)
+  Object.assign(player, {
+    visible: true,
+    kind: source.kind,
+    url: source.url,
+    title: video.title || '',
+    cover: imageOf(video.cover),
+    error: false
+  })
+}
+
+function onPlayerError () {
+  player.error = true
 }
 
 onMounted(async () => {
@@ -105,5 +133,52 @@ onMounted(async () => {
   color: #fff;
   font-size: 13px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.video-dialog-fallback {
+  position: relative;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: var(--rh-radius);
+  color: #fff;
+  background: #111;
+}
+
+.video-dialog-fallback img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  opacity: 0.48;
+}
+
+.video-dialog-fallback__content {
+  position: relative;
+  z-index: 1;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.video-dialog-fallback__content p {
+  margin: 0;
+}
+
+.video-dialog-fallback__content a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 20px;
+  color: #fff;
+  background: var(--rh-primary);
 }
 </style>
