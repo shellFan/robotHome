@@ -51,7 +51,7 @@ The mall output will be generated in a temporary directory using a temporary `ap
 
 **Interface:** `classifyVideoUrl(value)` returns `{ kind: 'media'|'external'|'none', url: string }`. `resolveVideoSource(video)` selects `playUrl`, then `url`, then `videoUrl`, and returns the same classification result.
 
-- [ ] **Step 1: Write the failing classifier tests**
+- [x] **Step 1: Write the failing classifier tests**
 
 Cover signed `.mp4`, uppercase `.WEBM`, `.m3u8#fragment`, an ordinary YouTube watch URL, empty/malformed values, `javascript:`, `ftp:`, and field precedence.
 
@@ -79,7 +79,7 @@ test('resolves the existing URL field precedence', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test and confirm it fails**
+- [x] **Step 2: Run the focused test and confirm it fails**
 
 Run from `D:/git/fan/AI项目/机器人之家/robot-home/robot-home-miniapp`:
 
@@ -89,11 +89,11 @@ node --test tests/video-url.test.js
 
 Expected: module-not-found failure for `../utils/video-url`.
 
-- [ ] **Step 3: Implement the classifier**
+- [x] **Step 3: Implement the classifier**
 
 Use the platform URL parser inside `try/catch`; accept only HTTP(S), require a hostname, reject username/password credentials, and test the parsed `pathname` with `/\.(?:mp4|webm|m3u8)$/i`. Return the parsed absolute `href` for accepted URLs. Return `{ kind: 'none', url: '' }` for invalid values.
 
-- [ ] **Step 4: Run the focused tests**
+- [x] **Step 4: Run the focused tests**
 
 Run: `node --test tests/video-url.test.js` from the MiniApp directory. Expected: all classifier tests pass.
 
