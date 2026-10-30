@@ -14,7 +14,7 @@
 | 本轮服务替换或重启 | 未执行 |
 | 生产数据库写入/备份 | 未执行 |
 
-本地 Maven 测试资源记录 branch `codex/phase16-content-quality`、SHA `9d60e1f18687146c1a5b8270ca5c2a17192a2148`、dirty=true、Artifact Version 1.0.0。它们是本地测试构建元数据，不是生产 JAR 或部署证明。线上运行版本继续标记 UNKNOWN。
+本地候选包已在代码提交 ca61e5c029f8b86d4f26865a1f8329e7f1305623、branch main、git.dirty=false 下构建。Artifact Version 1.0.0。Manifest docs/phase16.3/deployment-manifest.local.json 标记 environment=local-verification-only、deployTime=NOT_DEPLOYED。Server JAR SHA256 854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd；Collector JAR SHA256 670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23。生产 JAR/运行版本继续标记 UNKNOWN。
 
 ## 公开 HTTPS 只读检查（2026-10-30）
 
@@ -27,3 +27,5 @@
 - 未登录 Admin API 的业务响应为 401；没有尝试登录。
 
 HTTP 200 只证明公开路由能响应，不证明页面交互、主机服务、数据库或对象存储健康。未执行服务更新、前端上传、生产写入或基础设施变更。解除阻塞需要可信控制台核验指纹，然后只读采集运行证据；服务替换仍需具体发布授权。
+
+本地 package 与完整测试日志：docs/phase16.3/logs/server-package-2026-10-30.log、collector-package-2026-10-30.log。合并后只读 HTTP 检查仍见报告所列公开路由，但未进行浏览器视觉、Admin 登录或小程序真机验收。

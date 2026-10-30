@@ -9,7 +9,7 @@
 - app.json 声明页面：46 个，缺少 JS/JSON/WXML 页面文件 0。
 - Node 测试：3/3 PASS，其中包含 WXML 不调用 JavaScript 方法的检查。
 
-本轮复跑日志：`docs/phase16.3/logs/miniapp-static-2026-10-30.log`、`miniapp-tests-2026-10-30.log`。
+本轮复跑日志：`docs/phase16.3/logs/miniapp-static-post-merge-2026-10-30.log`、`miniapp-tests-post-merge-2026-10-30.log`。
 
 ## 未完成的验收
 

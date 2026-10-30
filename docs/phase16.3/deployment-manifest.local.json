@@ -1,0 +1,27 @@
+{
+  "environment": "local-verification-only",
+  "deployTime": "NOT_DEPLOYED",
+  "generatedAt": "2026-10-30T04:10:54Z",
+  "artifacts": [
+    {
+      "artifact": "server",
+      "file": "robot-home-server.jar",
+      "sha256": "854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd",
+      "gitSha": "ca61e5c029f8b86d4f26865a1f8329e7f1305623",
+      "gitBranch": "main",
+      "gitDirty": "false",
+      "buildTime": "2026-10-30T04:08:41.376Z",
+      "artifactVersion": "1.0.0"
+    },
+    {
+      "artifact": "collector",
+      "file": "robot-home-collector.jar",
+      "sha256": "670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23",
+      "gitSha": "ca61e5c029f8b86d4f26865a1f8329e7f1305623",
+      "gitBranch": "main",
+      "gitDirty": "false",
+      "buildTime": "2026-10-30T04:10:32.259Z",
+      "artifactVersion": "1.0.0"
+    }
+  ]
+}

@@ -10,7 +10,7 @@
 
 本轮复现并修复了两个生命周期/出口问题：浏览器启动失败时未关闭已创建的 Playwright 实例；OkHttp 默认代理选择器可能将 DNS 解析交给代理。对应回归测试均先失败再修复。全量 Collector 测试 **174/174 PASS**，包括安全 DNS、系统代理、浏览器路由/出口、发布事务与内容识别测试。
 
-在已审查的 Collector 出站抓取路径中，原 SSRF HIGH 已关闭；这不等于完整渗透测试。Server/Collector 仍有未提交改动，构建元数据记录 `git.dirty=true`。未生成或部署生产 JAR。SQL 资源静态模式扫描未发现已知 MySQL 5.7+ 专属语法，但没有 MySQL 5.6 实例做运行时验证。
+在已审查的 Collector 出站抓取路径中，原 SSRF HIGH 已关闭；这不等于完整渗透测试。Phase16.3 代码已于 2026-10-30 快进合并 main 并推送，代码提交 ca61e5c。干净 main 上 package 的候选 JAR 记录 git.dirty=false、Git SHA ca61e5c；Manifest 明确标记 NOT_DEPLOYED。SQL 资源静态模式扫描未发现已知 MySQL 5.7+ 专属语法，但没有 MySQL 5.6 实例做运行时验证。
 
 ## 验收边界
 
@@ -25,7 +25,7 @@
 - 已审查抓取路径已知 BLOCKER：0。
 - 已审查抓取路径 HIGH：0；其他代码和运行环境未完成全面安全审计。
 - 本地构建/测试：通过。
-- 合并 main：不执行，工作区仍有用户未提交改动，尚未完成完整的发布前审查。
+- 合并 main：已于 2026-10-30 普通快进至 ca61e5c 并推送；合并后 Server 208/208、Collector 174/174 PASS，Web/Admin build、MiniApp 静态检查通过。
 - 生产部署：未执行；服务器指纹未核验，且没有服务替换授权。
 
 ## Additional local verification — 2026-10-30 12:00 Asia/Shanghai
