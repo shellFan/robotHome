@@ -1,6 +1,19 @@
 <view class="rh-container" wx:if="{{video}}">
-  <video wx:if="{{video.playUrl}}" class="player" src="{{video.playUrl}}" poster="{{video.cover}}" controls show-center-play-btn></video>
-  <image wx:else class="player" src="{{video.cover}}" mode="aspectFill" />
+  <video wx:if="{{video.showPlayer}}" class="player" src="{{video.playUrl}}" poster="{{video.cover}}" controls show-center-play-btn binderror="onVideoError"></video>
+  <view wx:else class="player-fallback">
+    <image class="player-fallback__cover" src="{{video.cover}}" mode="aspectFit" />
+    <view wx:if="{{video.showExternalLink}}" class="player-fallback__content">
+      <text>该视频需前往来源平台观看</text>
+      <button class="rh-btn rh-btn--plain player-fallback__copy" size="mini" bindtap="onCopyVideoUrl">复制官方链接</button>
+    </view>
+    <view wx:elif="{{video.showCopyOnFailure}}" class="player-fallback__content">
+      <text>直接播放失败，可复制链接后尝试在浏览器打开</text>
+      <button class="rh-btn rh-btn--plain player-fallback__copy" size="mini" bindtap="onCopyVideoUrl">复制视频链接</button>
+    </view>
+    <view wx:elif="{{video.showUnavailable}}" class="player-fallback__content">
+      <text>暂无可播放地址</text>
+    </view>
+  </view>
   <view class="title">{{video.title}}</view>
   <view class="rh-text-light">{{video.durationText}} · {{video.viewText}} 播放</view>
   <view class="desc" wx:if="{{video.description || video.summary}}">{{video.description || video.summary}}</view>

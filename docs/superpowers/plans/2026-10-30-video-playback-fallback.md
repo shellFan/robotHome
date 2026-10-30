@@ -185,7 +185,7 @@ node node_modules/vite/bin/vite.js build
 
 Result: 6/6 PC tests pass; Vite production build exits 0.
 
-- [ ] **Step 6: Commit PC playback handling**
+- [x] **Step 6: Commit PC playback handling**
 
 ```powershell
 git -C 'D:/git/fan/AI项目/机器人之家' add -- robot-home/robot-home-web/src/views/VideoDetail.vue robot-home/robot-home-web/src/views/RobotVideos.vue
@@ -201,23 +201,33 @@ git -C 'D:/git/fan/AI项目/机器人之家' commit -m "fix(web): route platform
 - Modify: `robot-home/robot-home-miniapp/pages/videos/detail.wxss`
 - Modify: `robot-home/robot-home-miniapp/tests/video-url.test.js`
 
-- [ ] **Step 1: Add page tests before implementation**
+- [x] **Step 1: Add page tests before implementation**
 
 Load the page definition in a Node `vm` context with mocked `Page`, `videoApi`, `wx`, and `setData`. Assert that platform URLs never populate the `<video>` binding, direct URLs do, playback errors set the fallback state, and clipboard success/failure produce the correct toast without mutating the URL.
 
-- [ ] **Step 2: Run the focused tests and confirm the page cases fail**
+```js
+assert.equal(page.data.video.playbackKind, 'external')
+assert.equal(page.data.video.playUrl, '')
+assert.equal(page.data.video.externalUrl, platformUrl)
+assert.equal(page.data.video.showPlayer, false)
+assert.equal(page.data.video.playbackKind, 'media')
+assert.equal(page.data.video.showCopyOnFailure, true)
+assert.equal(lastToast.title, '复制失败，请稍后重试')
+```
+
+- [x] **Step 2: Run the focused tests and confirm the page cases fail**
 
 Run: `node --test tests/video-url.test.js` from the MiniApp directory. Expected: classifier tests pass and the new page behavior assertions fail against the old page definition.
 
-- [ ] **Step 3: Implement MiniApp page state and handlers**
+- [x] **Step 3: Implement MiniApp page state and handlers**
 
-On load, classify the selected URL and store separate `playUrl`, `externalUrl`, `playbackKind`, and `playbackFailed` values. Bind `binderror` on `<video>` to set `playbackFailed`. The external-link button calls `wx.setClipboardData` only after a tap and reports success/failure with `wx.showToast`. A failed direct stream uses a separate “复制视频链接” action. Preserve likes, favorites, summary, poster, and view text.
+On load, classify the selected URL and store separate `playUrl`, `externalUrl`, `playbackKind`, `showPlayer`, `showExternalLink`, `showCopyOnFailure`, and `showUnavailable` values. Bind `binderror` on `<video>` to set the fallback state. The external-link button calls `wx.setClipboardData` only after a tap and reports success/failure with `wx.showToast`. A failed direct stream uses a separate “复制视频链接” action. Preserve likes, favorites, summary, poster, and view text.
 
-- [ ] **Step 4: Update WXML and WXSS**
+- [x] **Step 4: Update WXML and WXSS**
 
 Render `<video>` only for direct media before an error. Use the cover for external, failed, or invalid states. Render “复制官方链接” plus a source-platform hint only for external URLs; render “复制视频链接” with a browser hint after direct playback failure; render an unavailable message for `none`. Add only local layout styles and retain the page's existing shared stylesheet convention.
 
-- [ ] **Step 5: Run canonical MiniApp tests and syntax checks**
+- [x] **Step 5: Run canonical MiniApp tests and syntax checks**
 
 Run from `robot-home/robot-home-miniapp`:
 
@@ -226,9 +236,9 @@ node --test tests/*.test.js
 node --check pages/videos/detail.js
 ```
 
-Expected: all tests pass and syntax check exits 0.
+Result: 10/10 MiniApp tests pass and syntax check exits 0.
 
-- [ ] **Step 6: Commit canonical MiniApp behavior**
+- [x] **Step 6: Commit canonical MiniApp behavior**
 
 ```powershell
 git -C 'D:/git/AI项目/机器人之家' add -- robot-home/robot-home-miniapp/pages/videos/detail.js robot-home/robot-home-miniapp/pages/videos/detail.wxml robot-home/robot-home-miniapp/pages/videos/detail.wxss robot-home/robot-home-miniapp/tests/video-url.test.js
