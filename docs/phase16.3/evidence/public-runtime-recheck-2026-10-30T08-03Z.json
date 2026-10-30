@@ -1,0 +1,371 @@
+{
+  "checkedAtUtc": "2026-10-30T08:03:48.004Z",
+  "origin": "https://jqr.21zuo.com",
+  "method": "GET",
+  "scope": "Public PC SPA routes and list APIs; includes category filters; no article-detail, login, or write requests",
+  "requestCount": 28,
+  "failures": [],
+  "results": [
+    {
+      "kind": "page",
+      "name": "/",
+      "path": "/",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/robots",
+      "path": "/robots",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/brands",
+      "path": "/brands",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/articles",
+      "path": "/articles",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/videos",
+      "path": "/videos",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/tutorials",
+      "path": "/tutorials",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/community",
+      "path": "/community",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "page",
+      "name": "/search",
+      "path": "/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "kind": "api",
+      "name": "articles",
+      "path": "/api/articles?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 37,
+      "items": 37,
+      "message": "success",
+      "withCategories": 0
+    },
+    {
+      "kind": "api",
+      "name": "categories",
+      "path": "/api/articles/categories",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 12,
+      "items": 12,
+      "message": "success",
+      "categoryCounts": [
+        {
+          "id": 1,
+          "name": "推荐",
+          "count": 0
+        },
+        {
+          "id": 2,
+          "name": "行业",
+          "count": 0
+        },
+        {
+          "id": 3,
+          "name": "新品",
+          "count": 0
+        },
+        {
+          "id": 4,
+          "name": "人形机器人",
+          "count": 0
+        },
+        {
+          "id": 5,
+          "name": "机器狗",
+          "count": 0
+        },
+        {
+          "id": 6,
+          "name": "工业机器人",
+          "count": 0
+        },
+        {
+          "id": 7,
+          "name": "服务机器人",
+          "count": 0
+        },
+        {
+          "id": 8,
+          "name": "AI",
+          "count": 0
+        },
+        {
+          "id": 9,
+          "name": "技术",
+          "count": 0
+        },
+        {
+          "id": 10,
+          "name": "融资",
+          "count": 0
+        },
+        {
+          "id": 11,
+          "name": "政策",
+          "count": 0
+        },
+        {
+          "id": 12,
+          "name": "企业",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "kind": "api",
+      "name": "products",
+      "path": "/api/robots?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 56,
+      "items": 56,
+      "message": "success",
+      "withCovers": 0
+    },
+    {
+      "kind": "api",
+      "name": "brands",
+      "path": "/api/brands?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 47,
+      "items": 47,
+      "message": "success",
+      "nonEmptyLogos": 12
+    },
+    {
+      "kind": "api",
+      "name": "videos",
+      "path": "/api/videos?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "api",
+      "name": "tutorials",
+      "path": "/api/tutorials?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "api",
+      "name": "posts",
+      "path": "/api/community/posts?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "api",
+      "name": "circles",
+      "path": "/api/community/circles?pageNum=1&pageSize=100",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 9,
+      "items": 9,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "1",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=1",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "2",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=2",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "3",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=3",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "4",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=4",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "5",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=5",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "6",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=6",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "7",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=7",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "8",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=8",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "9",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=9",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "10",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=10",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "11",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=11",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "kind": "categoryFilter",
+      "name": "12",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=12",
+      "status": 200,
+      "ok": true,
+      "code": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    }
+  ]
+}

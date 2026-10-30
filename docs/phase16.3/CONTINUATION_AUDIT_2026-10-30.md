@@ -202,3 +202,41 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - **Production Ready：NO**（主机身份、生产备份与隔离恢复、目标 `flock` 依赖检查、具体生产写入授权仍未完成）。
 
 剩余阻塞包括可信 SSH 主机身份核验、生产备份和隔离恢复、目标 Linux `flock` 可用性确认、管理员审核及针对具体生产数据变更的授权。小程序开发者工具/真机验收仍未执行。
+
+## 16:04 当前公开线上与播放器复验
+
+### 版本与工作区
+
+- 本次检查开始时，本地和 `origin/codex/phase16-content-quality` 均为 `011fb58f4dde78b0b43e622f1ff3903ba62e267a`；`origin/main` 为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。`git ls-remote` 与本地跟踪引用一致。
+- 播放器实现及 Mall 集成改动已在开发分支，不涉及生产发布；本轮没有修改业务代码。Mall 集成测试只读检查已有用户工作区，并在临时目录运行；没有暂存、覆盖或提交 Mall 文件。
+
+### 新鲜公开 HTTP 只读快照
+
+- 2026-10-30 08:03:48 UTC（16:03:48 Asia/Shanghai）完成 28 个 GET：8 个 PC SPA 路由、8 个公开列表 API、12 个资讯分类筛选。全部 HTTP 200，API `success=true`，失败 0。完整响应见 [`public-runtime-recheck-2026-10-30T08-03Z.json`](evidence/public-runtime-recheck-2026-10-30T08-03Z.json)。
+- 资讯 37、带分类 0；分类 12，逐类筛选均为 0。产品 56、封面 0；品牌 47，Logo 字段非空 12、已核实来源/可用性/许可 0；视频 0、教程 0、社区帖子 0、圈子 9。
+- 只请求公开 SPA 与列表/分类 API，没有请求资讯详情、Admin 登录或任何写接口。数据总数与此前快照一致；没有生产 INSERT、UPDATE、DELETE，也没有内容发布。
+- HTTP 200 只证明这些地址当前有响应，不等同于浏览器视觉/交互、图片真实加载、服务进程健康或服务器部署版本验证。
+
+### 播放器本地复验
+
+| 范围 | 本次结果 | 日志/说明 |
+|---|---|---|
+| MiniApp Node 测试 | 11/11 PASS | `logs/miniapp-video-tests-2026-10-30.log` |
+| MiniApp 页面 JS 语法 | PASS | `node --check pages/videos/detail.js` |
+| PC 播放器测试 | 6/6 PASS | `logs/web-video-tests-2026-10-30.log` |
+| PC Web 生产构建 | PASS，Vite 构建完成 | `logs/web-video-build-2026-10-30.log` |
+| Mall 集成 | 8/8 PASS | `logs/mall-video-integration-2026-10-30.log` |
+
+- PC 视频详情、机器人视频弹窗和小程序详情的直链/外链分流均通过当前测试；本地播放器代码与 Mall 集成输出已验证。
+- 微信开发者工具、模拟器和真机本轮仍未运行。线上当前视频数为 0，因此没有真实线上视频可供播放验收。Web API 页面路由 GET 成功不替代浏览器交互验收。
+- Server 208/208、Collector 174/174、Admin build 与备份脚本专项结果见前序记录；本轮没有改动这些组件，不将旧日志冒充成本轮重跑。
+
+### 阶段状态
+
+- **Code Ready：YES**（播放器相关测试和 Web 构建本轮通过；实现已在开发分支）。
+- **Deployment Verified：NO**（本轮没有部署；服务器运行 SHA、JAR SHA 与 systemd 状态仍为 `UNKNOWN`）。
+- **Runtime Ready：PARTIAL**（公开 HTTP 路由/API 当前可响应；浏览器交互、MiniApp 真实运行环境和主机内部服务未验收）。
+- **Content Ready：NO**（资讯分类 0、产品封面 0、视频/教程/社区帖子均为 0）。
+- **Production Ready：NO**。
+
+生产安全边界保持不变：SSH 指纹尚未由可信宝塔/云控制台核验；未连接生产数据库、Redis 或 MinIO；未创建生产备份、未执行恢复演练、未替换 JAR、未重启服务，生产内容写入为 0。
