@@ -42,6 +42,20 @@ if (-not $preBackupFailure.Success -or $preBackupFailure.Groups[1].Value -notmat
 if (-not $restoreSource.Contains('gzip -t')) {
     $failures += 'restore.sh does not validate the pre-restore backup gzip stream.'
 }
+$preRestoreDumps = [regex]::Matches(
+    $restoreSource,
+    'mysqldump([\s\S]*?)\|\s*gzip\s*>\s*"\$\{PRE_RESTORE_BACKUP\}"'
+)
+if ($preRestoreDumps.Count -ne 2) {
+    $failures += "restore.sh should define two complete pre-restore mysqldump pipelines; found $($preRestoreDumps.Count)."
+}
+foreach ($match in $preRestoreDumps) {
+    foreach ($option in @('--routines', '--triggers', '--events')) {
+        if (-not $match.Groups[1].Value.Contains($option)) {
+            $failures += "restore.sh pre-restore backup is missing $option."
+        }
+    }
+}
 
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ }

@@ -29,3 +29,9 @@
 HTTP 200 只证明公开路由能响应，不证明页面交互、主机服务、数据库或对象存储健康。未执行服务更新、前端上传、生产写入或基础设施变更。解除阻塞需要可信控制台核验指纹，然后只读采集运行证据；服务替换仍需具体发布授权。
 
 本地 package 与完整测试日志：docs/phase16.3/logs/server-package-2026-10-30.log、collector-package-2026-10-30.log。合并后只读 HTTP 检查仍见报告所列公开路由，但未进行浏览器视觉、Admin 登录或小程序真机验收。
+
+## 2026-10-30 13:28 本地构建产物复核
+
+重新计算本地 target JAR 的 SHA256，Server 为 `854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd`，Collector 为 `670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23`，与 `deployment-manifest.local.json` 相符。两个 JAR 的 `git.properties` 均记载 SHA `ca61e5c029f8b86d4f26865a1f8329e7f1305623`、branch `main`、`git.dirty=false`；版本均为 `1.0.0`。这是本地历史构建产物证据，不能据此推断服务器运行版本，也不是当前开发分支的新部署。服务器 SHA、JAR SHA、systemd 和依赖服务状态继续为 UNKNOWN；本轮没有 SSH 连接或服务替换。
+
+GitHub 远端只读核验显示开发分支为 `f1a871f368c9a598792a7f897c5f76a3aec0ebe7`，`main` 为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。这些是本地复核时的远端值；本地备份脚本修正和报告更新当时尚未提交。

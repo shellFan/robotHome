@@ -83,6 +83,9 @@ if [[ "${MODE}" == "docker" ]]; then
         --host=127.0.0.1 \
         --user=root \
         --single-transaction \
+        --routines \
+        --triggers \
+        --events \
         --quick \
         --lock-tables=false \
         --connect-timeout=10 \
@@ -137,6 +140,9 @@ else
         --port="${MYSQL_PORT:-3306}" \
         --user="${MYSQL_USER}" \
         --single-transaction \
+        --routines \
+        --triggers \
+        --events \
         --quick \
         --lock-tables=false \
         --connect-timeout=10 \

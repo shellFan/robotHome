@@ -59,17 +59,36 @@ fi
 
 # 3. 关键表存在性
 echo -n "[3/4] 关键表检查... "
-MISSING_TABLES=""
-for table in user robot_product article crawler_source enterprise_plan enterprise_subscription; do
-    if ! gunzip -c "${BACKUP_FILE}" | grep -q "CREATE TABLE.*\`${table}\`"; then
-        MISSING_TABLES="${MISSING_TABLES} ${table}"
+if MISSING_TABLES=$(gunzip -c "${BACKUP_FILE}" | awk '
+BEGIN {
+    required[1] = "user"
+    required[2] = "robot_product"
+    required[3] = "article"
+    required[4] = "crawler_source"
+    required[5] = "enterprise_plan"
+    required[6] = "enterprise_subscription"
+}
+/CREATE TABLE/ {
+    for (i = 1; i <= 6; i++) {
+        table = "`" required[i] "`"
+        if (index($0, table) > 0) found[required[i]] = 1
+    }
+}
+END {
+    for (i = 1; i <= 6; i++) {
+        if (!found[required[i]]) missing = missing " " required[i]
+    }
+    print missing
+}'); then
+    if [[ -z "${MISSING_TABLES}" ]]; then
+        echo "PASS（6/6 关键表存在）"
+        PASS=$((PASS + 1))
+    else
+        echo "FAIL（缺失表:${MISSING_TABLES}）"
+        FAIL=$((FAIL + 1))
     fi
-done
-if [[ -z "${MISSING_TABLES}" ]]; then
-    echo "PASS（6/6 关键表存在）"
-    PASS=$((PASS + 1))
 else
-    echo "FAIL（缺失表:${MISSING_TABLES}）"
+    echo "FAIL（SQL 内容无法完整读取）"
     FAIL=$((FAIL + 1))
 fi
 

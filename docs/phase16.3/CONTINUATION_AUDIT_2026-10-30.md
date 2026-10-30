@@ -66,3 +66,27 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 2. 需要完成数据库备份与隔离恢复演练，并审阅逐条 dry-run 后，才能请求具体生产数据写入授权。
 3. 图片需确认厂商来源和使用许可；视频需确认微信/PC 播放方式；教程需技术审校并经 Admin 审核；社区草稿需官方账号审核。
 4. 微信开发者工具、模拟器、真机、Admin 登录审核及 MySQL 5.6 运行时兼容尚未验收。
+
+## 13:28 继续工作补记
+
+### 当前代码和分支
+
+- 本地分支和 `origin/codex/phase16-content-quality` 在本次修改前均为 `f1a871f368c9a598792a7f897c5f76a3aec0ebe7`；`origin/main` 为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。分支未切换，未改写历史。
+- 本地未提交修改仅包括 `robot-home/scripts/db/restore.sh`、`robot-home/scripts/db/verify-backup.sh`、`robot-home/scripts/tests/Test-BackupCredentialGuard.ps1` 和新测试 `robot-home/scripts/tests/test-verify-backup.sh`。前两处补全恢复前备份中的 routines/triggers/events，并修复大型 gzip SQL 上 `grep -q` 与 `pipefail` 引发的误报；新测试覆盖有效大备份及必需表缺失。
+- 当前新鲜验证：验证器回归 2/2 PASS；gzip 失败关闭回归 PASS；凭据保护 PowerShell 检查 PASS；5 个脚本 `bash -n` PASS；`git diff --check` PASS。日志保存在 `logs/backup-verifier-tests-current-2026-10-30.log`、`logs/backup-gzip-failure-current-2026-10-30.log`、`logs/backup-credential-guard-current-2026-10-30.log`。此次只测了备份脚本相关项，不把此前全项目测试结果冒充为本轮重跑。
+- 本地 Server/Collector JAR SHA256 重算并匹配本地 Manifest；内嵌元数据为 `ca61e5c029f8b86d4f26865a1f8329e7f1305623` / `main` / `dirty=false` / `1.0.0`。它们是本地历史构建产物，不能代表线上部署。
+
+### 生产与线上检查边界
+
+- 用户表示目前无法核对 SSH ED25519 指纹 `SHA256:niEFrPybZrWYn+fCBpwASJFL7M/hwXpqSGalEpWHRew`。没有发起 SSH、生产数据库读取、备份、部署或生产写入；线上 JAR/SHA、服务状态和数据库备份继续 UNKNOWN / NOT RUN。
+- 最近一次公开 HTTP 检查仍是 13:12 的 31 个 GET：8 个 PC SPA 路由 HTTP 200，12 个资讯分类过滤均业务成功但总数为 0；没有调用文章详情接口。公开可见内容数仍按前述 13:12 快照记录，未在本补记中再次读取或更新。
+- 本地脚本测试不解除生产备份、隔离恢复演练、生产数据审批、管理员审核、图片来源许可、视频播放验证或小程序真机验收等阻塞项。
+
+本补记记录的是本地代码和证据状态，不表示服务器运行版本已确认或内容已写入线上。开发分支提交和推送结果以本补记之后的 Git 核验为准；`main` 未更新。
+
+## 13:31 代码审查修正补记
+
+- 独立只读审查指出：损坏 gzip 在关键表扫描的 `gunzip | awk` 管道返回非零时，会受 `set -e` 影响而直接终止，跳过最终结果摘要。已确认这是实际行为，并为有效归档截去 gzip trailer 的情况增加回归断言。
+- TDD 红灯阶段回归失败，输出显示扫描阶段没有 FAIL 行且没有最终 `验证结果` 汇总；修复后验证器将无法完整读取 SQL 计为 FAIL，仍执行最后一项并输出 `2 PASS / 2 FAIL`，回归断言通过。完整验证器样本现在为 3/3 PASS。
+- 修复后重新运行：验证器回归 3/3 PASS；gzip 故障注入 PASS；凭据保护检查 PASS；5 个脚本 Bash 语法检查 PASS；`git diff --check` PASS。最新日志 `logs/backup-verifier-tests-current-2026-10-30.log` 已覆盖本次 3 个样本。
+- 本段代码和报告尚待提交与推送；上次确认的开发分支和 `main` SHA 仍见 13:28 补记。推送只针对 `origin/codex/phase16-content-quality`，不会改动 `main`。生产连接、备份、数据写入和服务替换仍均未执行。
