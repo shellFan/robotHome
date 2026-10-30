@@ -164,6 +164,14 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - **Content Ready：NO**（资讯分类、产品封面、视频、教程和社区内容仍待处理/审核）。
 - **Production Ready：NO**。
 
+## 16:33 播放器与备份回归复验
+
+- 播放器相关新鲜验证：PC URL/模板测试 6/6 PASS，Web Vite 生产构建 PASS；小程序测试 11/11 PASS，详情页 JavaScript 语法及 MiniApp JSON 解析 PASS；Mall 集成测试 8/8 PASS，Mall 详情页 JavaScript 语法 PASS。小程序微信开发者工具、模拟器和真机仍未运行。
+- 备份/恢复 9 个隔离回归脚本全部 PASS：原子备份可见性、Manifest 发布时序、保留数量参数、gzip 失败、共享锁拒绝、恢复输入快照、恢复前快照校验、恢复确认后复核、备份验证器。结果记录于 [`backup-regression-path-fixed-2026-10-30.json`](evidence/backup-regression-path-fixed-2026-10-30.json)。
+- 复测中确认 Git Bash 默认 PATH 若将 `C:/Users/Fan/.local/bin` 放在前面，会把 `env` 解析到个人 PATH 包装脚本；该脚本只调整 PATH，不会执行 POSIX `env -u ...` 后面的命令，导致依赖该调用方式的隔离用例误报。将测试 PATH 固定为 `/usr/bin:/bin:/mingw64/bin:/cmd` 后，9/9 脚本通过。未改动该用户级包装器或全局环境。
+- 锁测试使用 mock `flock`；本地没有验证 Linux 内核 `flock`，服务器是否具备 `flock(1)` 仍为 `UNKNOWN`。这些是隔离脚本测试，不是生产备份/恢复演练。
+- 本次没有修改服务器、数据库、Redis、MinIO、生产内容或运行中的 JAR；Deployment Verified=NO、Content Ready=NO、Production Ready=NO 状态不变。
+
 剩余阻塞仍包括可信 SSH 主机指纹核验、小程序开发者工具/真机验收、生产备份与隔离恢复、逐条内容审核及显式生产写入授权。旧的 13:17/13:43 数据快照没有被本轮结果替代。
 
 ## 14:44 报告推送回执
@@ -246,3 +254,32 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - 对 Phase16.2 中 10 条 YouTube 候选做了公开标题/发布者线索复核，逐条结果保存在 [`video-source-recheck-2026-10-30.csv`](data/video-source-recheck-2026-10-30.csv)：3 条发布者身份明确、2 条有频道描述线索、1 条仅有品牌名匹配、4 条发布者未确认。另有标题与草稿不一致或请求受限。
 - 本次只记录已观察到的来源元数据，不把第三方转载/引用当成官方发布证明。10 条的实际播放、微信可达性、许可和管理审核状态仍未通过；全部保持待审核，不导入生产。
 - 视频功能代码验收通过不改变线上视频数：最新公开 API 仍为 0。`Content Ready` 和 `Production Ready` 继续为 `NO`。
+
+## 16:20 当前分支全套本地构建与产物追溯
+
+### 构建与测试
+
+- 构建源版本为 `1aea382962548b932dc1cf1bcc21f5f829b61b47`，分支 `codex/phase16-content-quality`，构建时工作区 `gitDirty=false`。工具链为 JDK 8.0.511 与 Maven 3.9.9。
+- Server：`mvn package` 成功，208/208 tests，0 failures，0 errors；日志 `logs/server-package-current-2026-10-30.log`。
+- Collector：`mvn package` 成功，174/174 tests，0 failures，0 errors；日志 `logs/collector-package-current-2026-10-30.log`。
+- Web：播放器测试 6/6、Vite production build PASS；日志 `logs/web-video-tests-2026-10-30.log`、`logs/web-video-build-2026-10-30.log`。
+- Admin：图片测试 2/2、Vite production build PASS；当前日志 `logs/admin-image-tests-current-2026-10-30.log`、`logs/admin-build-current-2026-10-30.log`。
+- MiniApp：Node 测试 11/11、视频详情 JS 语法 PASS；全量静态复查 JS 56 个（应用文件 53、测试文件 3）、JSON 50 个、声明页面 46 个，缺失页面文件 0、JS/JSON 错误 0。明细见 [`miniapp-static-recheck-2026-10-30T08-20Z.json`](evidence/miniapp-static-recheck-2026-10-30T08-20Z.json)。
+- Mall 集成测试 8/8 PASS；未更改、暂存或提交 Mall 工作区文件。
+- Server/Collector 测试数量达到 Phase16.3 门槛（分别至少 207、149）。小程序开发者工具、模拟器与真机未运行。
+
+### 当前本地候选 JAR
+
+- Manifest：[`deployment-manifest.local.json`](deployment-manifest.local.json)，由 `New-DeploymentManifest.ps1` 根据 JAR 内容生成；回归测试确认 Manifest 保留 JAR 的 `gitDirty` 状态。
+- Server：SHA256 `b4f0d5eb3269e7641ca46a239cd4894dd8d4bd37c0feba41685d1164522e66c9`；Git SHA `1aea382962548b932dc1cf1bcc21f5f829b61b47`；build time `2026-10-30T08:14:19.370Z`；version `1.0.0`。
+- Collector：SHA256 `b416607587c547edba5013d87103c6aead95076bbca7fdf121676e202afd10d4`；Git SHA `1aea382962548b932dc1cf1bcc21f5f829b61b47`；build time `2026-10-30T08:16:00.067Z`；version `1.0.0`。
+- 两个 JAR 的内嵌 SHA、branch、`gitDirty=false`、build time 和版本均与本地 Manifest/当前源提交核对一致。环境标记为 `local-verification-only`，`deployTime=NOT_DEPLOYED`。
+- 以上仅证明本地候选产物，不证明服务器运行版本。SSH 指纹未核验；服务器 Git/JAR SHA、systemd 和依赖服务仍 `UNKNOWN`。
+
+### 当前阶段状态
+
+- **Code Ready：YES**（当前开发分支的 Server/Collector/Web/Admin/MiniApp 本地构建或测试通过）。
+- **Deployment Verified：NO**（没有可信主机身份和服务器运行证据）。
+- **Runtime Ready：PARTIAL**（公开 HTTP 路由/API 有响应；浏览器真实交互、微信运行时、服务进程与依赖未完整验收）。
+- **Content Ready：NO**（资讯分类 0、产品封面 0、视频/教程/社区帖子 0）。
+- **Production Ready：NO**。

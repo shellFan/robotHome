@@ -1,26 +1,26 @@
 {
   "environment": "local-verification-only",
   "deployTime": "NOT_DEPLOYED",
-  "generatedAt": "2026-10-30T04:10:54Z",
+  "generatedAt": "2026-10-30T08:17:54Z",
   "artifacts": [
     {
       "artifact": "server",
       "file": "robot-home-server.jar",
-      "sha256": "854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd",
-      "gitSha": "ca61e5c029f8b86d4f26865a1f8329e7f1305623",
-      "gitBranch": "main",
+      "sha256": "b4f0d5eb3269e7641ca46a239cd4894dd8d4bd37c0feba41685d1164522e66c9",
+      "gitSha": "1aea382962548b932dc1cf1bcc21f5f829b61b47",
+      "gitBranch": "codex/phase16-content-quality",
       "gitDirty": "false",
-      "buildTime": "2026-10-30T04:08:41.376Z",
+      "buildTime": "2026-10-30T08:14:19.370Z",
       "artifactVersion": "1.0.0"
     },
     {
       "artifact": "collector",
       "file": "robot-home-collector.jar",
-      "sha256": "670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23",
-      "gitSha": "ca61e5c029f8b86d4f26865a1f8329e7f1305623",
-      "gitBranch": "main",
+      "sha256": "b416607587c547edba5013d87103c6aead95076bbca7fdf121676e202afd10d4",
+      "gitSha": "1aea382962548b932dc1cf1bcc21f5f829b61b47",
+      "gitBranch": "codex/phase16-content-quality",
       "gitDirty": "false",
-      "buildTime": "2026-10-30T04:10:32.259Z",
+      "buildTime": "2026-10-30T08:16:00.067Z",
       "artifactVersion": "1.0.0"
     }
   ]

@@ -22,3 +22,9 @@
 - 真实付费、退款、生产数据修改和服务替换。
 
 HTTP 页面响应不证明交互或内容就绪。所有生产数据库和服务状态仍以 UNKNOWN/BLOCKED 记录。
+
+## 2026-10-30 16:03 当前公开 HTTP 复验
+
+对公开站点执行 28 个只读 GET：8 个 PC SPA 路由、8 个公开列表 API、12 个资讯分类筛选，全部 HTTP 200，API 成功，失败 0。完整响应和计数见 [`evidence/public-runtime-recheck-2026-10-30T08-03Z.json`](evidence/public-runtime-recheck-2026-10-30T08-03Z.json)。
+
+资讯 37（已分类 0）、产品 56（封面 0）、品牌 47（Logo 字段非空 12，已核实 0）、视频 0、教程 0、帖子 0、圈子 9；12 个分类筛选的 total 均为 0。该复验不包含资讯详情、Admin 登录、写接口、浏览器视觉/交互或 MiniApp 真机。生产主机与服务内部状态仍为 UNKNOWN。

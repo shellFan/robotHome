@@ -2,6 +2,8 @@
 
 状态：**BLOCKED，未登录、未部署。**
 
+以下各节按时间记录核验。最新本地候选产物和验收结果见文末 2026-10-30 16:20 更新；早前 `ca61e5c/main` JAR 数值属于历史本地构建，不代表当前候选或服务器运行版本。
+
 连接目标为 `49.235.70.249`。用户暂时无法从可信控制台核验 SSH ED25519 主机指纹 `SHA256:niEFrPybZrWYn+fCBpwASJFL7M/hwXpqSGalEpWHRew`，因此没有发起 SSH 连接。
 
 | 证据项 | 状态 |
@@ -35,6 +37,14 @@ HTTP 200 只证明公开路由能响应，不证明页面交互、主机服务�
 重新计算本地 target JAR 的 SHA256，Server 为 `854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd`，Collector 为 `670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23`，与 `deployment-manifest.local.json` 相符。两个 JAR 的 `git.properties` 均记载 SHA `ca61e5c029f8b86d4f26865a1f8329e7f1305623`、branch `main`、`git.dirty=false`；版本均为 `1.0.0`。这是本地历史构建产物证据，不能据此推断服务器运行版本，也不是当前开发分支的新部署。服务器 SHA、JAR SHA、systemd 和依赖服务状态继续为 UNKNOWN；本轮没有 SSH 连接或服务替换。
 
 GitHub 远端只读核验显示开发分支为 `f1a871f368c9a598792a7f897c5f76a3aec0ebe7`，`main` 为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。这些是本地复核时的远端值；本地备份脚本修正和报告更新当时尚未提交。
+
+## 2026-10-30 16:20 当前开发分支本地候选包
+
+本地开发分支 `codex/phase16-content-quality` 在提交 `1aea382962548b932dc1cf1bcc21f5f829b61b47` 上，以 JDK 8.0.511 / Maven 3.9.9 重跑 Server 与 Collector `package`：Server 208/208、Collector 174/174，均 0 failures、0 errors。两个 JAR 内嵌 `git.properties` SHA/branch/dirty 与 `META-INF/build-info.properties` 均经核对。
+
+最新本地 Manifest：[`deployment-manifest.local.json`](deployment-manifest.local.json)。Server SHA256=`b4f0d5eb3269e7641ca46a239cd4894dd8d4bd37c0feba41685d1164522e66c9`；Collector SHA256=`b416607587c547edba5013d87103c6aead95076bbca7fdf121676e202afd10d4`。二者均为 Git SHA `1aea382962548b932dc1cf1bcc21f5f829b61b47`、branch `codex/phase16-content-quality`、`gitDirty=false`、version `1.0.0`。Manifest 明确标记 `environment=local-verification-only`、`deployTime=NOT_DEPLOYED`。
+
+服务器运行 SHA、服务器 JAR SHA、部署时间、systemd 与 MySQL/Redis/MinIO 健康仍为 `UNKNOWN`。可信 SSH 指纹仍待通过宝塔/云控制台核验；本次没有 SSH 登录、生产备份、生产写入、前端上传或服务替换。公开 GET 最新快照及当前全套本地测试见 [`CONTINUATION_AUDIT_2026-10-30.md`](CONTINUATION_AUDIT_2026-10-30.md)。
 
 ## 2026-10-30 13:43 公开 HTTP 只读复验
 

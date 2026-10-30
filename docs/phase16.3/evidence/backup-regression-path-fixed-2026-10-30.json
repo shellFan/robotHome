@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-30",
+  "verifiedAtLocal": "2026-10-30 16:33 Asia/Shanghai",
+  "shell": "Git for Windows Bash",
+  "pathOverride": "/usr/bin:/bin:/mingw64/bin:/cmd",
+  "result": {
+    "scripts": 9,
+    "passed": 9,
+    "failed": 0
+  },
+  "scripts": [
+    "robot-home/scripts/tests/test-backup-atomic-visibility.sh",
+    "robot-home/scripts/tests/test-backup-manifest-publication.sh",
+    "robot-home/scripts/tests/test-backup-retention-arguments.sh",
+    "robot-home/scripts/tests/test-backup-gzip-failure.sh",
+    "robot-home/scripts/tests/test-backup-operation-lock.sh",
+    "robot-home/scripts/tests/test-restore-input-snapshot.sh",
+    "robot-home/scripts/tests/test-restore-prerestore-validation.sh",
+    "robot-home/scripts/tests/test-restore-validates-backup.sh",
+    "robot-home/scripts/tests/test-verify-backup.sh"
+  ],
+  "pathIssue": {
+    "cause": "When C:/Users/Fan/.local/bin precedes system directories, command lookup selects the user's env PATH wrapper, which does not execute the POSIX env arguments.",
+    "resolution": "Run the regression suite with the isolated system PATH listed above.",
+    "wrapperModified": false,
+    "globalEnvironmentModified": false
+  },
+  "flockRuntime": "Mocked by the regression tests; Linux kernel flock and production server availability were not verified."
+}
