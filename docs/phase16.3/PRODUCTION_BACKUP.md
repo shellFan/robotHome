@@ -32,3 +32,21 @@ Robot Home 本地备份与恢复脚本的安全改动已合并到 main：要求 
 ### 13:44 当前分支复验
 
 在推送 HEAD `00bcad61c97c724d18f145adc7bdea0520ae40bf` 上再次运行备份校验器 3 个样本和 gzip 故障注入，均 PASS；凭据保护检查 PASS，5 个脚本 `bash -n` PASS。日志：`logs/backup-tests-full-current-2026-10-30.log`、`logs/backup-credential-guard-full-current-2026-10-30.log`。这些均为本地验证，未连接或备份生产数据库。
+
+## 2026-10-30 15:58 备份/恢复安全续验
+
+### 修复与提交
+
+- 独立审查发现恢复确认后到实际导入之间仍可替换归档。现于确认后获取共享 `flock`，将输入归档及 sidecar 复制到私有暂存目录，校验该副本，并在 Docker/standalone 两条路径都从这同一副本导入。
+- 新格式归档缺少 SHA-256 Manifest 时验证失败；历史文件名仍允许兼容性校验。备份/恢复操作锁改为内核 `flock`，进程退出、强制终止或主机重启后锁由内核释放，锁文件不会成为 stale lock。
+- 修复提交 `a6853b87eb207fe2a9ccaa6418df2f905a6a055a` 已推送至开发分支 `codex/phase16-content-quality`。`main` 保持 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`，未部署。
+
+### 本地验证结果
+
+- 9/9 隔离 shell 回归脚本通过，覆盖原子发布、Manifest、保留参数、gzip 故障、备份/恢复共享锁、恢复输入不可变快照、恢复前快照和损坏备份验证。日志：仓库根目录 `logs/backup-review-fixes-focused-2026-10-30.log`、`logs/backup-regression-current-2026-10-30.log`。
+- PowerShell 凭据保护静态检查 PASS；13 个 Bash 文件语法检查 PASS；staged/unstaged diff 检查 PASS。
+- 本机为 Windows Git Bash，没有 `flock`，因此本地测试使用隔离 mock 覆盖锁命令分支；没有可用 WSL 发行版。生产 Linux 环境是否有 `flock(1)` 仍未核验。脚本找不到 `flock` 时停止运行，不绕过锁。
+
+### 生产状态
+
+本次没有 SSH 登录、数据库连接、生产备份、恢复演练、DML 或服务替换。生产备份仍为 **未执行**；隔离恢复仍为 **未执行**；生产 INSERT/UPDATE/DELETE 为 **0/0/0**。SSH 主机指纹尚未通过可信控制台核验，生产数据库版本、磁盘、JAR SHA、systemd 与 `flock` 可用性继续为 `UNKNOWN`。

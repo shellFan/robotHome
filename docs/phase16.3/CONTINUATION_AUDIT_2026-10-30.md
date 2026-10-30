@@ -170,3 +170,35 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 
 - 视频代码提交 `1ca161a4a27f4aff235569d94d0659fba58b619c` 已先推送。随后阶段报告提交 `25fa1f50e4b88c66758dacdb2ee88d61fcbe4074` 和计划收尾提交 `aeb750ceac6272c89376b1812260c1154cefbb4d` 也都通过普通快进推送到 `origin/codex/phase16-content-quality`。
 - 收尾报告提交前最后一次核验显示本地与远端开发分支均为 `aeb750ceac6272c89376b1812260c1154cefbb4d`，工作区干净；`origin/main` 仍为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。本条回执通过后续普通提交和推送追加；未改写历史。
+
+## 15:58 备份/恢复安全续审与线上分类复查
+
+### 代码与版本
+
+- 本轮针对上一轮备份/恢复代码审查发现的三个风险完成修复：恢复输入替换窗口、新格式归档缺少 Manifest 时的校验降级、目录锁在强制终止/重启后的残留阻塞。
+- `restore.sh` 在用户确认后取得共享 `flock`，将归档与 sidecar 复制到权限为 `700` 的私有暂存目录，再校验并从同一副本导入。暂存归档或 Manifest 不匹配时拒绝继续。
+- 新命名的 `robot_home_YYYYMMDD_HHMMSS_PID_RANDOM.sql.gz` 和 `pre_restore_...` 必须有有效 SHA-256 Manifest；旧命名归档仍可无 Manifest 验证。SHA 大小写比较改为 `tr`，移除 Bash 4 的小写扩展语法。
+- 备份与恢复使用同一 `.database-operation.lock` 文件和内核 `flock` 锁。脚本结束、异常退出或进程被杀后由内核释放锁；锁文件本身保留。运行环境需提供 `flock(1)`；目标服务器是否安装尚未知，脚本在找不到时会失败关闭。
+- 提交 `a6853b87eb207fe2a9ccaa6418df2f905a6a055a`（`fix(db): close backup and restore integrity gaps`）已普通推送至 `origin/codex/phase16-content-quality`。提交前本地父提交为 `5d411fb6d4a4f60012c0b3de9a8f93884007fb46`；推送后本地和远端开发分支一致。`origin/main` 仍为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`，未修改 main，未 force push。
+- 独立代码审查提出的源码 TOCTOU、Manifest 降级、残留目录锁问题已修复；审查还发现的未跟踪测试 helper 与恢复快照测试均在提交前加入 Git。
+
+### 本地验证
+
+- 9 个隔离回归脚本通过：备份原子可见性、Manifest 发布时序、保留数量参数、gzip 失败、共享锁拒绝、恢复输入快照、恢复前快照校验、恢复确认后校验、备份验证器。日志：仓库根目录 `logs/backup-review-fixes-focused-2026-10-30.log` 与 `logs/backup-regression-current-2026-10-30.log`。
+- 凭据保护 PowerShell 静态检查 PASS；13 个 Bash 文件语法检查 PASS；暂存和未暂存 `git diff --check` 均 PASS。
+- 当前 Windows Git Bash 没有 `flock`，本地回归使用隔离的 `flock` mock 检查脚本的获取、繁忙拒绝和释放路径；机器没有可用 WSL 发行版。本轮没有声称完成 Linux 内核 flock 运行时验证，也没有在生产服务器验证该依赖。
+
+### 线上只读复查与生产边界
+
+- 2026-10-30 07:34:14 UTC（15:34:14 Asia/Shanghai）重新 GET 查询全部 12 个资讯分类筛选。全部 HTTP 200、API code 200、`success=true`，每类 `total=0`、`items=0`。逐条响应保存在 [`online-category-filter-recheck-2026-10-30.json`](evidence/online-category-filter-recheck-2026-10-30.json)。这次只复查分类筛选；资讯/产品等其他数量仍使用前文注明的旧只读快照，不视为本次刷新。
+- 没有 SSH 连接、生产数据库/Redis/MinIO 访问、生产备份或恢复、生产数据写入、JAR 替换或服务重启。SSH 指纹仍未通过可信宝塔/云控制台核验，服务器 JAR SHA、Git SHA、systemd 状态与 `flock` 可用性仍为 `UNKNOWN`。生产 INSERT/UPDATE/DELETE 均为 0。
+
+### 当前状态
+
+- **Code Ready：YES**（本轮备份/恢复代码提交并推送，9 个隔离脚本和静态检查通过）。
+- **Deployment Verified：NO**（未登录服务器，线上运行 SHA 仍 `UNKNOWN`）。
+- **Runtime Ready：PARTIAL**（前述公开路由可响应；本轮只重新检查 12 个分类筛选）。
+- **Content Ready：NO**（12 个分类筛选结果仍全部为 0；本轮没有写入内容）。
+- **Production Ready：NO**（主机身份、生产备份与隔离恢复、目标 `flock` 依赖检查、具体生产写入授权仍未完成）。
+
+剩余阻塞包括可信 SSH 主机身份核验、生产备份和隔离恢复、目标 Linux `flock` 可用性确认、管理员审核及针对具体生产数据变更的授权。小程序开发者工具/真机验收仍未执行。

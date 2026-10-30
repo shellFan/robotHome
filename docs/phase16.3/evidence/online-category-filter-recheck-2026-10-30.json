@@ -1,0 +1,153 @@
+{
+  "checkedAtUtc": "2026-10-30T07:34:14.846Z",
+  "origin": "https://jqr.21zuo.com",
+  "scope": "Public article category list filters; GET only; no detail, login, or write requests",
+  "requestCount": 12,
+  "failures": [],
+  "results": [
+    {
+      "categoryId": 1,
+      "categoryName": "推荐",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=1",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 2,
+      "categoryName": "行业",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=2",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 3,
+      "categoryName": "新品",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=3",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 4,
+      "categoryName": "人形机器人",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=4",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 5,
+      "categoryName": "机器狗",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=5",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 6,
+      "categoryName": "工业机器人",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=6",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 7,
+      "categoryName": "服务机器人",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=7",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 8,
+      "categoryName": "AI",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=8",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 9,
+      "categoryName": "技术",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=9",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 10,
+      "categoryName": "融资",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=10",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 11,
+      "categoryName": "政策",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=11",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    },
+    {
+      "categoryId": 12,
+      "categoryName": "企业",
+      "requestMethod": "GET",
+      "path": "/api/articles?pageNum=1&pageSize=100&categoryId=12",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "success": true,
+      "total": 0,
+      "items": 0,
+      "message": "success"
+    }
+  ]
+}
