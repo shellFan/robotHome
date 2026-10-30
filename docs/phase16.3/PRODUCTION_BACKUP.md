@@ -28,3 +28,7 @@ Robot Home 本地备份与恢复脚本的安全改动已合并到 main：要求 
 ### 13:31 复审修正
 
 独立代码审查发现损坏归档在关键表扫描遇到 `gunzip` 非零退出后会被 `set -e` 中止，未输出末尾汇总。新增损坏 gzip 回归样本先复现了此行为；校验器现将 SQL 扫描失败计为 FAIL 并继续汇总。当前验证器用例覆盖完整大备份、缺必需表、损坏归档三种情况，3/3 PASS；完整日志仍为 `logs/backup-verifier-tests-current-2026-10-30.log`。
+
+### 13:44 当前分支复验
+
+在推送 HEAD `00bcad61c97c724d18f145adc7bdea0520ae40bf` 上再次运行备份校验器 3 个样本和 gzip 故障注入，均 PASS；凭据保护检查 PASS，5 个脚本 `bash -n` PASS。日志：`logs/backup-tests-full-current-2026-10-30.log`、`logs/backup-credential-guard-full-current-2026-10-30.log`。这些均为本地验证，未连接或备份生产数据库。

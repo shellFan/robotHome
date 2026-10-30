@@ -96,3 +96,36 @@ PC/API 只读 HTTP 明细记录于当前工作区 `logs/public-http-continuation
 - 代码与本地验收记录已提交：`b5964b07ce545bbd82611ad357c221eb22953bb3`（`fix(phase16.3): harden backup verification and snapshots`）。
 - 使用普通快进推送至 `origin/codex/phase16-content-quality`，远端核对 SHA 与该提交一致。推送前远端开发分支是 `f1a871f368c9a598792a7f897c5f76a3aec0ebe7`；`origin/main` 推送前后均为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。没有 force push、合并或修改 `main`。
 - 推送后本地 HEAD 与 `origin/codex/phase16-content-quality` 一致，工作区干净。此回执记录本次代码提交的推送；本报告的后续文档修订仍需单独提交推送。
+
+## 13:44 当前推送代码全量本地验收与线上只读复验
+
+### Git 与本地测试
+
+- 当前 HEAD 与 `origin/codex/phase16-content-quality` 均为 `00bcad61c97c724d18f145adc7bdea0520ae40bf`；`origin/main` 仍为 `2c75979a8d93729293f20e856ffb4a8c97cf8d62`。工作区干净。
+- Server：208/208，0 failures，0 errors；`logs/server-tests-full-current-2026-10-30.log`。
+- Collector：174/174，0 failures，0 errors；`logs/collector-tests-full-current-2026-10-30.log`。
+- Web、Admin：Vite 生产构建均 PASS；`logs/web-build-full-current-2026-10-30.log`、`logs/admin-build-full-current-2026-10-30.log`。
+- Admin 图片测试 2/2；MiniApp Node 测试 3/3；本地内容 staging importer 11/11；Manifest 测试 PASS（用 PowerShell 7 运行）。
+- MiniApp 静态检查：JS 54、JSON 50（全部可解析）、app.json 声明页面 46、缺少 JS/JSON/WXML 文件 0。开发者工具/模拟器/真机仍未运行。
+- 备份脚本：有效大备份、缺必需表、损坏 gzip 三个验证器样本通过；gzip 失败关闭回归、凭据保护检查、5 个脚本 Bash 语法检查均 PASS。
+- 当前本地 Server/Collector JAR SHA256 与 Manifest 一致，分别为 `854d3690e3b71db58a15950b57104b4a232d0ab688b02398132b2fd59762acbd` 和 `670133f2310e722613f9e673521a300e0f727ea49544f297cd4882e45e293a23`。内嵌 SHA 是历史本地构建 `ca61e5c029f8b86d4f26865a1f8329e7f1305623`，不代表线上部署。
+
+### 线上公开 GET 快照
+
+- 13:43 对 `https://jqr.21zuo.com` 共执行 29 个只读 GET：8 个 PC 路由、9 个公开 API、12 个资讯分类筛选。全部 HTTP 200，API 业务成功；日志 `logs/public-http-current-2026-10-30.log`。未请求资讯详情，也没有任何写请求。
+- 当前读取到资讯 37、分类 12（计数全部 0）；产品 56（封面 0）；品牌 47（12 个 Logo 字段非空，但官方性/可访问性未核实）；视频 0、教程 0、社区帖子 0、圈子 9。12 个分类筛选均返回总数 0。
+- 这是公开路由和列表 API 的响应证据，不证明服务器进程、数据库、对象存储或实际部署 SHA。SSH 指纹仍无法核验，未登录服务器，生产备份、数据变更、服务替换均未执行；生产插入/更新/删除均为 0。
+
+### 状态
+
+- **Code Ready：** YES（当前推送分支 Server/Collector/Web/Admin/MiniApp 与相关脚本验收如上）。
+- **Deployment Verified：** NO（服务器运行 SHA、JAR SHA、systemd 均 UNKNOWN）。
+- **Runtime Ready：** PARTIAL（当前公开路由/API 有响应；实际主机服务身份和依赖状态未核实）。
+- **Content Ready：** NO（分类 0、产品封面 0、视频/教程/社区帖子 0）。
+- **Production Ready：** NO（主机身份、生产备份和内容发布验收仍未完成）。
+
+## 14:02 用户确认后的状态
+
+- 用户目前仍无法从可信宝塔/云控制台核对 ED25519 指纹 `SHA256:niEFrPybZrWYn+fCBpwASJFL7M/hwXpqSGalEpWHRew`。本次没有尝试 SSH，也没有读取生产数据库、创建生产备份或部署。
+- 用户同意视频播放按已提出的方案设计：媒体直链走原生播放器；普通平台链接在 PC 打开官方页面，小程序复制官方链接并提示去原平台播放。播放器代码尚未修改，待视频播放设计文档经用户审阅后再进入实现。
+- 线上公开数据数字仍以 13:43 的 GET 快照为准；本次没有再次请求线上接口。生产插入、更新、删除仍为 0。
