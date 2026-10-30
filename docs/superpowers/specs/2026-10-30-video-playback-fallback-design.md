@@ -1,6 +1,6 @@
 # Video playback and external-link fallback design
 
-Status: **Design for user review; implementation has not started.**
+Status: **Approved by the user; implementation and local verification complete.** See [`docs/superpowers/plans/2026-10-30-video-playback-fallback.md`](../plans/2026-10-30-video-playback-fallback.md) and [`docs/phase16.3/CONTINUATION_AUDIT_2026-10-30.md`](../../phase16.3/CONTINUATION_AUDIT_2026-10-30.md) for implementation, verification, and deployment boundaries.
 
 Date: 2026-10-30
 Branch: `codex/phase16-content-quality`
