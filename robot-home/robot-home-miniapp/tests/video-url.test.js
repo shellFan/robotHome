@@ -24,6 +24,17 @@ test('classifies platform pages as external', () => {
   })
 })
 
+test('classifies URLs in a MiniApp runtime without a global URL constructor', () => {
+  const helperPath = path.resolve(__dirname, '../utils/video-url.js')
+  const module = { exports: {} }
+  vm.runInNewContext(fs.readFileSync(helperPath, 'utf8'), { module, exports: module.exports })
+
+  const result = module.exports.classifyVideoUrl('https://cdn.example/clip.mp4?sig=x')
+  assert.equal(result.kind, 'media')
+  assert.equal(result.url, 'https://cdn.example/clip.mp4?sig=x')
+  assert.equal(module.exports.classifyVideoUrl('https://user@cdn.example/clip.mp4').kind, 'none')
+})
+
 test('rejects missing, malformed, non-HTTP, and credential-bearing URLs', () => {
   for (const value of [
     '',

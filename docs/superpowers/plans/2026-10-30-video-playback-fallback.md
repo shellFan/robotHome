@@ -4,7 +4,7 @@
 
 **Goal:** Make direct media playable and platform-hosted videos usable from PC and MiniApp, including the MiniApp copy embedded in the mall shell.
 
-**Architecture:** Add small client-specific URL classifiers with the same contract (`media`, `external`, `none`), then use that classification in the PC detail page, PC robot-video dialog, and MiniApp detail page. Keep the canonical MiniApp in Robot Home; generate a temporary mall copy and overlay only the three video-detail files into the existing mall worktree, recording the overlay separately from its older base manifest.
+**Architecture:** Add small client-specific URL classifiers with the same contract (`media`, `external`, `none`), then use that classification in the PC detail page, PC robot-video dialog, and MiniApp detail page. Keep the canonical MiniApp in Robot Home; generate a temporary mall copy and overlay the URL helper and three video-detail files into the existing mall worktree, recording the overlay separately from its older base manifest.
 
 **Tech Stack:** Vue 3, Vite 5, native WeChat MiniProgram JavaScript/WXML/WXSS, Node.js built-in test runner, the existing Robot Home to mall sync adapter.
 
@@ -18,7 +18,7 @@ Baseline evidence: canonical MiniApp tests are 3/3 PASS. Mall integration tests 
 - In MiniApp, copy external platform links only after a user tap; offer a distinct copy-video-link fallback after direct-media playback errors.
 - Do not add API or database fields, change playback counters or interactions, proxy or download media, embed remote HTML, publish content, or write production data.
 - Keep the current `D:/git/fan/mall` user worktree intact. Do not run the sync adapter against its real `modules/robot-home` target: it deletes that entire target before writing.
-- Make mall changes only to the three video-detail page files, the generated-module overlay record, and the existing Robot Home integration test. Do not stage or commit unrelated mall worktree changes.
+- Make mall changes only to `modules/robot-home/utils/video-url.js`, the three video-detail page files, the generated-module overlay record, and the existing Robot Home integration test. Do not stage or commit unrelated mall worktree changes.
 
 ## File Map
 
@@ -35,11 +35,11 @@ Robot Home repository (`D:/git/fan/AI项目/机器人之家`):
 
 Mall worktree (`D:/git/fan/mall`, already contains extensive user changes):
 
-- Modify only `modules/robot-home/pages/videos/detail.js`, `detail.wxml`, and `detail.wxss` with generated MiniApp output.
-- Add a `localOverlays` record to `modules/robot-home/source-manifest.json`, retaining its existing base `sourceCommit` and recording the Robot Home feature commit plus source/target SHA256 values for the three overlaid files.
+- Modify `modules/robot-home/utils/video-url.js` and `modules/robot-home/pages/videos/detail.js`, `detail.wxml`, and `detail.wxss` with generated MiniApp output.
+- Add a `localOverlays` record to `modules/robot-home/source-manifest.json`, retaining its existing base `sourceCommit` and recording the latest source commit affecting the four overlaid files plus source/target SHA256 values for each.
 - Update `scripts/robot_home_integration_test.mjs` so it checks the live canonical source SHA instead of the obsolete pinned `4e9f14e...` value, and asserts the generated detail page distinguishes media from external links.
 
-The mall output will be generated in a temporary directory using a temporary `app.json`. Copying output into the real mall worktree will be limited to the three named page files. The existing mall overlay metadata and all other in-progress work stay local and unstaged.
+The mall output will be generated in a temporary directory using a temporary `app.json`. Copying output into the real mall worktree will be limited to the helper and three named page files. The existing mall overlay metadata and all other in-progress work stay local and unstaged.
 
 ---
 
@@ -92,7 +92,7 @@ Expected: module-not-found failure for `../utils/video-url`.
 
 - [x] **Step 3: Implement the classifier**
 
-Use the platform URL parser inside `try/catch`; accept only HTTP(S), require a hostname, reject username/password credentials, and test the parsed `pathname` with `/\.(?:mp4|webm|m3u8)$/i`. Return the parsed absolute `href` for accepted URLs. Return `{ kind: 'none', url: '' }` for invalid values.
+Avoid relying on a global `URL` constructor in the MiniApp runtime. Conservatively validate absolute HTTP(S) URLs, host/port syntax, and credentials with local parsing; inspect only the path for `/\.(?:mp4|webm|m3u8)$/i`. Preserve the trimmed accepted URL and return `{ kind: 'none', url: '' }` for invalid values.
 
 - [x] **Step 4: Run the focused tests**
 
@@ -253,9 +253,10 @@ git -C 'D:/git/AI项目/机器人之家' commit -m "fix(miniapp): add platform v
 - Modify: `D:/git/fan/mall/modules/robot-home/pages/videos/detail.js`
 - Modify: `D:/git/fan/mall/modules/robot-home/pages/videos/detail.wxml`
 - Modify: `D:/git/fan/mall/modules/robot-home/pages/videos/detail.wxss`
+- Modify: `D:/git/fan/mall/modules/robot-home/utils/video-url.js`
 - Modify: `D:/git/fan/mall/modules/robot-home/source-manifest.json`
 
-- [ ] **Step 1: Make the integration test follow the canonical source HEAD**
+- [x] **Step 1: Make the integration test follow the canonical source HEAD**
 
 Import `execFileSync` from `node:child_process` and replace the fixed expected source SHA with this live value:
 
@@ -270,7 +271,7 @@ assert.equal(manifest.sourceCommit, currentSourceCommit);
 
 Add a test against the generated temporary detail page that verifies the page imports `resolveVideoSource`, renders the player only for `playbackKind === 'media'`, and has an external-link copy action for `playbackKind === 'external'`.
 
-- [ ] **Step 2: Generate a temporary mall module**
+- [x] **Step 2: Generate a temporary mall module**
 
 Run the existing adapter with a unique temporary root and a temporary app manifest. Never pass the real mall module directory because `syncRobotHome` removes its target recursively before generating.
 
@@ -286,13 +287,13 @@ node 'D:/git/fan/mall/scripts/sync_robot_home.mjs' `
   --api-base-url 'https://jqr.21zuo.com/api'
 ```
 
-- [ ] **Step 3: Copy only the three generated video-detail files**
+- [x] **Step 3: Copy the generated classifier and video-detail files**
 
-After checking the temporary outputs, copy only `pages/videos/detail.js`, `detail.wxml`, and `detail.wxss` into `D:/git/fan/mall/modules/robot-home/pages/videos/`. Preserve all other module files, `app.json`, mall navigation, and unrelated in-progress changes.
+After checking the temporary outputs, copy only `utils/video-url.js` into `D:/git/fan/mall/modules/robot-home/utils/` and `pages/videos/detail.js`, `detail.wxml`, and `detail.wxss` into `D:/git/fan/mall/modules/robot-home/pages/videos/`. Preserve all other module files, `app.json`, mall navigation, and unrelated in-progress changes.
 
-- [ ] **Step 4: Record the overlay without falsifying the base manifest**
+- [x] **Step 4: Record the overlay without falsifying the base manifest**
 
-Keep the existing base `sourceCommit` (`4e9f14efb25fc3dbc03f5d049261260d09bd913c`). Add or replace a `localOverlays` entry named `video-playback-fallback` containing the committed Robot Home SHA and source/target SHA256 values for each of the three files. Do not rewrite base source file hashes or claim the full module was regenerated. Preserve other overlay entries. Use this Node command after the page copies and Robot Home feature commit exist:
+Keep the existing base `sourceCommit` (`4e9f14efb25fc3dbc03f5d049261260d09bd913c`). Add or replace a `localOverlays` entry named `video-playback-fallback` containing the latest Robot Home commit affecting the four overlaid files and source/target SHA256 values for each. Do not rewrite base source file hashes or claim the full module was regenerated. Preserve other overlay entries. Use this Node command after the four files have been copied:
 
 ```powershell
 @'
@@ -304,7 +305,7 @@ import { execFileSync } from "node:child_process";
 const sourceRoot = "D:/git/fan/AI项目/机器人之家/robot-home/robot-home-miniapp";
 const mallRoot = "D:/git/fan/mall";
 const manifestPath = path.join(mallRoot, "modules/robot-home/source-manifest.json");
-const paths = ["pages/videos/detail.js", "pages/videos/detail.wxml", "pages/videos/detail.wxss"];
+const paths = ["pages/videos/detail.js", "pages/videos/detail.wxml", "pages/videos/detail.wxss", "utils/video-url.js"];
 const hash = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const overlays = Array.isArray(manifest.localOverlays) ? manifest.localOverlays : [];
@@ -317,7 +318,7 @@ manifest.localOverlays = [
   ...overlays.filter((entry) => entry.name !== "video-playback-fallback"),
   {
     name: "video-playback-fallback",
-    sourceCommit: execFileSync("git", ["-C", sourceRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    sourceCommit: execFileSync("git", ["-C", sourceRoot, "log", "-1", "--format=%H", "--", ...paths], { encoding: "utf8" }).trim(),
     files,
   },
 ];
@@ -325,7 +326,7 @@ fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 '@ | node --input-type=module -
 ```
 
-- [ ] **Step 5: Run mall integration verification**
+- [x] **Step 5: Run mall integration verification**
 
 Run from `D:/git/fan/mall`:
 
@@ -334,7 +335,7 @@ node --test scripts/robot_home_integration_test.mjs
 node --check modules/robot-home/pages/videos/detail.js
 ```
 
-Expected: the baseline source-commit assertion no longer fails, all integration cases pass, and generated/copied detail code parses. Run `scripts/tests/Test-RobotHomeWxmlBindings.ps1` and confirm the mall detail WXML contains no JavaScript method calls.
+Result: 8/8 integration cases pass, generated/copied detail JS parses, and the WXML binding scan passes. The PowerShell script required process-scope `-ExecutionPolicy Bypass`; no machine policy was changed.
 
 ### Task 6: Full local verification, final report, and push
 
@@ -344,7 +345,7 @@ Run the MiniApp suite, both URL classifier suites, the Web production build, and
 
 - [ ] **Step 2: Verify all generated copies and working-tree boundaries**
 
-Compare canonical and generated target SHA values recorded in `localOverlays`. Confirm only the three intended `modules/robot-home/pages/videos/detail.*` files and `source-manifest.json` changed in the mall workspace. Do not stage any mall files because that workspace already has extensive user-owned modifications.
+Compare canonical and generated target SHA values recorded in `localOverlays`. Confirm only `modules/robot-home/utils/video-url.js`, the three intended `modules/robot-home/pages/videos/detail.*` files, `source-manifest.json`, and `scripts/robot_home_integration_test.mjs` changed in the mall workspace. Do not stage any mall files because that workspace already has extensive user-owned modifications.
 
 - [ ] **Step 3: Update the Phase16.3 report and inspect the Robot Home diff**
 
@@ -361,4 +362,5 @@ Commit the Robot Home code/report changes on `codex/phase16-content-quality`. Co
 - MiniApp external copy, direct playback, playback-error copy, invalid state, and preserved user actions are covered by Task 4.
 - The mall shell copy, base manifest truthfulness, and generated integration test are covered by Task 5; the destructive full-target sync path is expressly excluded.
 - Build/test counts, hashes, commit/push evidence, and device-test limits are recorded by Task 6.
+- The MiniApp runtime compatibility test evaluates the classifier without a global `URL`; DevTools and device verification remain a separate, unrun check.
 - No API/database schema, production data, deployment, remote content, or infrastructure changes are included.
