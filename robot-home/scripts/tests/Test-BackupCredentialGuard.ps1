@@ -34,20 +34,29 @@ foreach ($name in @('backup.sh', 'restore.sh')) {
 $restoreSource = $sources['restore.sh']
 $preBackupFailure = [regex]::Match(
     $restoreSource,
-    'if\s+\[\[\s+\$\{PRE_DUMP_EXIT\}\s+-ne\s+0\s+\]\];([\s\S]*?)\r?\n\s*fi'
+    'if\s+\[\[\s+\$\{PRE_DUMP_EXIT\}\s+-ne\s+0\s+\|\|\s+\$\{PRE_GZIP_EXIT\}\s+-ne\s+0\s+\]\];([\s\S]*?)\r?\n\s*fi'
 )
 if (-not $preBackupFailure.Success -or $preBackupFailure.Groups[1].Value -notmatch 'exit 1') {
-    $failures += 'restore.sh continues when the pre-restore backup fails.'
+    $failures += 'restore.sh must stop when either pre-restore mysqldump or gzip fails.'
 }
 if (-not $restoreSource.Contains('gzip -t')) {
     $failures += 'restore.sh does not validate the pre-restore backup gzip stream.'
 }
 $preRestoreDumps = [regex]::Matches(
     $restoreSource,
-    'mysqldump([\s\S]*?)\|\s*gzip\s*>\s*"\$\{PRE_RESTORE_BACKUP\}"'
+    'mysqldump([\s\S]*?)\|\s*gzip\s*>\s*"\$\{PRE_RESTORE_TEMP\}"'
 )
 if ($preRestoreDumps.Count -ne 2) {
     $failures += "restore.sh should define two complete pre-restore mysqldump pipelines; found $($preRestoreDumps.Count)."
+}
+if ([regex]::Matches($restoreSource, 'PRE_PIPE_STATUS=\("\$\{PIPESTATUS\[@\]\}"\)').Count -ne 2) {
+    $failures += 'restore.sh must capture both commands in each pre-restore backup pipeline.'
+}
+if (-not $restoreSource.Contains('verify-backup.sh" --allow-empty-data "${PRE_RESTORE_TEMP}"')) {
+    $failures += 'restore.sh does not validate the pre-restore SQL snapshot before publishing it.'
+}
+if (-not $restoreSource.Contains('mv -- "${PRE_RESTORE_MANIFEST_TEMP}" "${PRE_RESTORE_MANIFEST}"')) {
+    $failures += 'restore.sh does not publish the pre-restore manifest before the archive.'
 }
 foreach ($match in $preRestoreDumps) {
     foreach ($option in @('--routines', '--triggers', '--events')) {

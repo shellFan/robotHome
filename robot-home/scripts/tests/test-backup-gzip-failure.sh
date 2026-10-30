@@ -14,6 +14,8 @@ MOCK_BIN="$TMP_ROOT/bin"
 ISOLATED_HOME="$TMP_ROOT/robot-home"
 mkdir -p "$MOCK_BIN" "$ISOLATED_HOME/scripts/db"
 cp "$BACKUP_SCRIPT" "$ISOLATED_HOME/scripts/db/backup.sh"
+source "$TEST_DIR/helpers/install-mock-flock.sh"
+install_mock_flock "$MOCK_BIN"
 trap 'rm -rf -- "$TMP_ROOT"' EXIT
 
 cat > "$MOCK_BIN/docker" <<'MOCK'
