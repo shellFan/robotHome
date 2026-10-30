@@ -97,7 +97,7 @@ Use the platform URL parser inside `try/catch`; accept only HTTP(S), require a h
 
 Run: `node --test tests/video-url.test.js` from the MiniApp directory. Expected: all classifier tests pass.
 
-- [ ] **Step 5: Commit the MiniApp classifier and tests**
+- [x] **Step 5: Commit the MiniApp classifier and tests**
 
 ```powershell
 git -C 'D:/git/fan/AI项目/机器人之家' add -- robot-home/robot-home-miniapp/utils/video-url.js robot-home/robot-home-miniapp/tests/video-url.test.js
@@ -113,11 +113,11 @@ git -C 'D:/git/fan/AI项目/机器人之家' commit -m "feat(miniapp): classify 
 
 **Interface:** ES-module exports `classifyVideoUrl(value)` and `resolveVideoSource(video)` with the same result shape and field precedence as Task 1.
 
-- [ ] **Step 1: Write the failing Node tests**
+- [x] **Step 1: Write the failing Node tests**
 
 Use `node:test` and `node:assert/strict` to cover direct media with signed query strings, case-insensitive extensions, an external watch page, invalid schemes, malformed input, and field precedence. Keep the cases equal to the MiniApp contract.
 
-- [ ] **Step 2: Run the focused test and confirm it fails**
+- [x] **Step 2: Run the focused test and confirm it fails**
 
 Run from `D:/git/fan/AI项目/机器人之家/robot-home/robot-home-web`:
 
@@ -127,11 +127,11 @@ node --test tests/video-url.test.js
 
 Expected: module-not-found failure for `../src/utils/video-url.js`.
 
-- [ ] **Step 3: Implement the ES-module classifier**
+- [x] **Step 3: Implement the ES-module classifier**
 
 Mirror Task 1's validation and return shape; do not add a dependency or change the backend contract.
 
-- [ ] **Step 4: Run the focused tests**
+- [x] **Step 4: Run the focused tests**
 
 Run: `node --test tests/video-url.test.js` from the PC project. Expected: all cases pass.
 
