@@ -2,16 +2,20 @@
 
 ## 线上只读结果
 
-2026-10-30 当前公开 API 返回资讯 37 条、分类 12 项。逐项分类计数均为 0；资讯记录分类字段非空数为 0。分类 API 和资讯 API 返回 HTTP 200。按线上返回的 12 个 categoryId 逐个请求筛选，12/12 均业务成功且总数为 0（日志：`docs/phase16.3/logs/category-filter-phase163-current.log`）。
+2026-10-30 当前公开 API 返回资讯 37 条、分类 12 项。逐项分类计数均为 0；公开资讯详情返回的 `categoryId` 为空。分类 API 和资讯 API 返回 HTTP 200。按线上返回的 12 个 categoryId 逐个请求筛选，12/12 均业务成功且总数为 0（日志：`docs/phase16.3/logs/category-filter-phase163-current.log`）。
 
-只读快照 docs/phase16.3/data/news-live-readonly.csv 有 37 条：37 个标题含 nuxt-app 模板文本，17 条摘要包含 Cookie/隐私类文字，16 条封面指向官网 logo.svg，15 条没有封面。分类 dry-run v2 对 37 条全部标记 MANUAL_REVIEW_REQUIRED；不将标题关键词作为自动发布或推荐的依据。
+只读快照 `docs/phase16.3/data/news-live-readonly.csv` 有 37 条：37 个标题带有 `nuxt-app` 模板文本，17 条摘要包含 Cookie/隐私类文字，16 条封面指向官网 `logo.svg`，15 条没有封面。逐条复核 dry-run v3 将其分为 15 个产品页、21 个企业/服务/政策/入口类页面、1 条历史企业新闻候选；37 条仍全部要求人工审核，唯一新闻候选建议类别“企业”，不推荐置顶或推荐。详见 `docs/phase16.3/data/news-classification-dry-run-v3.csv`。
+
+接口字段说明经源码复核后更正：公共文章详情 DTO 会返回 `categoryId`、`author`、`source` 和正文；本次详情快照中的分类与来源为空。`author` 没有保存在本轮可引用的导出结果，因此 v3 明确标记未捕获，不作推断。公共详情不返回 `sourceUrl` 或数据库 `status`；公共文章分页服务只选择 `status=1`，所以这些 API 返回项是公开上架内容。鉴权 Admin API 可返回完整 Article 实体（含 `sourceUrl` 和 `status`），本轮未登录或调用。
 
 ## 处理结果
 
 - 生产分类变更：0。
 - 文章删除/下架：0。
 - 作者、来源和人工编辑内容：未变更。
-- dry-run：已生成，位于 docs/phase16.3/data/news-classification-dry-run-v2.csv。
+- dry-run：37 条逐条清单位于 `docs/phase16.3/data/news-classification-dry-run-v3.csv`；全部是人工复核建议，没有自动分类或推荐写入。
 - 未能可靠判断的记录：全部保留待人工审核。
 
-由于公开 API 未暴露来源、审核状态和正文全文，当前不能据此安全地修复线上文章。Cookie 正文、模板标题、Logo 封面应逐条对照官方原文；疑似产品页需进入产品审核流程，不能直接删除。生产备份和授权前不写入。
+分类为 0 的直接原因是文章 `category_id` 为空；分类统计按 `status=1` 分组，只将非空栏目 ID 计入分类，点击分类则按栏目 ID 筛选，因此这 37 条不会出现在任何分类列表中。内容质量根因是抓取器把 UBTECH 网站的产品详情、Cookie/隐私、合规、售后、下载、解决方案和索引页混入文章表；正文中可见页面模板与 Cookie 文本。应修复采集类型识别及来源映射，产品详情进入产品审核，静态政策/入口页经人工确认后再处理，不能直接删除或覆盖人工内容。
+
+**审计副作用披露：** 详情 API 会在 `@Transactional` 方法内调用 `BizCounter.incr`；该实现通过 MyBatis 直接执行文章 `view_count` 加一的数据库更新。本轮对 ID 1–37 连续请求两遍，共 74 次详情 GET。第二遍有明确的 37/37 成功响应；第一遍详细结果在工具输出中被截断，成功数无法确认。因此至少 37 次计数更新很可能已随请求事务提交，最多可能为 74 次；最终持久化数量无法核验。未反向扣减，避免覆盖真实浏览量。后续验收没有再次请求资讯详情接口。除此之外，没有执行文章分类、来源、正文或发布状态的后台/数据库写入。

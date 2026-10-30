@@ -1,5 +1,7 @@
 # ROBOT HOME PHASE16.3 FINAL DELIVERY
 
+> **历史快照：** 本报告记录 2026-10-30 12:12 的验收状态，之后发生的代码、内容预演和测试结果以 [`CONTINUATION_AUDIT_2026-10-30.md`](CONTINUATION_AUDIT_2026-10-30.md) 为准。本报告不代表当前分支或线上状态。
+
 报告时间：2026-10-30 12:12（Asia/Shanghai）。生产环境未连接。最近公开 HTTPS 只读数据证据为 11:36。
 
 ## GIT

@@ -1,0 +1,233 @@
+{
+  "tool": "robot-home-local-content-staging",
+  "runId": "2026-10-30T04-28-47-282Z-5d924307",
+  "mode": "dry-run",
+  "target": "read-only-local-plan",
+  "productionConnected": false,
+  "contentType": "tutorial",
+  "sourceFile": "D:\\git\\fan\\AI项目\\机器人之家\\docs\\phase16.3\\content\\tutorials",
+  "sourceSha256": "cc7674a0357be5c95e34bcc269bd195c3436a8b9c75204778007b0a3bcdbe18b",
+  "manifestSha256": "6d48d599bb5cd4e6feb9fbfe63e80c8477555aa7a9c9222046e28c071ffe3f7f",
+  "batchSize": 5,
+  "counts": {
+    "INSERT_STAGING": 12
+  },
+  "plan": [
+    {
+      "contentType": "tutorial",
+      "sourceKey": "01-robot-types",
+      "action": "INSERT_STAGING",
+      "payloadHash": "cfc9dd7db72015065c380b3c557a86886b2fe61baa7bb32d42d9e3c9ac769b71",
+      "payload": {
+        "title": "机器人基础分类：先看任务，再看外形",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 机器人基础分类：先看任务，再看外形\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 分类回答不同问题\r\n\r\n机器人没有唯一的分类轴。按工作场景，可以区分工业、专业服务、消费服务和医疗机器人；按运动方式，可以区分固定机械臂、轮式移动机器人、足式机器人和人形机器人；按任务，还可以分成搬运、检测、清洁、配送、康复等。一个设备可以同时属于多个维度，例如仓库中的移动机械臂既是移动机器人，也承担搬运作业。\r\n\r\n“人形”“机器狗”描述外形或运动结构，不等于它的应用类别，也不代表它比其他结构更通用。判断产品时应先问它要完成什么任务、在什么环境工作，再核对自由度、负载、速度、续航、传感器和安全措施。\r\n\r\n## 2. 常见机器人类型\r\n\r\n- **工业机器人**：用于工业自动化的可编程设备，常见为六轴机械臂、SCARA、直角坐标和并联机器人。机器人本体之外，还需要末端工具、夹具、工件定位、控制柜和安全单元。\r\n- **移动机器人**：使用轮式或履带底盘移动，可由人工遥控、沿固定路线运行，或通过定位与导航在环境中移动。AMR、AGV 的定义和能力会随行业用法而不同，应以具体导航方式和工作边界为准。\r\n- **足式与人形机器人**：以腿足适应台阶、门槛或非结构化地面；人形机器人还包含躯干、手臂和手部，控制与平衡难度高。外形相似不意味着能完成相同任务。\r\n- **服务机器人**：面向工业自动化之外的服务任务，可用于配送、清洁、巡检、农业或陪护等；具体类别以任务和使用环境划分。\r\n\r\n## 3. 选择分类时的实用步骤\r\n\r\n写一句可验收的任务描述，例如“在固定围栏内将 2 千克零件从料箱取出并放入夹具”。然后列出空间、节拍、载荷、定位误差、人员接近方式和故障恢复要求。用这些条件筛选结构和产品，避免只按外观、自由度数量或宣传片判断。\r\n\r\n## 4. 快速核对表\r\n\r\n记录：任务边界、环境、机器人结构、移动方式、末端工具、传感器、操作者培训、安全风险、验收指标和维护责任。没有这些信息时，产品类别只能作为检索入口，不能作为采购结论。\r\n\r\n## 参考\r\n\r\n- [国际机器人联合会：工业机器人定义与分类](https://ifr.org/industrial-robots)\r\n- [国际机器人联合会：服务机器人分类](https://ifr.org/wr-service-robots)\r\n- [ISO 8373:2021 机器人术语标准目录](https://www.iso.org/standard/75539.html)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "02-humanoid-robots",
+      "action": "INSERT_STAGING",
+      "payloadHash": "ee1544c8bdd8a2c9ff329758c520c33aaad6369eb78f75203df02430e7fa1402",
+      "payload": {
+        "title": "人形机器人入门：把系统拆成可验证的能力",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 人形机器人入门：把系统拆成可验证的能力\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 人形是一种结构选择\r\n\r\n人形机器人通常具有躯干、双臂和双腿，部分产品配有头部传感器或灵巧手。采用接近人类的结构，有机会使用为人设计的通道、货架和工具；同时也带来双足平衡、多关节协调、跌倒保护、能源消耗和维护复杂度。它不是所有任务的默认最佳结构，固定机械臂、轮式底盘或专用设备可能更简单可靠。\r\n\r\n## 2. 看懂主要子系统\r\n\r\n- **机体与执行器**决定关节范围、速度、输出力矩、热负荷和可维护性。\r\n- **感知系统**可能包括相机、深度传感器、IMU、编码器和力传感器；这些器件提供测量值，不能单独保证机器人理解场景。\r\n- **运动控制**需要把任务目标变成全身协调的关节动作，并处理碰撞、稳定性和执行器限制。\r\n- **任务软件**负责识别对象、规划动作、调用工具或与人交互。演示中的单次成功不能说明它能在变化环境下持续可靠运行。\r\n\r\n## 3. 评估真实任务\r\n\r\n把工作分解成“到达工位—识别目标—抓取—搬运—放置—异常恢复”。为每步定义成功标准和人工接管条件。记录成功率、周期时间、误抓率、跌倒/保护停机次数、人工干预时间、单位任务能耗和维护停机时间。先在数字仿真或封闭试点中验证，再逐步增加变化条件。\r\n\r\n## 4. 安全与部署边界\r\n\r\n双足平台可能跌倒，手臂也可能夹挤或碰撞周围人员。试点必须限定区域、速度、载荷和人员距离，准备急停、隔离、故障处置与恢复流程。不要把“有 AI”或“可遥操作”当作安全功能；安全设计应由制造商和系统集成方根据具体场景完成风险评估。\r\n\r\n## 参考\r\n\r\n- [ISO 8373:2021 机器人术语标准目录](https://www.iso.org/standard/75539.html)\r\n- [Agility Robotics：Digit 产品介绍](https://www.agilityrobotics.com/content/meet-digit-the-newest-robot-from-agility-robotics)\r\n- [现代机器人学：机构、运动规划与控制（西北大学）](https://modernrobotics.northwestern.edu/)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "03-quadruped-robots",
+      "action": "INSERT_STAGING",
+      "payloadHash": "e387f9236f7455dc9dbf41669d9ee86b2c5b5a46225eca23239bc3f870832ef4",
+      "payload": {
+        "title": "四足机器人入门：地形适应不等于无条件越障",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 四足机器人入门：地形适应不等于无条件越障\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 四足平台做什么\r\n\r\n四足机器人通过四条腿支撑和移动，可用于巡检、测绘、科研、危险区域观察或开发验证。相比轮式底盘，腿足结构能跨越某些台阶和不平地面；代价是步态控制更复杂，能耗、噪声、跌倒风险和维护成本也可能增加。可通行的地面与坡度取决于具体型号、载荷、地面材质和环境条件。\r\n\r\n## 2. 选型要核对的参数\r\n\r\n查看整机质量、额定载荷、速度范围、单次运行时间、充电方式、防护等级、可工作温度、传感器、通信方式和开发接口。确认参数对应的测试条件：空载和带载、平地和坡面、室内和室外结果不可直接互换。额定载荷也不等于可以在任何姿态下持续搬运该重量。\r\n\r\n## 3. 任务链与试点\r\n\r\n巡检任务通常包括地图或路线准备、定位、导航、避障、到点采集、数据回传和异常召回。先在安全、已知区域建立地图，标注台阶、坡面、玻璃、松散地面、窄门和无线盲区。按路线重复运行并记录到达率、任务完成时间、人工接管次数、传感器数据缺失和电量变化，再判断是否满足运营需求。\r\n\r\n## 4. 操作安全\r\n\r\n腿足运动会产生夹点和冲击风险。划定测试区，禁止人员站在机器人可能跌倒或摆腿的区域；使用厂家规定的遥控器、急停和电池。负载、坡度或速度变化后重新验证。未完成风险评估前，不应在公共空间或人员密集区域进行自主运行。\r\n\r\n## 参考\r\n\r\n- [Boston Dynamics：Spot 移动机器人](https://bostondynamics.com/products/spot)\r\n- [Unitree：Go2 四足机器人](https://www.unitree.com/mobile/go2/)\r\n- [Unitree 官方开发文档](https://support.unitree.com/home/en/developer/)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "04-industrial-robots",
+      "action": "INSERT_STAGING",
+      "payloadHash": "aec396a85c695c945ed88911daed74e00b5cf8464bcf9e27df242b8587d8c51f",
+      "payload": {
+        "title": "工业机器人基础：机器人本体只是工作站的一部分",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 工业机器人基础：机器人本体只是工作站的一部分\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 常见结构\r\n\r\n六轴关节机器人适合多方向接近和复杂轨迹；SCARA 常用于平面内高速装配；直角坐标机器人沿直线轴运动，工作空间容易规划；并联机构可用于特定高速取放任务。结构名称不能直接决定节拍或精度，实际性能还受负载、臂展、安装方式、工具、工件和运动路径影响。\r\n\r\n## 2. 工作站组成\r\n\r\n一套工作站通常包括机械臂、控制器、末端执行器、夹具、工件供料、传感器、外围设备、通信和安全系统。系统集成要确认机器人基座、工具中心点、工件坐标、程序速度、负载参数和碰撞空间。工具或夹具变更后，必须重新核对质量、重心、偏置与危险区域。\r\n\r\n## 3. 从需求到验收\r\n\r\n明确目标节拍、工件变型、定位公差、连续运行时间、换线频率和维护窗口。用真实工件做试验，覆盖供料偏差、夹取失败、设备互锁、断电恢复和急停后的重新启动。验收报告应包含测试样本、运行时长、成功率、故障次数、质量结果和停机原因，不能只以厂商的空载最大速度作为承诺。\r\n\r\n## 4. 安全集成\r\n\r\n风险来自机器人运动、工具、工件、夹具、外围设备以及人员操作的组合。围栏、联锁、扫描器、速度限制和安全停止方式应由具备相应能力的集成方设计与验证。机器人本体符合某项标准，不自动代表整条产线安全；调试、维护、手动示教和自动运行的安全条件也不同。\r\n\r\n## 参考\r\n\r\n- [IFR：工业机器人](https://ifr.org/industrial-robots)\r\n- [ISO 10218-1:2025 工业机器人安全要求](https://committee.iso.org/standard/73933.html)\r\n- [ISO 10218-2:2025 工业机器人应用与工作单元](https://www.iso.org/standard/73934.html)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "05-cobots",
+      "action": "INSERT_STAGING",
+      "payloadHash": "a51e11079110eb72e05ef6965d6310cdce169d20f38e2781d2f0091bb2f6bf72",
+      "payload": {
+        "title": "协作机器人基础：协作能力必须落实到应用风险评估",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 协作机器人基础：协作能力必须落实到应用风险评估\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 协作机器人是什么\r\n\r\n协作机器人常用于设计为允许人与机器人共享工作空间的应用。协作不是单一硬件标签，也不表示机器人可以在任何速度、工具和工件条件下与人直接接触。末端工具、夹持的物体、运动路径、控制模式和工作站布局都可能改变风险。\r\n\r\n## 2. 先设计应用，再选择模式\r\n\r\nISO/TS 15066 对协作工业机器人系统与工作环境给出安全要求，并补充 ISO 10218 中的要求与指导。常见协作应用会涉及安全额定监控停止、手动引导、速度与间距监控、功率与力限制等概念。每种方式都有适用条件，必须由完整风险评估确定，不能把产品页面中的“协作模式”直接当作验收结论。\r\n\r\n## 3. 评估接触风险\r\n\r\n分析可触及的机器人部位、速度、动能、夹点、锐边、工具和工件。即使机器人本体输出力受限，尖锐工具、重物或夹具也可能造成伤害。根据场景确定隔离距离、限制速度、停止时间、工具防护和人员培训；任何结构或程序变更后，都要检查原有评估是否仍然成立。\r\n\r\n## 4. 试点与记录\r\n\r\n选择低风险、重复性强且收益可测的任务。记录部署前后节拍、人工操作步骤、故障率、人工接管和安全停止次数。把安全功能测试、复位方式、维护责任和异常报告纳入交付文档。需要开展接触测量或法规符合性判断时，应使用专业测试设备和合格人员。\r\n\r\n## 参考\r\n\r\n- [ISO/TS 15066:2016 协作机器人](https://www.iso.org/standard/62996.html)\r\n- [ISO 10218-2:2025 工业机器人应用与工作单元](https://www.iso.org/standard/73934.html)\r\n- [ISO/TC 299 机器人标准目录](https://www.iso.org/committee/5915511/x/catalogue/)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "06-ros2",
+      "action": "INSERT_STAGING",
+      "payloadHash": "f866ed57a29281a36c38fd255c656f62d77f68f094b8308b0547b9924454acd5",
+      "payload": {
+        "title": "ROS 2 入门：节点、通信与控制接口",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# ROS 2 入门：节点、通信与控制接口\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. ROS 2 的位置\r\n\r\nROS 2 是机器人软件的通信、集成和工具生态，不是实时操作系统，也不会自动提供功能安全。一个机器人程序通常由多个进程或组件组成，它们通过 ROS 图中的节点、话题、服务和动作交换数据。\r\n\r\n## 2. 选择合适的通信方式\r\n\r\n- **Topic** 适合连续数据流，例如关节状态、图像或里程计；发布者与订阅者不要求同时存在。\r\n- **Service** 适合短请求与响应，例如查询状态或触发一次简单操作。\r\n- **Action** 适合耗时任务，可反馈进度并支持取消，例如导航到目标点。\r\n\r\n通信能否稳定工作还依赖域发现、网络、多播、防火墙、消息类型和 QoS。可靠性、历史深度、持久性等 QoS 设置不匹配时，节点可能已经发现对方但仍收不到预期数据。\r\n\r\n## 3. 从 talker/listener 到机器人模型\r\n\r\n先安装受支持的发行版并运行官方 talker/listener 示例，再练习 `ros2 node list`、`ros2 topic list`、`ros2 topic echo`、`ros2 service list` 和 `ros2 action list`。接着学习工作空间、包、参数、launch、TF 坐标变换、RViz 和 rosbag。URDF 描述连杆与关节；它是模型文件，不会自动生成准确的实体几何、碰撞模型或硬件驱动。\r\n\r\n## 4. 连接控制系统\r\n\r\n`ros2_control` 提供控制器与硬件接口之间的框架。先用 mock hardware 或仿真验证关节名称、命令接口、状态接口、控制器生命周期和限位，再连接真实设备。真实硬件还需遵循厂商接口、控制周期和安全说明。通信框架或仿真测试不能替代实体机器人的独立安全功能。\r\n\r\n## 参考\r\n\r\n- [ROS 2 官方教程（Jazzy）](https://docs.ros.org/en/jazzy/Tutorials.html)\r\n- [ROS 2 官方概念文档（Jazzy）](https://docs.ros.org/en/jazzy/Concepts.html)\r\n- [ros2_control 官方文档（Jazzy）](https://control.ros.org/jazzy/doc/ros2_control/doc/index.html)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "07-robot-sensors",
+      "action": "INSERT_STAGING",
+      "payloadHash": "39c0948e9b6b958de4e3b21c9a2a68b0a6bc87757a714b0fe5587e2139643480",
+      "payload": {
+        "title": "机器人传感器：测量值需要坐标、时间与误差说明",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 机器人传感器：测量值需要坐标、时间与误差说明\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 常见传感器\r\n\r\n- **编码器**测量电机或关节转动；零位、传动比、回差和安装误差会影响位置估计。\r\n- **IMU**中的加速度计与陀螺仪测量线加速度和角速度；偏置、振动、温度和安装方向会影响数据。\r\n- **相机与深度相机**提供图像或深度测量；环境光、反射、遮挡、距离和视场都会影响识别与测距。\r\n- **激光雷达**给出距离采样或点云；玻璃、黑色表面、雨雾、粉尘与安装位置可能改变观测质量。\r\n- **力/力矩传感器**测量载荷或接触作用，需要校准并确认传感器坐标系与工具坐标系。\r\n\r\n## 2. 时间与坐标\r\n\r\n融合数据不是把数值简单平均。各传感器应有清楚的坐标系、时间戳、单位和更新频率。传感器与机器人之间的外参误差，会让地图、抓取点或姿态估计偏移；时间同步误差则会让运动中的目标看起来位置不一致。先检查原始数据、时间戳和 TF，再讨论融合算法。\r\n\r\n## 3. 逐层调试\r\n\r\n先确认供电、通信与驱动状态，再查看数据范围、丢帧率和更新时间。静止时检查 IMU 零偏；用已知几何目标检查相机或雷达外参；移动时核对里程计方向、单位和坐标变换。记录传感器型号、固件、安装位置、标定日期和环境条件，以便复现问题。\r\n\r\n## 4. 按任务选型\r\n\r\n从需要测量的物理量出发，再比较量程、精度、视场、采样率、延迟、环境适应性、同步接口、驱动支持和生命周期。高分辨率不等于任务结果更准确；采购前应用目标材料、光照和工作距离做现场测试，并定义数据失效时的安全降级行为。\r\n\r\n## 参考\r\n\r\n- [ROS 2 `sensor_msgs` 消息包文档](https://docs.ros.org/en/jazzy/p/sensor_msgs/)\r\n- [NIST：机器人感知性能测量](https://www.nist.gov/programs-projects/perception-performance-robotic-systems)\r\n- [NIST：机器人校准与配准工具](https://www.nist.gov/el/intelligent-systems-division-73500/calibration-and-registration-tools)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "08-motion-control",
+      "action": "INSERT_STAGING",
+      "payloadHash": "94728d6c19185fc75c0e21ed88f92dcd2bec2c86346211f8facede797e71667a",
+      "payload": {
+        "title": "运动控制基础：从目标值到可验证的动作",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 运动控制基础：从目标值到可验证的动作\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 控制回路\r\n\r\n控制器根据目标值与测量值之间的误差计算控制输入。常见执行链可能包含位置、速度和电流/力矩等层级，但具体架构取决于机器人和驱动器。PID 是常见方法之一；比例、积分和微分项影响响应、稳态误差与噪声敏感性。参数过大可能产生振荡或超调，过小则可能响应迟缓。不同系统需要通过模型和试验确定参数。\r\n\r\n## 2. 坐标与轨迹\r\n\r\n机械臂程序要区分基座、关节、工具和工件坐标系。一个目标位姿只有在坐标系、单位和工具中心点明确时才有意义。路径规划把目标变成连续运动，还要检查速度、加速度、关节范围、碰撞和工艺约束。移动机器人还需要估计自身位姿，并处理地图误差、定位跳变和路径偏离。\r\n\r\n## 3. 建议的调试顺序\r\n\r\n先在仿真或离线环境确认关节方向、坐标变换、轨迹范围和碰撞模型。实体调试时从空载、低速、小范围开始；核实急停、保护停止和限位，再逐渐增加速度与负载。同步记录目标值、反馈值、误差、控制输出、驱动器温度和故障码，不要只凭运动观感调整参数。\r\n\r\n## 4. 安全边界\r\n\r\n软件控制策略不能替代独立的安全功能。实体机器人的限速、限力、停止时间和安全回路必须按整机与应用验证。调参前清场并按制造商程序进入安全模式；不得在人员可触及执行器时随意更改运动参数。\r\n\r\n## 参考\r\n\r\n- [Modern Robotics：运动学、规划与控制](https://modernrobotics.northwestern.edu/)\r\n- [ros2_control：控制器与硬件接口](https://control.ros.org/jazzy/doc/ros2_control/doc/index.html)\r\n- [ISO 10218-2:2025 工业机器人应用与工作单元](https://www.iso.org/standard/73934.html)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "09-robot-batteries",
+      "action": "INSERT_STAGING",
+      "payloadHash": "90bb047b5e7d0fafd72445f3d32af8f431aa1cbcd0ec480e3816ff3f6dab8ef1",
+      "payload": {
+        "title": "机器人电池与续航：从能量预算到安全维护",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 机器人电池与续航：从能量预算到安全维护\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 先区分功率与能量\r\n\r\n电池容量常以安时（Ah）表示，但不同电压下的 Ah 不能直接比较。名义能量可粗略估算为“标称电压 × 容量”，单位为 Wh。若任务平均功率约为 P 瓦，理想运行时间可用可用能量除以 P 粗估；实际还受峰值功率、温度、负载、驱动效率、电池老化、备用电量和电池管理策略影响。\r\n\r\n## 2. 续航测量要写明工况\r\n\r\n记录机器人型号、电池型号、固件、载荷、速度、地面、坡度、环境温度、传感器和网络状态。至少区分待机、典型任务和高负载任务，使用多次重复测试报告中位数或范围，并说明测试结束条件。厂商公布的续航如果没有同一工况，不应直接与现场结果比较。\r\n\r\n## 3. 电池与系统设计\r\n\r\n电池管理系统（BMS）通常参与电压、电流、温度和保护状态监测，但不能代替正确的电芯、充电器、线束、散热和机械保护设计。确认设备允许的电池型号、充电器、温度范围、存放条件、运输要求和维护周期。更换电池或充电器后，应按制造商说明重新验证系统。\r\n\r\n## 4. 安全操作\r\n\r\n使用匹配的原装或明确认可的充电器，不要拆解电池包或混用不匹配的电芯。发现鼓胀、异常发热、异味、漏液或外壳损伤时停止使用并按制造商流程处理。充电、存放、运输和报废应遵循当地规定以及设备说明；电池安全不能只依赖软件告警。\r\n\r\n## 参考\r\n\r\n- [美国 CPSC：电池安全与标准信息](https://www.cpsc.gov/Regulations-Laws--Standards/Voluntary-Standards/Topics/Batteries)\r\n- [美国 CPSC：锂电池充电安全提示](https://www.cpsc.gov/node/65775)\r\n- [Unitree Go2 电池产品说明（示例，具体以型号手册为准）](https://www.unitree.com/go2/battery/)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "10-robot-buying-guide",
+      "action": "INSERT_STAGING",
+      "payloadHash": "e9782d0cb3d5cbdad57419dde611d182f0701b6aa7213b862bdbdccb5dc5edaa",
+      "payload": {
+        "title": "机器人选购指南：把需求变成验收指标",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 机器人选购指南：把需求变成验收指标\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 从当前流程开始\r\n\r\n记录任务由谁完成、每班工作量、异常类型、质量要求、空间限制和停机成本。把“提升效率”“降低人工”改写为可测量目标，例如每小时合格件数、可接受的误差范围、平均人工接管时间或巡检覆盖率。标注哪些步骤必须由人审批，避免把不稳定的环节一次性全自动化。\r\n\r\n## 2. 对照能力和现场约束\r\n\r\n按任务核对负载、工作范围、速度、重复精度、移动能力、续航、防护等级、传感器、工具接口、软件接口、网络和环境条件。确认参数是额定值、最大值还是典型值，并问清其测量方式、配置、测试工况和责任主体。核查安装空间、电源、地面、照明、无线网络、工装、人员动线及设备维护条件。\r\n\r\n## 3. 评估总拥有成本\r\n\r\n采购价格之外，还要估算末端工具、夹具、集成、培训、备件、电池、软件许可、网络、维护、停机与安全验证成本。询问保修范围、备件交期、远程支持方式、数据存储与权限、固件升级策略和退场方案。不同供应商的报价应使用相同的任务范围和验收标准比较。\r\n\r\n## 4. 用试点做决定\r\n\r\n优先选择一个频次高、边界明确、失败后可恢复的任务。事先约定测试样本、运行时长、成功标准、异常清单、人工介入、数据所有权和回滚条件。试点报告同时呈现成功与失败案例；不能只展示精选视频或单次演示。\r\n\r\n## 5. 采购核对表\r\n\r\n保存需求说明、供应商回答、配置清单、风险评估、测试记录、验收报告、合同服务条款和维护联系人。对涉及人员安全的应用，委托具备能力的专业团队完成集成与安全验证。\r\n\r\n## 参考\r\n\r\n- [IFR：工业机器人](https://ifr.org/industrial-robots)\r\n- [NIST：机器人系统性能评估](https://www.nist.gov/programs-projects/performance-assessment-framework-robotic-systems)\r\n- [ISO 10218-2:2025 工业机器人应用与工作单元](https://www.iso.org/standard/73934.html)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "11-robot-learning-roadmap",
+      "action": "INSERT_STAGING",
+      "payloadHash": "c024a395ba92bf3982e034e4b19bc2862f24c6cf4f33ce7045acbfc2d481521a",
+      "payload": {
+        "title": "机器人开发学习路线：循序搭建可复现能力",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 机器人开发学习路线：循序搭建可复现能力\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 先补基础\r\n\r\n熟悉一种编程语言、Linux 命令行、Git、网络和基本调试流程。数学方面先掌握向量、矩阵、三角函数、坐标变换和概率基础；硬件方面理解电机、编码器、供电、串口、CAN 或以太网等常见接口。目标是能读懂日志、复现问题并安全地停下设备，而不是一次学完所有理论。\r\n\r\n## 2. 用 ROS 2 建立软件能力\r\n\r\n从节点、话题、服务、动作、参数和 launch 开始，练习写简单发布者/订阅者，记录和回放 rosbag，再学习 TF、URDF、RViz 和 QoS。使用固定发行版并记录系统、依赖和构建步骤。学会检查节点图、话题频率、时间戳、QoS 与日志，逐步形成可复现的开发环境。\r\n\r\n## 3. 在仿真和小项目中练习\r\n\r\n先用仿真或低风险教育平台完成移动底盘遥控、传感器数据读取、地图导航、机械臂末端位姿控制等小项目。每个项目至少有目标、硬件与软件版本、运行步骤、测试数据和失败记录。再逐步接入 `ros2_control`、MoveIt 或导航框架，理解各模块的输入、输出和限制。\r\n\r\n## 4. 走向实体设备\r\n\r\n开始实体测试前，阅读设备手册并检查供电、急停、限位和通信。低速、小载荷、封闭区域运行，设置人工监护与明确的停止条件。修改驱动、控制周期或机械结构后重新验证。涉及工业单元或人员协作时，由专业人员做风险评估和集成验证。\r\n\r\n## 5. 建议的学习记录\r\n\r\n整理代码仓库、接线图、依赖清单、问题复现步骤、性能测试和安全注意事项。说明自己验证过什么、还没有验证什么；可复现的工程记录比未经测量的能力宣传更有参考价值。\r\n\r\n## 参考\r\n\r\n- [ROS 2 官方教程（Jazzy）](https://docs.ros.org/en/jazzy/Tutorials.html)\r\n- [ros2_control 官方文档（Jazzy）](https://control.ros.org/jazzy/)\r\n- [Modern Robotics：在线教材与课程资源](https://modernrobotics.northwestern.edu/)\r\n- [Gazebo 官方文档](https://gazebosim.org/docs/)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    },
+    {
+      "contentType": "tutorial",
+      "sourceKey": "12-robot-applications",
+      "action": "INSERT_STAGING",
+      "payloadHash": "b487bb6c7013651b3d84f291fe2bc52f74105ea784a012b9f99ffa6e00874371",
+      "payload": {
+        "title": "常见机器人应用场景：先验证任务闭环",
+        "summary": "**内容状态：原创草稿，待技术与后台审核；未发布。**",
+        "content": "# 常见机器人应用场景：先验证任务闭环\r\n\r\n**内容状态：原创草稿，待技术与后台审核；未发布。**\r\n\r\n## 1. 制造与装配\r\n\r\n机械臂、移动平台和视觉系统可用于上下料、装配、焊接、喷涂或检测。适用性取决于工件一致性、夹具、节拍、质量要求和换型频率。要把物料供给、定位、异常处理和质量追溯一起纳入单元设计。\r\n\r\n## 2. 仓储与物流\r\n\r\n移动机器人可承担搬运、配送、盘点或箱件处理。现场评估应覆盖人车混行、窄通道、货架变化、电梯和充电点。指标可包括订单完成率、单位任务时间、拥堵等待、人工接管、系统停机和安全事件，而不能只记录行驶速度。\r\n\r\n## 3. 服务、清洁与医疗相关场景\r\n\r\n配送、清洁和迎宾机器人需要处理公共空间中的人员、障碍和服务流程；医疗或康复机器人还涉及更严格的设备管理、人员培训、隐私与监管要求。场景中的“辅助”或“自动化”不应被写成未经验证的诊疗效果。\r\n\r\n## 4. 巡检、农业与危险环境\r\n\r\n地面、空中或足式平台可以搭载传感器采集设备状态、作物或环境数据。需要评估通信盲区、天气、粉尘、反光、续航、数据质量和召回方式。危险区域使用前确认设备认证、防护能力和现场许可；普通商用品不能自动视为适合危险环境。\r\n\r\n## 5. 评估一个应用\r\n\r\n为任务画出“接收任务—定位—执行—验证结果—上报异常—恢复或召回”的闭环。定义质量、节拍、可用率、人工介入、单位成本和安全指标，采集试点基线并在相同条件下比较。失败时要能停机、恢复和追溯，不能依赖现场人员临时猜测。\r\n\r\n## 参考\r\n\r\n- [IFR：服务机器人及其应用分类](https://ifr.org/wr-service-robots)\r\n- [IFR：工业机器人应用](https://ifr.org/industrial-robots)\r\n- [NIST：机器人系统性能评估框架](https://www.nist.gov/programs-projects/performance-assessment-framework-robotic-systems)\r\n",
+        "status": 0,
+        "viewCount": 0,
+        "likeCount": 0,
+        "favoriteCount": 0,
+        "commentCount": 0
+      },
+      "reviewReason": null,
+      "before": null
+    }
+  ]
+}

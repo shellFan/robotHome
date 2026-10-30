@@ -1,19 +1,25 @@
-# Phase16.3 内容导入计划
+# Phase16.3 内容导入计划与本地预演器
 
 ## 当前状态
 
-尚未发现通用内容导入器；目前的 CSV 是只读审计或 dry-run 结果，不会连接数据库，也不具备事务、幂等、失败恢复或操作日志能力。没有生产写入。
+更新时间：2026-10-30 13:12（Asia/Shanghai）。
+
+此前尚未发现通用内容导入器。现新增 `robot-home/scripts/content/import-content.mjs`：支持 `article`、`product`、`video`、`tutorial`、`community` 类型；JSON manifest 可供所有类型使用，教程也可直接读取 Markdown 目录。`--dry-run` 生成带来源 SHA256 的逐条计划；`--apply` 只写本地 JSON staging 文件，按批次原子替换、记录变更前快照并支持幂等重跑和批次回滚。社区互动计数及待审核内容的发布状态有校验。
+
+该工具**没有数据库驱动或网络连接能力**；`--apply` 不会写 MySQL、Redis、MinIO 或任何线上服务。它验证本地数据包与审核准备流程，不等于生产数据库导入器。MySQL 5.6 事务、生产 schema/唯一键和真实备份恢复尚未接通或验证。测试：11/11 PASS，日志见 `logs/importer-tests-continuation-2026-10-30.log`。12 篇教程 Markdown 的本地 staging 有 12 条待审记录，均保持 `status=0`；修复摘要前的 dry-run/apply 都是 12 条 `UPDATE_STAGING`（3 批），随后 dry-run 为 12 条 `SKIP_UNCHANGED`。累计操作日志 26 条，结果见 `import-rehearsals/2026-10-30-tutorials/`。
+
+本轮代码审查修复输入键规范化、原型属性来源键处理、教程摘要提取、符号链接越界、apply 失败审计和回滚重试六类问题。apply 会先写入带完整计划的运行报告，再一次性原子替换本地 state；若最终报告更新失败，初始报告状态和 state 操作日志可用于人工核对，后续命令不会自动修正旧报告。报告只统计实际写入批次，回滚可安全重试。上述 staging 更新只改变本地 JSON，不发布教程。
 
 ## 建议执行顺序
 
 1. 从可信主机身份开始，完成只读数据库结构和内容状态核对。
 2. 对相关表做可恢复备份，校验文件，并在隔离实例验证恢复。
 3. 使用只读导出重新生成变更清单；逐条复核资讯、图片来源、视频播放方式、教程和官方社区内容。
-4. 实现导入工具，支持 dry-run/apply、内容类型、来源文件、分批、唯一键去重、事务、审核状态、逐条结果日志和失败重试。
+4. 本地 staging 预演器已实现。连接数据库的生产导入器仍需在确认生产 schema、自然键和回滚方式后单独实现；不得把本地 staging apply 描述为数据库写入。
 5. dry-run 输出预计 INSERT、UPDATE、下架、失败记录及回滚定位信息；人工审核后再取得针对具体表和数量的生产写入授权。
 6. 分批写入，按主键核对结果、调用公开 API，并检查页面；失败按操作日志反向恢复，不覆盖人工内容。
 
-所有 SQL 需兼容 MySQL 5.6。不得 TRUNCATE、DROP、清 Redis、删除记录或触碰其他网站数据库。
+所有未来数据库 SQL 需兼容 MySQL 5.6。不得 TRUNCATE、DROP、清 Redis、删除记录或触碰其他网站数据库。本地 JSON staging 不生成 SQL，也不会执行 SQL。
 
 ## 当前 dry-run 规模
 

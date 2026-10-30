@@ -23,3 +23,5 @@ ISO/TS 15066 对协作工业机器人系统与工作环境给出安全要求，�
 - [ISO/TS 15066:2016 协作机器人](https://www.iso.org/standard/62996.html)
 - [ISO 10218-2:2025 工业机器人应用与工作单元](https://www.iso.org/standard/73934.html)
 - [ISO/TC 299 机器人标准目录](https://www.iso.org/committee/5915511/x/catalogue/)
+
+**版本提示：** ISO 官方页面显示 ISO/TS 15066:2016 仍为已发布文件；ISO/AWI 15066-1 正在制定并计划替代它。本文不代替标准正文或合规评估，项目设计和验收前应复核标准最新状态。

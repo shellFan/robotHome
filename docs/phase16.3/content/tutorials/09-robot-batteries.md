@@ -21,5 +21,7 @@
 ## 参考
 
 - [美国 CPSC：电池安全与标准信息](https://www.cpsc.gov/Regulations-Laws--Standards/Voluntary-Standards/Topics/Batteries)
-- [美国 CPSC：锂电池充电安全提示](https://www.cpsc.gov/node/65775)
+- [美国 CPSC：微出行设备锂电池充电安全提示](https://www.cpsc.gov/node/65775)
 - [Unitree Go2 电池产品说明（示例，具体以型号手册为准）](https://www.unitree.com/go2/battery/)
+
+**适用范围：** CPSC 充电提示针对微出行设备，不是机器人电池认证或机器人使用规范；这里仅作一般充电风险参考，实际操作应遵循机器人厂商说明及所在地要求。
